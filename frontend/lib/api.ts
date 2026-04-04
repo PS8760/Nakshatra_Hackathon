@@ -57,3 +57,13 @@ export const getDashboardSummary = () => api.get("/ai/dashboard-summary");
 
 export const getReportInsights = (sessionIds?: number[], reportType = "overall") =>
   api.post("/ai/report-insights", { session_ids: sessionIds, report_type: reportType });
+
+// ── Session CRUD ─────────────────────────────────────────────────────────────
+export const getSessionDetail = (id: number) =>
+  api.get(`/sessions/${id}/detail`);
+
+export const updateSession = (id: number, notes: string) =>
+  api.put(`/sessions/${id}`, { notes });
+
+export const deleteSession = (id: number) =>
+  api.delete(`/sessions/${id}`);

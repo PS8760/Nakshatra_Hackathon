@@ -14,17 +14,29 @@ export default function HistoryPage() {
   const [sessions, setSessions] = useState<any[]>([]);
   const [cogHistory, setCogHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     useAuthStore.getState().hydrate();
-    if (!token) return;
+  }, []);
+
+  useEffect(() => {
+    if (!token) { setLoading(false); return; }
+    setLoading(true);
+    setError("");
     Promise.all([
       getSessions(),
       getCognitiveHistory().catch(() => ({ data: [] })),
-    ]).then(([s, c]) => {
-      setSessions(s.data);
-      setCogHistory(c.data);
-    }).finally(() => setLoading(false));
+    ])
+      .then(([s, c]) => {
+        setSessions(Array.isArray(s.data) ? s.data : []);
+        setCogHistory(Array.isArray(c.data) ? c.data : []);
+      })
+      .catch((err) => {
+        setError("Failed to load history. Please try again.");
+        console.error(err);
+      })
+      .finally(() => setLoading(false));
   }, [token]);
 
   if (!token) {
@@ -38,13 +50,17 @@ export default function HistoryPage() {
     );
   }
 
+  const scoreColor = (sc: number) => sc >= 70 ? "#22c55e" : sc >= 50 ? "#eab308" : "#ef4444";
+
   return (
     <div style={{ minHeight: "100vh", background: "#02182b", color: "#e8f4f0", paddingTop: 64 }}>
       <div className="W" style={{ paddingTop: 32, paddingBottom: 56 }}>
 
         <div style={{ marginBottom: 28 }}>
           <div className="pill" style={{ marginBottom: 14 }}>📋 History</div>
-          <h1 style={{ fontSize: "clamp(22px,3vw,34px)", fontWeight: 800, letterSpacing: "-.025em" }}>Your Activity History</h1>
+          <h1 style={{ fontSize: "clamp(22px,3vw,34px)", fontWeight: 800, letterSpacing: "-.025em" }}>
+            Your Activity History
+          </h1>
         </div>
 
         {/* Tabs */}
@@ -60,11 +76,20 @@ export default function HistoryPage() {
           ))}
         </div>
 
+        {/* Error */}
+        {error && (
+          <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 10, padding: "12px 16px", color: "#ef4444", fontSize: 13, marginBottom: 20 }}>
+            {error}
+          </div>
+        )}
+
+        {/* Loading */}
         {loading ? (
           <div style={{ display: "flex", justifyContent: "center", padding: "60px 0" }}>
             <div style={{ width: 36, height: 36, borderRadius: "50%", border: "3px solid rgba(15,255,197,0.2)", borderTopColor: "#0fffc5", animation: "spinCW 1s linear infinite" }} />
           </div>
         ) : tab === "sessions" ? (
+          /* ── Physical Sessions ── */
           <div>
             {!sessions.length ? (
               <div style={{ textAlign: "center", padding: "60px 0" }}>
@@ -76,38 +101,52 @@ export default function HistoryPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {sessions.map((s) => {
                   const sc = s.recovery_score;
-                  const c = sc >= 70 ? "#22c55e" : sc >= 50 ? "#eab308" : "#ef4444";
+                  const c = sc != null ? scoreColor(sc) : "#6b7280";
+                  const dur = s.duration_s
+                    ? `${Math.floor(s.duration_s / 60)}m ${s.duration_s % 60}s`
+                    : "—";
                   return (
                     <div key={s.id} style={{
                       background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)",
                       borderRadius: 14, padding: "16px 20px",
-                      display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12,
-                      transition: "all .2s",
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      flexWrap: "wrap", gap: 12, transition: "all .2s",
                     }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(15,255,197,0.15)"; }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(15,255,197,0.18)"; }}
                       onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.07)"; }}
                     >
+                      {/* Left — icon + info */}
                       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                        <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(15,255,197,0.08)", border: "1px solid rgba(15,255,197,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
+                        <div style={{
+                          width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+                          background: "rgba(15,255,197,0.08)", border: "1px solid rgba(15,255,197,0.15)",
+                          display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20,
+                        }}>
                           {s.session_type === "cognitive" ? "🧠" : "🏃"}
                         </div>
                         <div>
                           <p style={{ fontSize: 14, fontWeight: 600, color: "#e8f4f0", marginBottom: 3 }}>
-                            {new Date(s.started_at).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+                            {new Date(s.started_at).toLocaleDateString("en-US", {
+                              weekday: "short", month: "short", day: "numeric", year: "numeric",
+                            })}
                           </p>
-                          <p style={{ fontSize: 12, color: "rgba(232,244,240,0.4)" }}>
-                            {s.session_type} · {s.duration_s ? `${Math.floor(s.duration_s / 60)}m ${s.duration_s % 60}s` : "—"}
+                          <p style={{ fontSize: 12, color: "rgba(232,244,240,0.45)" }}>
+                            <span style={{ textTransform: "capitalize" }}>{s.session_type}</span>
+                            {" · "}{dur}
+                            {s.ended_at ? "" : " · In progress"}
                           </p>
                         </div>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                        {sc != null && (
-                          <div style={{ textAlign: "right" }}>
-                            <p style={{ fontSize: 22, fontWeight: 800, color: c, lineHeight: 1 }}>{sc.toFixed(0)}</p>
-                            <p style={{ fontSize: 10, color: "rgba(232,244,240,0.3)" }}>score</p>
-                          </div>
-                        )}
-                      </div>
+
+                      {/* Right — score */}
+                      {sc != null ? (
+                        <div style={{ textAlign: "right" }}>
+                          <p style={{ fontSize: 26, fontWeight: 800, color: c, lineHeight: 1 }}>{sc.toFixed(0)}</p>
+                          <p style={{ fontSize: 10, color: "rgba(232,244,240,0.3)", marginTop: 2 }}>/ 100</p>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: 12, color: "rgba(232,244,240,0.3)", fontStyle: "italic" }}>No score</span>
+                      )}
                     </div>
                   );
                 })}
@@ -115,14 +154,17 @@ export default function HistoryPage() {
             )}
           </div>
         ) : (
+          /* ── Cognitive Tests ── */
           <div>
             {!cogHistory.length ? (
               <div style={{ textAlign: "center", padding: "60px 0" }}>
                 <p style={{ fontSize: 40, marginBottom: 16 }}>🧠</p>
                 <p style={{ fontSize: 16, color: "rgba(232,244,240,0.4)", marginBottom: 20 }}>No cognitive tests yet</p>
-                <Link href="/cognitive-tests" style={{ padding: "13px 28px", borderRadius: 10, background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", color: "#818cf8", textDecoration: "none", fontWeight: 600, fontSize: 14 }}>
-                  Take First Test
-                </Link>
+                <Link href="/cognitive-tests" style={{
+                  padding: "13px 28px", borderRadius: 10,
+                  background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)",
+                  color: "#818cf8", textDecoration: "none", fontWeight: 600, fontSize: 14,
+                }}>Take First Test</Link>
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -133,16 +175,21 @@ export default function HistoryPage() {
                   }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                       <p style={{ fontSize: 14, fontWeight: 600, color: "#e8f4f0" }}>
-                        {new Date(s.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                        {new Date(s.date).toLocaleDateString("en-US", {
+                          weekday: "short", month: "short", day: "numeric",
+                        })}
                       </p>
                       {s.cognitive_score != null && (
-                        <span style={{ fontSize: 18, fontWeight: 800, color: s.cognitive_score >= 70 ? "#22c55e" : s.cognitive_score >= 50 ? "#eab308" : "#ef4444" }}>
+                        <span style={{
+                          fontSize: 20, fontWeight: 800,
+                          color: scoreColor(s.cognitive_score),
+                        }}>
                           {s.cognitive_score.toFixed(0)}/100
                         </span>
                       )}
                     </div>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {s.tests.map((t: any) => (
+                      {s.tests?.map((t: any) => (
                         <div key={t.type} style={{
                           padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 600,
                           background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",

@@ -2,7 +2,6 @@
 AI Router — Groq-powered chatbot, recommendations, and report insights.
 """
 import os
-import json
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -10,12 +9,12 @@ from typing import List, Optional
 from app.database import get_db
 from app import models
 from app.auth import get_current_user
+from app.config import settings   # ← read key from settings, not os.getenv at module load
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL   = "llama3-8b-8192"
-GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = "llama-3.1-8b-instant"
+GROQ_URL   = "https://api.groq.com/openai/v1/chat/completions"
 
 PHYSIO_SYSTEM = """You are NeuroRestore AI, an expert AI physiotherapist assistant.
 You help patients with:
@@ -36,18 +35,21 @@ Rules:
 
 
 async def call_groq(messages: list, max_tokens: int = 512) -> str:
-    """Call Groq API and return the assistant message."""
+    """Call Groq API — reads key from settings at call time (not module load)."""
     import httpx
 
-    if not GROQ_API_KEY:
-        return "AI service is not configured. Please add your Groq API key."
+    # Read key at call time so pydantic-settings has already loaded .env
+    api_key = settings.GROQ_API_KEY or os.getenv("GROQ_API_KEY", "")
+
+    if not api_key:
+        return "AI service is not configured. Please add GROQ_API_KEY to backend/.env"
 
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(
                 GROQ_URL,
                 headers={
-                    "Authorization": f"Bearer {GROQ_API_KEY}",
+                    "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
                 },
                 json={
@@ -60,8 +62,15 @@ async def call_groq(messages: list, max_tokens: int = 512) -> str:
             resp.raise_for_status()
             data = resp.json()
             return data["choices"][0]["message"]["content"]
+    except httpx.HTTPStatusError as e:
+        # Surface the actual Groq error message
+        try:
+            detail = e.response.json().get("error", {}).get("message", str(e))
+        except Exception:
+            detail = str(e)
+        return f"Groq API error: {detail[:120]}"
     except Exception as e:
-        return f"AI service temporarily unavailable. Please try again. ({str(e)[:60]})"
+        return f"AI service temporarily unavailable. ({str(e)[:80]})"
 
 
 # ── Chatbot ────────────────────────────────────────────────────────────────
@@ -132,11 +141,18 @@ async def get_session_recommendations(
         pain_summary = ", ".join([f"{p.joint} (intensity {p.intensity}/10)" for p in pain_events])
         context_parts.append(f"Pain events logged: {pain_summary}")
 
-    prompt = f"""Based on this rehabilitation session, provide 3 specific, actionable recommendations:
+    prompt = f"""Based on this rehabilitation session, provide exactly 5 specific, actionable recommendations as a numbered bullet list.
 
 {chr(10).join(context_parts)}
 
-Format your response as exactly 3 numbered recommendations. Be specific and encouraging."""
+IMPORTANT: Format your response EXACTLY like this (no extra text before or after):
+1. [First recommendation]
+2. [Second recommendation]
+3. [Third recommendation]
+4. [Fourth recommendation]
+5. [Fifth recommendation]
+
+Each point must be one clear, actionable sentence. Be specific and encouraging."""
 
     messages = [
         {"role": "system", "content": PHYSIO_SYSTEM},
@@ -234,11 +250,7 @@ async def get_report_insights(
     avg_score = sum(scores) / len(scores) if scores else 0
     trend = "improving" if len(scores) >= 2 and scores[0] > scores[-1] else "stable"
 
-    prompt = f"""Generate a professional physiotherapy report summary with:
-1. Overall progress assessment
-2. Key strengths observed
-3. Areas for improvement
-4. Recommended next steps
+    prompt = f"""Generate a professional physiotherapy report with structured bullet points.
 
 Patient data:
 - Sessions analyzed: {len(sessions)}
@@ -246,7 +258,26 @@ Patient data:
 - Trend: {trend}
 - Score range: {min(scores) if scores else 0:.0f} - {max(scores) if scores else 0:.0f}
 
-Keep it professional, specific, and under 200 words."""
+Format your response EXACTLY like this:
+
+**Overall Progress:**
+• [assessment point]
+• [assessment point]
+
+**Key Strengths:**
+• [strength point]
+• [strength point]
+
+**Areas for Improvement:**
+• [improvement point]
+• [improvement point]
+
+**Recommended Next Steps:**
+• [next step]
+• [next step]
+• [next step]
+
+Keep each bullet point concise and specific."""
 
     messages = [
         {"role": "system", "content": PHYSIO_SYSTEM},

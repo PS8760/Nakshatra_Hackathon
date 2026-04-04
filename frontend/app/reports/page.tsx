@@ -1,9 +1,134 @@
 "use client";
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import { getDashboard, getReportInsights, getCognitiveLatestScores } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import { useRouter } from "next/navigation";
+
+/* ── Parse and render AI recommendations as styled bullet points ─────────── */
+function RecommendationRenderer({ text }: { text: string }) {
+  if (!text) return null;
+
+  // Split into lines, filter empty
+  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+
+  const elements: React.ReactNode[] = [];
+  let key = 0;
+
+  for (const line of lines) {
+    // Section header: **Overall Progress:** or **Key Strengths:**
+    const headerMatch = line.match(/^\*\*(.+?)\*\*:?\s*$/);
+    if (headerMatch) {
+      elements.push(
+        <div key={key++} style={{
+          fontSize: 11, fontWeight: 700, color: "#0fffc5",
+          letterSpacing: ".08em", textTransform: "uppercase",
+          marginTop: elements.length > 0 ? 14 : 0, marginBottom: 6,
+          display: "flex", alignItems: "center", gap: 6,
+        }}>
+          <div style={{ width: 16, height: 1, background: "#0fffc5", opacity: .5 }} />
+          {headerMatch[1]}
+        </div>
+      );
+      continue;
+    }
+
+    // Numbered point: "1. text" or "2. text"
+    const numberedMatch = line.match(/^(\d+)\.\s+(.+)/);
+    if (numberedMatch) {
+      elements.push(
+        <div key={key++} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 7 }}>
+          <span style={{
+            minWidth: 22, height: 22, borderRadius: "50%", flexShrink: 0,
+            background: "rgba(15,255,197,0.12)", border: "1px solid rgba(15,255,197,0.25)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 10, fontWeight: 700, color: "#0fffc5",
+          }}>{numberedMatch[1]}</span>
+          <span style={{ fontSize: 13, lineHeight: 1.6, color: "#e8f4f0" }}>
+            {numberedMatch[2].replace(/\*\*/g, "")}
+          </span>
+        </div>
+      );
+      continue;
+    }
+
+    // Bullet point: "• text" or "- text" or "* text"
+    const bulletMatch = line.match(/^[•\-\*]\s+(.+)/);
+    if (bulletMatch) {
+      elements.push(
+        <div key={key++} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 7 }}>
+          <span style={{
+            width: 6, height: 6, borderRadius: "50%", flexShrink: 0, marginTop: 6,
+            background: "#0fffc5", opacity: .7,
+          }} />
+          <span style={{ fontSize: 13, lineHeight: 1.6, color: "#e8f4f0" }}>
+            {bulletMatch[1].replace(/\*\*/g, "")}
+          </span>
+        </div>
+      );
+      continue;
+    }
+
+    // Inline bold+bullet combo: "**Section:** • point1 • point2"
+    // Split on • and render each as a bullet
+    if (line.includes("•")) {
+      const parts = line.split("•").map(p => p.trim()).filter(Boolean);
+      // First part might be a header
+      const firstPart = parts[0];
+      const isHeader = firstPart.startsWith("**") && firstPart.endsWith("**");
+      if (isHeader) {
+        elements.push(
+          <div key={key++} style={{
+            fontSize: 11, fontWeight: 700, color: "#0fffc5",
+            letterSpacing: ".08em", textTransform: "uppercase",
+            marginTop: elements.length > 0 ? 14 : 0, marginBottom: 6,
+            display: "flex", alignItems: "center", gap: 6,
+          }}>
+            <div style={{ width: 16, height: 1, background: "#0fffc5", opacity: .5 }} />
+            {firstPart.replace(/\*\*/g, "")}
+          </div>
+        );
+        for (const pt of parts.slice(1)) {
+          elements.push(
+            <div key={key++} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 7 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", flexShrink: 0, marginTop: 6, background: "#0fffc5", opacity: .7 }} />
+              <span style={{ fontSize: 13, lineHeight: 1.6, color: "#e8f4f0" }}>{pt.replace(/\*\*/g, "")}</span>
+            </div>
+          );
+        }
+      } else {
+        for (const pt of parts) {
+          elements.push(
+            <div key={key++} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 7 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", flexShrink: 0, marginTop: 6, background: "#0fffc5", opacity: .7 }} />
+              <span style={{ fontSize: 13, lineHeight: 1.6, color: "#e8f4f0" }}>{pt.replace(/\*\*/g, "")}</span>
+            </div>
+          );
+        }
+      }
+      continue;
+    }
+
+    // Plain text — strip any remaining markdown
+    const clean = line.replace(/\*\*/g, "");
+    if (clean) {
+      elements.push(
+        <p key={key++} style={{ fontSize: 13, lineHeight: 1.6, color: "rgba(232,244,240,0.7)", marginBottom: 6 }}>
+          {clean}
+        </p>
+      );
+    }
+  }
+
+  return <div style={{ display: "flex", flexDirection: "column" }}>{elements}</div>;
+}
+
+/* ── Strip markdown for PDF plain text ───────────────────────────────────── */
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/\*\*/g, "")
+    .replace(/^[•\-\*]\s+/gm, "  - ")
+    .replace(/^\d+\.\s+/gm, (m) => m);
+}
 
 export default function ReportsPage() {
   const router = useRouter();
@@ -151,7 +276,8 @@ export default function ReportsPage() {
         doc.setTextColor(50, 50, 50);
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
-        const lines = doc.splitTextToSize(insights, W - margin * 2);
+        const cleanInsights = stripMarkdown(insights);
+        const lines = doc.splitTextToSize(cleanInsights, W - margin * 2);
         for (const line of lines) {
           if (y > 270) { doc.addPage(); y = margin; }
           doc.text(line, margin, y); y += 5.5;
@@ -242,9 +368,11 @@ export default function ReportsPage() {
 
               {/* AI Insights preview */}
               {insights ? (
-                <div style={{ background: "rgba(15,255,197,0.04)", border: "1px solid rgba(15,255,197,0.12)", borderRadius: 12, padding: "16px" }}>
-                  <p style={{ fontSize: 11, color: "#0fffc5", fontWeight: 600, marginBottom: 8, letterSpacing: ".06em", textTransform: "uppercase" }}>AI Recommendations</p>
-                  <p style={{ fontSize: 13, color: "rgba(232,244,240,0.65)", lineHeight: 1.65 }}>{insights}</p>
+                <div style={{ background: "rgba(15,255,197,0.04)", border: "1px solid rgba(15,255,197,0.12)", borderRadius: 12, padding: "16px 18px" }}>
+                  <p style={{ fontSize: 11, color: "#0fffc5", fontWeight: 700, marginBottom: 12, letterSpacing: ".08em", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 6 }}>
+                    <span>🤖</span> AI Recommendations
+                  </p>
+                  <RecommendationRenderer text={insights} />
                 </div>
               ) : (
                 <div style={{ background: "rgba(255,255,255,0.02)", border: "1px dashed rgba(255,255,255,0.1)", borderRadius: 12, padding: "24px", textAlign: "center" }}>

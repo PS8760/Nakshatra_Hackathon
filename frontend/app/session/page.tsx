@@ -4,9 +4,11 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { createSession, endSession, logPainEvent } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
+import { useLang } from "@/context/LangContext";
 import type { JointName } from "@/types";
 
-const PoseCamera = dynamic(() => import("@/components/session/PoseCamera"), { ssr: false });
+const PoseCamera   = dynamic(() => import("@/components/session/PoseCamera"),   { ssr: false });
+const PhysioGuide  = dynamic(() => import("@/components/session/PhysioGuide"),  { ssr: false });
 
 /* ── Joint selector ─────────────────────────────────────────────────────── */
 const JOINT_PRESETS = [
@@ -79,6 +81,7 @@ function PainModal({ onLog, onClose }: { onLog: (joint: string, intensity: numbe
 export default function SessionPage() {
   const router = useRouter();
   const { token } = useAuthStore();
+  const { t } = useLang();
 
   const [sessionId,     setSessionId]     = useState<number | null>(null);
   const [isActive,      setIsActive]      = useState(false);
@@ -213,7 +216,7 @@ export default function SessionPage() {
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 20, alignItems: "start" }} className="session-grid">
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 200px 300px", gap: 16, alignItems: "start" }} className="session-grid">
 
           {/* Camera */}
           <div>
@@ -252,6 +255,13 @@ export default function SessionPage() {
               </div>
             )}
           </div>
+
+          {/* Physio Guide — middle column */}
+          <PhysioGuide
+            exercise={preset.id === "full" ? "full" : preset.joints?.[0] ?? "full"}
+            isActive={isActive}
+            repCount={Object.values(repCounts).reduce((a, b) => a + (b ?? 0), 0)}
+          />
 
           {/* Right panel */}
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -387,8 +397,13 @@ export default function SessionPage() {
       </div>
 
       <style>{`
+        @media (max-width: 1100px) {
+          .session-grid { grid-template-columns: 1fr 300px !important; }
+          .session-grid > div:nth-child(2) { display: none; }
+        }
         @media (max-width: 768px) {
           .session-grid { grid-template-columns: 1fr !important; }
+          .session-grid > div:nth-child(2) { display: none; }
         }
       `}</style>
     </div>

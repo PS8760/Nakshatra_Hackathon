@@ -3,20 +3,9 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
+import { LangSwitcher, useLang } from "@/context/LangContext";
 
-const PUBLIC_LINKS = [
-  { label: "Features",     href: "/features" },
-  { label: "How it works", href: "/how-it-works" },
-  { label: "Team",         href: "/team" },
-  { label: "Contact",      href: "/contact" },
-];
-
-const APP_LINKS = [
-  { label: "Dashboard",   href: "/dashboard" },
-  { label: "Sessions",    href: "/session" },
-  { label: "Cognitive",   href: "/cognitive-tests" },
-  { label: "Chatbot",     href: "/chatbot" },
-];
+const NAV_LINKS_PLACEHOLDER = []; // navLinks built dynamically via useLang()
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -48,7 +37,19 @@ export default function Navbar() {
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
   const isLoggedIn = !!token;
-  const navLinks = isLoggedIn ? APP_LINKS : PUBLIC_LINKS;
+  const { t } = useLang();
+
+  const navLinks = isLoggedIn ? [
+    { label: t("nav.dashboard"),  href: "/dashboard" },
+    { label: t("nav.sessions"),   href: "/session" },
+    { label: t("nav.cognitive"),  href: "/cognitive-tests" },
+    { label: t("nav.chatbot"),    href: "/chatbot" },
+  ] : [
+    { label: t("nav.features"),   href: "/features" },
+    { label: t("nav.how"),        href: "/how-it-works" },
+    { label: t("nav.team"),       href: "/team" },
+    { label: t("nav.contact"),    href: "/contact" },
+  ];
 
   const handleLogout = () => {
     logout();
@@ -109,6 +110,7 @@ export default function Navbar() {
 
         {/* Right side */}
         <div className="hidden md:flex" style={{ alignItems: "center", gap: 8 }}>
+          <LangSwitcher />
           {isLoggedIn ? (
             /* ── Profile dropdown ── */
             <div ref={dropRef} style={{ position: "relative" }}>

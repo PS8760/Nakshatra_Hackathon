@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from datetime import datetime
+from pydantic import BaseModel
 from app.database import get_db
 from app import models, schemas
 from app.auth import get_current_user
@@ -155,3 +156,121 @@ def log_pain(
     db.commit()
     db.refresh(event)
     return event
+
+
+# ── CRUD: Update session notes ─────────────────────────────────────────────
+
+class SessionUpdate(BaseModel):
+    notes: Optional[str] = None
+    session_type: Optional[str] = None
+
+
+@router.put("/{session_id}", response_model=schemas.SessionOut)
+def update_session(
+    session_id: int,
+    payload: SessionUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Update session notes or type (CRUD - Update)."""
+    session = db.query(models.Session).filter(
+        models.Session.id == session_id,
+        models.Session.user_id == current_user.id,
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if payload.notes is not None:
+        session.notes = payload.notes
+    if payload.session_type is not None:
+        session.session_type = payload.session_type
+
+    db.commit()
+    db.refresh(session)
+    return session
+
+
+# ── CRUD: Delete session ───────────────────────────────────────────────────
+
+@router.delete("/{session_id}", status_code=204)
+def delete_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Delete a session and all its logs (CRUD - Delete)."""
+    session = db.query(models.Session).filter(
+        models.Session.id == session_id,
+        models.Session.user_id == current_user.id,
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Cascade delete related records
+    db.query(models.JointLog).filter(models.JointLog.session_id == session_id).delete()
+    db.query(models.CognitiveLog).filter(models.CognitiveLog.session_id == session_id).delete()
+    db.query(models.PainEvent).filter(models.PainEvent.session_id == session_id).delete()
+    db.delete(session)
+    db.commit()
+    return None
+
+
+# ── Get session detail with all logs ──────────────────────────────────────
+
+@router.get("/{session_id}/detail")
+def get_session_detail(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Get full session detail including joint logs and pain events."""
+    session = db.query(models.Session).filter(
+        models.Session.id == session_id,
+        models.Session.user_id == current_user.id,
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    joint_logs = db.query(models.JointLog).filter(
+        models.JointLog.session_id == session_id
+    ).order_by(models.JointLog.ts).all()
+
+    pain_events = db.query(models.PainEvent).filter(
+        models.PainEvent.session_id == session_id
+    ).order_by(models.PainEvent.ts).all()
+
+    # Aggregate joint stats
+    joint_stats: dict = {}
+    for log in joint_logs:
+        if log.joint not in joint_stats:
+            joint_stats[log.joint] = {"reps": 0, "avg_angle": 0.0, "angles": [], "target": log.target}
+        joint_stats[log.joint]["reps"] += 1
+        joint_stats[log.joint]["angles"].append(log.angle)
+
+    for joint, stats in joint_stats.items():
+        if stats["angles"]:
+            stats["avg_angle"] = round(sum(stats["angles"]) / len(stats["angles"]), 1)
+        del stats["angles"]
+
+    return {
+        "id": session.id,
+        "session_type": session.session_type,
+        "started_at": session.started_at.isoformat() if session.started_at else None,
+        "ended_at": session.ended_at.isoformat() if session.ended_at else None,
+        "duration_s": session.duration_s,
+        "recovery_score": session.recovery_score,
+        "physical_score": session.physical_score,
+        "cognitive_score": session.cognitive_score,
+        "notes": session.notes,
+        "joint_stats": joint_stats,
+        "total_reps": sum(s["reps"] for s in joint_stats.values()),
+        "pain_events": [
+            {
+                "joint": p.joint,
+                "intensity": p.intensity,
+                "note": p.note,
+                "ts": p.ts.isoformat() if p.ts else None,
+            }
+            for p in pain_events
+        ],
+    }
