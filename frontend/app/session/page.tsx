@@ -224,9 +224,11 @@ export default function SessionPage() {
               <PoseCamera
                 sessionId={sessionId}
                 token={token}
+                preset={preset.id}
                 activeJoints={preset.joints}
                 onRepComplete={handleRepComplete}
                 onFeedback={handleFeedback}
+                onFormScore={(score) => setPhysScores(prev => [...prev.slice(-50), score])}
               />
             ) : (
               <div style={{
@@ -261,6 +263,8 @@ export default function SessionPage() {
             exercise={preset.id === "full" ? "full" : preset.joints?.[0] ?? "full"}
             isActive={isActive}
             repCount={Object.values(repCounts).reduce((a, b) => a + (b ?? 0), 0)}
+            feedback={feedback}
+            formScore={physScores.length ? physScores[physScores.length - 1] : null}
           />
 
           {/* Right panel */}

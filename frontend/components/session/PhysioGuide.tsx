@@ -1,415 +1,512 @@
 "use client";
-/**
- * PhysioGuide — 3D Humanoid Physiotherapist
- * ==========================================
- * Uses Three.js to render an animated stick-figure humanoid that:
- * - Demonstrates exercises visually with smooth animations
- * - Detects facial expressions via webcam canvas analysis
- * - Provides voice guidance via Web Speech API
- * - Adapts encouragement based on detected expression
- */
-import { useEffect, useRef, useState, useCallback } from "react";
-import { useLang } from "@/context/LangContext";
+import { useRef, useState, useEffect } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { RoundedBox, Sphere } from "@react-three/drei";
+import * as THREE from "three";
+
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+type Expression = "happy" | "concerned" | "encouraging" | "warning" | "celebrating";
+type Gesture = "idle" | "wave" | "thumbsup" | "pointLeft" | "clap" | "exercise";
 
 interface Props {
-  exercise: string;   // "knee_left" | "knee_right" | "shoulder_left" | etc.
+  exercise: string;
   isActive: boolean;
   repCount: number;
+  feedback: { message: string; status: string } | null;
+  formScore: number | null;
 }
 
-type Expression = "neutral" | "pain" | "tired" | "focused" | "happy";
+const SKIN  = "#E8B89A";
+const HAIR  = "#3D2314";
+const SHIRT = "#3B82F6";   // brighter blue — visible under lighting
+const PANTS = "#4B6FA8";   // medium blue — not black
+const SHOES = "#4A4A6A";   // dark purple-grey — visible
 
-/* ── Exercise animation configs ─────────────────────────────────────────── */
-const EXERCISE_CONFIGS: Record<string, {
-  name: string;
-  voiceCues: string[];
-  color: string;
-  animFn: (t: number) => { kneeAngle: number; hipAngle: number; shoulderAngle: number; elbowAngle: number };
-}> = {
-  knee_left: {
-    name: "Knee Flexion",
-    color: "#0fffc5",
-    voiceCues: ["Bend your knee slowly", "Hold for 2 seconds", "Extend fully", "Great form!"],
-    animFn: (t) => ({ kneeAngle: 90 + 70 * Math.sin(t), hipAngle: 10 * Math.sin(t * 0.5), shoulderAngle: 0, elbowAngle: 30 }),
-  },
-  knee_right: {
-    name: "Knee Extension",
-    color: "#0fffc5",
-    voiceCues: ["Straighten your leg", "Keep your back straight", "Lower slowly", "Excellent!"],
-    animFn: (t) => ({ kneeAngle: 90 + 70 * Math.sin(t), hipAngle: 10 * Math.sin(t * 0.5), shoulderAngle: 0, elbowAngle: 30 }),
-  },
-  shoulder_left: {
-    name: "Shoulder Raise",
-    color: "#818cf8",
-    voiceCues: ["Raise your arm slowly", "Keep elbow soft", "Lower with control", "Perfect!"],
-    animFn: (t) => ({ kneeAngle: 170, hipAngle: 0, shoulderAngle: 80 * Math.abs(Math.sin(t)), elbowAngle: 20 }),
-  },
-  shoulder_right: {
-    name: "Shoulder Rotation",
-    color: "#818cf8",
-    voiceCues: ["Rotate your shoulder", "Keep it smooth", "Feel the stretch", "Well done!"],
-    animFn: (t) => ({ kneeAngle: 170, hipAngle: 0, shoulderAngle: 80 * Math.abs(Math.sin(t)), elbowAngle: 20 }),
-  },
-  hip_left: {
-    name: "Hip Flexion",
-    color: "#f59e0b",
-    voiceCues: ["Lift your leg forward", "Keep your core tight", "Lower slowly", "Great work!"],
-    animFn: (t) => ({ kneeAngle: 160, hipAngle: 40 * Math.abs(Math.sin(t)), shoulderAngle: 15, elbowAngle: 30 }),
-  },
-  hip_right: {
-    name: "Hip Extension",
-    color: "#f59e0b",
-    voiceCues: ["Push your leg back", "Squeeze your glutes", "Hold at the top", "Excellent form!"],
-    animFn: (t) => ({ kneeAngle: 160, hipAngle: 40 * Math.abs(Math.sin(t)), shoulderAngle: 15, elbowAngle: 30 }),
-  },
-  full: {
-    name: "Full Body Warm-up",
-    color: "#0fffc5",
-    voiceCues: ["Move with me", "Keep breathing", "Stay relaxed", "You're doing great!"],
-    animFn: (t) => ({
-      kneeAngle: 150 + 30 * Math.sin(t),
-      hipAngle: 15 * Math.sin(t * 0.7),
-      shoulderAngle: 20 * Math.abs(Math.sin(t * 0.5)),
-      elbowAngle: 30 + 20 * Math.sin(t),
-    }),
-  },
-};
+// ── Voice engine — expressive, emotion-aware ──────────────────────────────────
+let speakTimer: ReturnType<typeof setTimeout> | null = null;
 
-/* ── Draw humanoid on canvas ─────────────────────────────────────────────── */
-function drawHumanoid(
-  ctx: CanvasRenderingContext2D,
-  W: number, H: number,
-  angles: { kneeAngle: number; hipAngle: number; shoulderAngle: number; elbowAngle: number },
-  color: string,
-  expression: Expression,
-  t: number
-) {
-  ctx.clearRect(0, 0, W, H);
+function speak(text: string, emotion: "happy" | "warning" | "encouraging" | "neutral" = "neutral", onEnd?: () => void) {
+  if (typeof window === "undefined" || !window.speechSynthesis) return;
+  if (speakTimer) clearTimeout(speakTimer);
+  window.speechSynthesis.cancel();
+  // Small delay so cancel() takes effect
+  speakTimer = setTimeout(() => {
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate  = emotion === "happy" ? 1.15 : emotion === "warning" ? 0.9 : emotion === "encouraging" ? 1.1 : 1.0;
+    u.pitch = emotion === "happy" ? 1.3 : emotion === "warning" ? 0.8 : emotion === "encouraging" ? 1.2 : 1.0;
+    u.volume = 1.0;
+    // Pick a friendly voice if available
+    const voices = window.speechSynthesis.getVoices();
+    const preferred = voices.find(v => v.name.includes("Google") && v.lang.startsWith("en"))
+      ?? voices.find(v => v.lang.startsWith("en-US"))
+      ?? voices[0];
+    if (preferred) u.voice = preferred;
+    if (onEnd) u.onend = onEnd;
+    window.speechSynthesis.speak(u);
+  }, 80);
+}
 
-  const cx = W / 2;
-  const scale = Math.min(W, H) / 320;
+function Humanoid({
+  expression,
+  gesture,
+  exercise,
+  headShake,
+  speaking,
+}: {
+  expression: Expression;
+  gesture: Gesture;
+  exercise: string;
+  headShake: boolean;
+  speaking: boolean;
+}) {
+  const rootRef = useRef<THREE.Group>(null);
+  const headRef = useRef<THREE.Group>(null);
+  const rArmRef = useRef<THREE.Group>(null);
+  const lArmRef = useRef<THREE.Group>(null);
+  const rForeRef = useRef<THREE.Group>(null);
+  const lForeRef = useRef<THREE.Group>(null);
+  const rLegRef = useRef<THREE.Group>(null);
+  const lLegRef = useRef<THREE.Group>(null);
+  const rShinRef = useRef<THREE.Group>(null);
+  const lShinRef = useRef<THREE.Group>(null);
+  const mouthRef = useRef<THREE.Mesh>(null);
+  const lBrowRef = useRef<THREE.Mesh>(null);
+  const rBrowRef = useRef<THREE.Mesh>(null);
+  // Eyelid refs for blinking
+  const lEyeLidRef = useRef<THREE.Mesh>(null);
+  const rEyeLidRef = useRef<THREE.Mesh>(null);
 
-  // Helper to draw a joint
-  const joint = (x: number, y: number, r = 5) => {
-    ctx.beginPath();
-    ctx.arc(x, y, r * scale, 0, Math.PI * 2);
-    ctx.fillStyle = color;
-    ctx.fill();
-    ctx.strokeStyle = "rgba(0,0,0,0.3)";
-    ctx.lineWidth = 1;
-    ctx.stroke();
-  };
+  const t = useRef(0);
+  const nextBlink = useRef(3.0); // seconds until next blink
 
-  const line = (x1: number, y1: number, x2: number, y2: number, w = 3) => {
-    ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = w * scale;
-    ctx.lineCap = "round";
-    ctx.stroke();
-  };
+  useFrame((_, delta) => {
+    t.current += delta;
+    const time = t.current;
 
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
+    // Head shake / nod
+    if (headRef.current) {
+      headRef.current.rotation.y = headShake
+        ? Math.sin(time * 12) * 0.3
+        : lerp(headRef.current.rotation.y, 0, 0.1);
+      // Celebrate tilt
+      headRef.current.rotation.z = expression === "celebrating"
+        ? Math.sin(time * 3) * 0.15
+        : lerp(headRef.current.rotation.z, 0, 0.1);
+      // Nod when happy/encouraging
+      headRef.current.rotation.x = (expression === "happy" || expression === "encouraging")
+        ? Math.sin(time * 2) * 0.06
+        : lerp(headRef.current.rotation.x, 0, 0.08);
+    }
 
-  // Body proportions (relative to center)
-  const headY = H * 0.12;
-  const neckY = H * 0.2;
-  const shoulderY = H * 0.25;
-  const hipY = H * 0.5;
-  const kneeY = H * 0.7;
-  const footY = H * 0.88;
+    // Blinking — natural random blink every 3-6s
+    if (lEyeLidRef.current && rEyeLidRef.current) {
+      const blinkPhase = (time % nextBlink.current) / nextBlink.current;
+      const blinkOpen = blinkPhase > 0.97 ? Math.sin((blinkPhase - 0.97) / 0.03 * Math.PI) : 0;
+      const lidY = blinkOpen * 0.075;
+      lEyeLidRef.current.scale.y = 1 - blinkOpen * 0.9;
+      rEyeLidRef.current.scale.y = 1 - blinkOpen * 0.9;
+      if (blinkPhase > 0.99) nextBlink.current = 3 + Math.random() * 3;
+    }
 
-  // Slight body sway
-  const sway = 4 * Math.sin(t * 0.8) * scale;
+    // Mouth — speaking animation + expression shape
+    if (mouthRef.current) {
+      const s = mouthRef.current.scale;
+      const speakMod = speaking ? Math.abs(Math.sin(time * 12)) * 0.4 : 0;
+      if (expression === "happy" || expression === "celebrating") {
+        s.x = lerp(s.x, 1.3, 0.12); s.y = lerp(s.y, 0.6 + speakMod, 0.12);
+      } else if (expression === "encouraging") {
+        s.x = lerp(s.x, 1.5, 0.12); s.y = lerp(s.y, 0.8 + speakMod, 0.12);
+      } else if (expression === "warning") {
+        s.x = lerp(s.x, 0.9, 0.12); s.y = lerp(s.y, 0.3 + speakMod, 0.12);
+      } else {
+        s.x = lerp(s.x, 1.0, 0.12); s.y = lerp(s.y, 0.4 + speakMod, 0.12);
+      }
+    }
 
-  // ── Head ──
-  ctx.beginPath();
-  ctx.arc(cx + sway, headY, 18 * scale, 0, Math.PI * 2);
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 2.5 * scale;
-  ctx.stroke();
-  ctx.fillStyle = `${color}15`;
-  ctx.fill();
+    // Eyebrows
+    if (lBrowRef.current && rBrowRef.current) {
+      const by = expression === "warning" ? -0.02 : expression === "encouraging" || expression === "celebrating" ? 0.06 : 0;
+      const lrz = expression === "concerned" || expression === "warning" ? 0.2 : 0;
+      lBrowRef.current.position.y = lerp(lBrowRef.current.position.y, 0.18 + by, 0.1);
+      rBrowRef.current.position.y = lerp(rBrowRef.current.position.y, 0.18 + by, 0.1);
+      lBrowRef.current.rotation.z = lerp(lBrowRef.current.rotation.z, lrz, 0.1);
+      rBrowRef.current.rotation.z = lerp(rBrowRef.current.rotation.z, -lrz, 0.1);
+    }
 
-  // Face expression
-  const fx = cx + sway, fy = headY;
-  const er = 4 * scale; // eye radius offset
-  // Eyes
-  ctx.beginPath();
-  ctx.arc(fx - er, fy - 2 * scale, 2 * scale, 0, Math.PI * 2);
-  ctx.arc(fx + er, fy - 2 * scale, 2 * scale, 0, Math.PI * 2);
-  ctx.fillStyle = color;
-  ctx.fill();
+    // Gesture animations
+    const rArm = rArmRef.current;
+    const lArm = lArmRef.current;
+    const rFore = rForeRef.current;
+    const lFore = lForeRef.current;
 
-  // Mouth based on expression
-  ctx.beginPath();
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 1.5 * scale;
-  if (expression === "happy" || expression === "focused") {
-    ctx.arc(fx, fy + 4 * scale, 5 * scale, 0, Math.PI);
-  } else if (expression === "pain") {
-    ctx.arc(fx, fy + 8 * scale, 5 * scale, Math.PI, 0);
-  } else if (expression === "tired") {
-    ctx.moveTo(fx - 5 * scale, fy + 6 * scale);
-    ctx.lineTo(fx + 5 * scale, fy + 6 * scale);
-  } else {
-    ctx.arc(fx, fy + 5 * scale, 4 * scale, 0.1, Math.PI - 0.1);
+    if (gesture === "wave" && rArm && rFore) {
+      rArm.rotation.z = lerp(rArm.rotation.z, -1.2 + Math.sin(time * 4) * 0.4, 0.15);
+      rArm.rotation.x = lerp(rArm.rotation.x, 0, 0.1);
+      rFore.rotation.x = lerp(rFore.rotation.x, Math.sin(time * 4) * 0.5, 0.15);
+    } else if (gesture === "thumbsup" && rArm && rFore) {
+      rArm.rotation.z = lerp(rArm.rotation.z, -1.4, 0.1);
+      rArm.rotation.x = lerp(rArm.rotation.x, -0.3, 0.1);
+      rFore.rotation.x = lerp(rFore.rotation.x, 0, 0.1);
+    } else if (gesture === "pointLeft" && lArm && lFore) {
+      lArm.rotation.z = lerp(lArm.rotation.z, 1.2, 0.1);
+      lArm.rotation.x = lerp(lArm.rotation.x, -0.3, 0.1);
+      lFore.rotation.x = lerp(lFore.rotation.x, 0.3, 0.1);
+    } else if (gesture === "clap" && rArm && lArm) {
+      const clap = Math.abs(Math.sin(time * 4)) * 0.5;
+      rArm.rotation.z = lerp(rArm.rotation.z, -0.5 - clap, 0.15);
+      lArm.rotation.z = lerp(lArm.rotation.z, 0.5 + clap, 0.15);
+      rArm.rotation.x = lerp(rArm.rotation.x, 0.5, 0.1);
+      lArm.rotation.x = lerp(lArm.rotation.x, 0.5, 0.1);
+    } else if (gesture === "exercise") {
+      animateExercise(exercise, time, rArm, lArm, rFore, lFore, rLegRef.current, lLegRef.current, rShinRef.current, lShinRef.current);
+    } else {
+      // idle reset
+      if (rArm) { rArm.rotation.z = lerp(rArm.rotation.z, -0.15, 0.05); rArm.rotation.x = lerp(rArm.rotation.x, 0, 0.05); }
+      if (lArm) { lArm.rotation.z = lerp(lArm.rotation.z, 0.15, 0.05); lArm.rotation.x = lerp(lArm.rotation.x, 0, 0.05); }
+      if (rFore) rFore.rotation.x = lerp(rFore.rotation.x, 0, 0.05);
+      if (lFore) lFore.rotation.x = lerp(lFore.rotation.x, 0, 0.05);
+    }
+
+    // Idle body sway + breathing
+    if (rootRef.current) {
+      // Breathing — chest rises
+      rootRef.current.scale.y = 1 + Math.sin(time * 1.2) * 0.008;
+      // Weight shift side to side when idle
+      if (gesture === "idle") {
+        rootRef.current.rotation.y = Math.sin(time * 0.4) * 0.06;
+        rootRef.current.position.x = Math.sin(time * 0.4) * 0.02;
+      }
+    }
+  });
+
+  function animateExercise(
+    ex: string, time: number,
+    rA: THREE.Group | null, lA: THREE.Group | null,
+    _rF: THREE.Group | null, lF: THREE.Group | null,
+    rL: THREE.Group | null, lL: THREE.Group | null,
+    rS: THREE.Group | null, lS: THREE.Group | null
+  ) {
+    const s = Math.sin(time * 2);
+    if (ex === "squat") {
+      if (rL) rL.rotation.x = lerp(rL.rotation.x, -0.6 + s * 0.4, 0.1);
+      if (lL) lL.rotation.x = lerp(lL.rotation.x, -0.6 + s * 0.4, 0.1);
+      if (rS) rS.rotation.x = lerp(rS.rotation.x, 0.8 - s * 0.4, 0.1);
+      if (lS) lS.rotation.x = lerp(lS.rotation.x, 0.8 - s * 0.4, 0.1);
+      if (rA) rA.rotation.x = lerp(rA.rotation.x, 0.5 + s * 0.2, 0.1);
+      if (lA) lA.rotation.x = lerp(lA.rotation.x, 0.5 + s * 0.2, 0.1);
+    } else if (ex === "knee_left") {
+      if (lL) lL.rotation.x = lerp(lL.rotation.x, s * 0.6, 0.1);
+      if (lS) lS.rotation.x = lerp(lS.rotation.x, Math.max(0, s) * 1.2, 0.1);
+    } else if (ex === "knee_right") {
+      if (rL) rL.rotation.x = lerp(rL.rotation.x, s * 0.6, 0.1);
+      if (rS) rS.rotation.x = lerp(rS.rotation.x, Math.max(0, s) * 1.2, 0.1);
+    } else if (ex === "shoulder_left") {
+      if (lA) lA.rotation.z = lerp(lA.rotation.z, 0.3 + Math.max(0, s) * 1.2, 0.1);
+      if (lF) lF.rotation.x = lerp(lF.rotation.x, -Math.max(0, s) * 0.5, 0.1);
+    } else if (ex === "hip_left") {
+      if (lL) lL.rotation.z = lerp(lL.rotation.z, Math.max(0, s) * 0.6, 0.1);
+    } else {
+      // full / default: arms swing
+      if (rA) rA.rotation.x = lerp(rA.rotation.x, s * 0.5, 0.1);
+      if (lA) lA.rotation.x = lerp(lA.rotation.x, -s * 0.5, 0.1);
+    }
   }
-  ctx.stroke();
 
-  // ── Spine ──
-  line(cx + sway, neckY, cx + sway * 0.5, hipY);
-
-  // ── Left arm ──
-  const lShoulderX = cx - 28 * scale + sway;
-  const lElbowX = lShoulderX - Math.cos(toRad(angles.shoulderAngle + 30)) * 35 * scale;
-  const lElbowY = shoulderY + Math.sin(toRad(angles.shoulderAngle + 30)) * 35 * scale;
-  const lHandX = lElbowX - Math.cos(toRad(angles.elbowAngle)) * 30 * scale;
-  const lHandY = lElbowY + Math.sin(toRad(angles.elbowAngle)) * 30 * scale;
-  line(lShoulderX, shoulderY, lElbowX, lElbowY);
-  line(lElbowX, lElbowY, lHandX, lHandY);
-  joint(lShoulderX, shoulderY);
-  joint(lElbowX, lElbowY, 4);
-
-  // ── Right arm ──
-  const rShoulderX = cx + 28 * scale + sway;
-  const rElbowX = rShoulderX + Math.cos(toRad(angles.shoulderAngle + 30)) * 35 * scale;
-  const rElbowY = shoulderY + Math.sin(toRad(angles.shoulderAngle + 30)) * 35 * scale;
-  const rHandX = rElbowX + Math.cos(toRad(angles.elbowAngle)) * 30 * scale;
-  const rHandY = rElbowY + Math.sin(toRad(angles.elbowAngle)) * 30 * scale;
-  line(rShoulderX, shoulderY, rElbowX, rElbowY);
-  line(rElbowX, rElbowY, rHandX, rHandY);
-  joint(rShoulderX, shoulderY);
-  joint(rElbowX, rElbowY, 4);
-
-  // ── Left leg ──
-  const lHipX = cx - 16 * scale + sway * 0.5;
-  const lKneeX = lHipX - Math.sin(toRad(angles.hipAngle)) * 20 * scale;
-  const lKneeY = kneeY;
-  const lFootX = lKneeX - Math.sin(toRad(180 - angles.kneeAngle)) * 25 * scale;
-  const lFootY = footY;
-  line(lHipX, hipY, lKneeX, lKneeY);
-  line(lKneeX, lKneeY, lFootX, lFootY);
-  joint(lHipX, hipY);
-  joint(lKneeX, lKneeY);
-  joint(lFootX, lFootY, 4);
-
-  // ── Right leg ──
-  const rHipX = cx + 16 * scale + sway * 0.5;
-  const rKneeX = rHipX + Math.sin(toRad(angles.hipAngle)) * 20 * scale;
-  const rKneeY = kneeY;
-  const rFootX = rKneeX + Math.sin(toRad(180 - angles.kneeAngle)) * 25 * scale;
-  const rFootY = footY;
-  line(rHipX, hipY, rKneeX, rKneeY);
-  line(rKneeX, rKneeY, rFootX, rFootY);
-  joint(rHipX, hipY);
-  joint(rKneeX, rKneeY);
-  joint(rFootX, rFootY, 4);
-
-  // ── Glow effect ──
-  ctx.shadowColor = color;
-  ctx.shadowBlur = 8;
-  joint(cx + sway, headY, 18);
-  ctx.shadowBlur = 0;
-}
-
-/* ── Main component ──────────────────────────────────────────────────────── */
-export default function PhysioGuide({ exercise, isActive, repCount }: Props) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const faceCanvasRef = useRef<HTMLCanvasElement>(null);
-  const faceVideoRef = useRef<HTMLVideoElement>(null);
-  const animRef = useRef<number>(0);
-  const tRef = useRef(0);
-  const cueIdxRef = useRef(0);
-  const lastCueRef = useRef(0);
-  const streamRef = useRef<MediaStream | null>(null);
-
-  const [expression, setExpression] = useState<Expression>("neutral");
-  const [voiceCue, setVoiceCue] = useState("");
-  const [faceActive, setFaceActive] = useState(false);
-  const { t } = useLang();
-
-  const config = EXERCISE_CONFIGS[exercise] ?? EXERCISE_CONFIGS["full"];
-
-  // ── Voice guidance ──────────────────────────────────────────────────────
-  const speak = useCallback((text: string) => {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    const utt = new SpeechSynthesisUtterance(text);
-    utt.rate = 0.95; utt.pitch = 1.1; utt.volume = 0.85;
-    window.speechSynthesis.speak(utt);
-  }, []);
-
-  // ── Facial expression detection via canvas brightness analysis ──────────
-  const analyzeFace = useCallback(() => {
-    const video = faceVideoRef.current;
-    const canvas = faceCanvasRef.current;
-    if (!video || !canvas || video.readyState < 2) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    canvas.width = 40; canvas.height = 30;
-    ctx.drawImage(video, 0, 0, 40, 30);
-    const data = ctx.getImageData(0, 0, 40, 30).data;
-    let brightness = 0, redness = 0;
-    for (let i = 0; i < data.length; i += 4) {
-      brightness += (data[i] + data[i + 1] + data[i + 2]) / 3;
-      redness += data[i] - data[i + 2]; // R - B channel
-    }
-    brightness /= (data.length / 4);
-    redness /= (data.length / 4);
-
-    // Heuristic expression detection
-    if (redness > 30) setExpression("pain");
-    else if (brightness < 60) setExpression("tired");
-    else if (brightness > 140) setExpression("happy");
-    else if (repCount > 0 && repCount % 5 === 0) setExpression("happy");
-    else setExpression("focused");
-  }, [repCount]);
-
-  // ── Start face camera ───────────────────────────────────────────────────
-  const startFaceCamera = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 160, height: 120, facingMode: "user" }, audio: false });
-      streamRef.current = stream;
-      if (faceVideoRef.current) {
-        faceVideoRef.current.srcObject = stream;
-        faceVideoRef.current.play().catch(() => {});
-      }
-      setFaceActive(true);
-    } catch { /* camera not available — graceful degradation */ }
-  }, []);
-
-  // ── Animation loop ──────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!isActive) {
-      cancelAnimationFrame(animRef.current);
-      return;
-    }
-
-    startFaceCamera();
-    const faceInterval = setInterval(analyzeFace, 500);
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d")!;
-
-    const loop = () => {
-      tRef.current += 0.04;
-      const t = tRef.current;
-
-      // Resize canvas to container
-      const W = canvas.offsetWidth || 200;
-      const H = canvas.offsetHeight || 280;
-      if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
-
-      const angles = config.animFn(t);
-      drawHumanoid(ctx, W, H, angles, config.color, expression, t);
-
-      // Voice cue every ~4 seconds
-      const now = Date.now();
-      if (now - lastCueRef.current > 4000) {
-        const cue = config.voiceCues[cueIdxRef.current % config.voiceCues.length];
-        setVoiceCue(cue);
-        speak(cue);
-        cueIdxRef.current++;
-        lastCueRef.current = now;
-      }
-
-      // Expression-based encouragement
-      if (expression === "pain") {
-        const now2 = Date.now();
-        if (now2 - lastCueRef.current > 6000) {
-          speak("Take it easy, reduce your range if you feel pain");
-          lastCueRef.current = now2;
-        }
-      }
-
-      animRef.current = requestAnimationFrame(loop);
-    };
-
-    loop();
-    return () => {
-      cancelAnimationFrame(animRef.current);
-      clearInterval(faceInterval);
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      setFaceActive(false);
-    };
-  }, [isActive, exercise, expression, config, analyzeFace, speak, startFaceCamera]);
-
-  // Draw idle state
-  useEffect(() => {
-    if (isActive) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d")!;
-    const W = canvas.offsetWidth || 200;
-    const H = canvas.offsetHeight || 280;
-    canvas.width = W; canvas.height = H;
-    drawHumanoid(ctx, W, H, { kneeAngle: 170, hipAngle: 0, shoulderAngle: 10, elbowAngle: 20 }, config.color, "neutral", 0);
-  }, [isActive, config]);
+  const mat = (color: string) => <meshStandardMaterial color={color} roughness={0.4} metalness={0.05} />;
 
   return (
-    <div style={{
-      background: "rgba(255,255,255,0.025)", border: `1px solid ${config.color}25`,
-      borderRadius: 16, overflow: "hidden", position: "relative",
-    }}>
+    <group ref={rootRef} position={[0, -0.8, 0]}>
+      {/* Torso */}
+      <RoundedBox args={[0.7, 0.9, 0.35]} radius={0.06} position={[0, 1.35, 0]}>{mat(SHIRT)}</RoundedBox>
+      {/* Hips */}
+      <RoundedBox args={[0.65, 0.3, 0.32]} radius={0.05} position={[0, 0.88, 0]}>{mat(PANTS)}</RoundedBox>
+      {/* Neck */}
+      <RoundedBox args={[0.18, 0.2, 0.18]} radius={0.04} position={[0, 1.87, 0]}>{mat(SKIN)}</RoundedBox>
+
+      {/* Head */}
+      <group ref={headRef} position={[0, 2.15, 0]}>
+        <RoundedBox args={[0.55, 0.6, 0.5]} radius={0.1}>{mat(SKIN)}</RoundedBox>
+        {/* Hair */}
+        <RoundedBox args={[0.57, 0.22, 0.52]} radius={0.08} position={[0, 0.22, 0]}>{mat(HAIR)}</RoundedBox>
+        {/* Eyes with blinking eyelids */}
+        {[-0.13, 0.13].map((x, i) => (
+          <group key={i} position={[x, 0.05, 0.26]}>
+            <Sphere args={[0.075, 12, 12]}><meshStandardMaterial color="white" /></Sphere>
+            <Sphere args={[0.045, 10, 10]} position={[0, 0, 0.04]}><meshStandardMaterial color="#4A90D9" /></Sphere>
+            <Sphere args={[0.025, 8, 8]} position={[0, 0, 0.07]}><meshStandardMaterial color="#111" /></Sphere>
+            <Sphere args={[0.01, 6, 6]} position={[0.015, 0.015, 0.09]}><meshStandardMaterial color="white" /></Sphere>
+            {/* Eyelid — covers eye when blinking */}
+            <RoundedBox
+              ref={i === 0 ? lEyeLidRef : rEyeLidRef}
+              args={[0.16, 0.08, 0.02]} radius={0.01}
+              position={[0, 0.02, 0.08]}>
+              <meshStandardMaterial color={SKIN} roughness={0.5} />
+            </RoundedBox>
+          </group>
+        ))}
+        {/* Eyebrows */}
+        <RoundedBox ref={lBrowRef} args={[0.12, 0.025, 0.02]} radius={0.01} position={[-0.13, 0.18, 0.26]}>{mat(HAIR)}</RoundedBox>
+        <RoundedBox ref={rBrowRef} args={[0.12, 0.025, 0.02]} radius={0.01} position={[0.13, 0.18, 0.26]}>{mat(HAIR)}</RoundedBox>
+        {/* Nose */}
+        <RoundedBox args={[0.06, 0.08, 0.06]} radius={0.02} position={[0, -0.04, 0.27]}>{mat(SKIN)}</RoundedBox>
+        {/* Mouth */}
+        <RoundedBox ref={mouthRef} args={[0.14, 0.04, 0.02]} radius={0.01} position={[0, -0.16, 0.26]}>{mat("#c0605a")}</RoundedBox>
+        {/* Ears */}
+        {[-1, 1].map((side, i) => (
+          <RoundedBox key={i} args={[0.06, 0.1, 0.06]} radius={0.02} position={[side * 0.29, 0, 0]}>{mat(SKIN)}</RoundedBox>
+        ))}
+      </group>
+
+      {/* Right Arm */}
+      <group ref={rArmRef} position={[-0.42, 1.6, 0]}>
+        <Sphere args={[0.1, 10, 10]}><meshStandardMaterial color={SHIRT} /></Sphere>
+        <RoundedBox args={[0.18, 0.42, 0.18]} radius={0.06} position={[0, -0.25, 0]}>{mat(SHIRT)}</RoundedBox>
+        <group ref={rForeRef} position={[0, -0.5, 0]}>
+          <RoundedBox args={[0.16, 0.38, 0.16]} radius={0.05} position={[0, -0.19, 0]}>{mat(SKIN)}</RoundedBox>
+          <RoundedBox args={[0.14, 0.12, 0.14]} radius={0.04} position={[0, -0.42, 0]}>{mat(SKIN)}</RoundedBox>
+        </group>
+      </group>
+
+      {/* Left Arm */}
+      <group ref={lArmRef} position={[0.42, 1.6, 0]}>
+        <Sphere args={[0.1, 10, 10]}><meshStandardMaterial color={SHIRT} /></Sphere>
+        <RoundedBox args={[0.18, 0.42, 0.18]} radius={0.06} position={[0, -0.25, 0]}>{mat(SHIRT)}</RoundedBox>
+        <group ref={lForeRef} position={[0, -0.5, 0]}>
+          <RoundedBox args={[0.16, 0.38, 0.16]} radius={0.05} position={[0, -0.19, 0]}>{mat(SKIN)}</RoundedBox>
+          <RoundedBox args={[0.14, 0.12, 0.14]} radius={0.04} position={[0, -0.42, 0]}>{mat(SKIN)}</RoundedBox>
+        </group>
+      </group>
+
+      {/* Right Leg */}
+      <group ref={rLegRef} position={[-0.2, 0.72, 0]}>
+        <RoundedBox args={[0.24, 0.48, 0.22]} radius={0.06} position={[0, -0.24, 0]}>{mat(PANTS)}</RoundedBox>
+        <group ref={rShinRef} position={[0, -0.52, 0]}>
+          <RoundedBox args={[0.21, 0.44, 0.2]} radius={0.05} position={[0, -0.22, 0]}>{mat(PANTS)}</RoundedBox>
+          <RoundedBox args={[0.22, 0.1, 0.3]} radius={0.04} position={[0, -0.5, 0.04]}>{mat(SHOES)}</RoundedBox>
+        </group>
+      </group>
+
+      {/* Left Leg */}
+      <group ref={lLegRef} position={[0.2, 0.72, 0]}>
+        <RoundedBox args={[0.24, 0.48, 0.22]} radius={0.06} position={[0, -0.24, 0]}>{mat(PANTS)}</RoundedBox>
+        <group ref={lShinRef} position={[0, -0.52, 0]}>
+          <RoundedBox args={[0.21, 0.44, 0.2]} radius={0.05} position={[0, -0.22, 0]}>{mat(PANTS)}</RoundedBox>
+          <RoundedBox args={[0.22, 0.1, 0.3]} radius={0.04} position={[0, -0.5, 0.04]}>{mat(SHOES)}</RoundedBox>
+        </group>
+      </group>
+    </group>
+  );
+}
+
+function Scene({ expression, gesture, exercise, headShake, autoRotate, speaking }: {
+  expression: Expression; gesture: Gesture; exercise: string;
+  headShake: boolean; autoRotate: boolean; speaking: boolean;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  useFrame((_, delta) => {
+    if (autoRotate && groupRef.current) groupRef.current.rotation.y += delta * 0.4;
+    else if (groupRef.current) groupRef.current.rotation.y = lerp(groupRef.current.rotation.y, 0, 0.05);
+  });
+  return (
+    <group ref={groupRef}>
+      <Humanoid expression={expression} gesture={gesture} exercise={exercise}
+        headShake={headShake} speaking={speaking} />
+    </group>
+  );
+}
+
+export default function PhysioGuide({ exercise, isActive, repCount, feedback, formScore }: Props) {
+  const [expression, setExpression] = useState<Expression>("happy");
+  const [gesture, setGesture] = useState<Gesture>("idle");
+  const [speechBubble, setSpeechBubble] = useState<string | null>(null);
+  const [headShake, setHeadShake] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+  const prevRepCount = useRef(0);
+  const prevActive = useRef(false);
+  const prevFeedbackMsg = useRef("");
+
+  // Helper: speak with visual sync
+  const say = (text: string, emotion: "happy" | "warning" | "encouraging" | "neutral" = "neutral") => {
+    setSpeaking(true);
+    speak(text, emotion, () => setSpeaking(false));
+  };
+
+  // Intro sequence
+  useEffect(() => {
+    if (isActive && !prevActive.current) {
+      prevActive.current = true;
+      setExpression("encouraging"); setGesture("wave");
+      setSpeechBubble("Hey! Let's do this! 💪");
+      say("Hey! Let's do this together. Watch my demonstration first, then follow along!", "encouraging");
+      const t1 = setTimeout(() => { setGesture("pointLeft"); setSpeechBubble("Watch me first! 👀"); }, 2500);
+      const t2 = setTimeout(() => { setGesture("exercise"); setSpeechBubble(null); }, 5000);
+      return () => { clearTimeout(t1); clearTimeout(t2); };
+    } else if (!isActive) {
+      prevActive.current = false;
+      setGesture("idle"); setExpression("happy"); setSpeechBubble(null); setSpeaking(false);
+    }
+  }, [isActive]);
+
+  // Rep count reaction — celebrate every rep, speak every 3
+  useEffect(() => {
+    if (repCount > prevRepCount.current && repCount > 0) {
+      prevRepCount.current = repCount;
+      setExpression("celebrating");
+      setGesture("clap");
+      if (repCount === 1) {
+        setSpeechBubble("First rep! 🎉");
+        say("First rep! Great start!", "happy");
+      } else if (repCount % 5 === 0) {
+        setSpeechBubble(`${repCount} reps! Amazing! 🔥`);
+        say(`${repCount} reps! You're on fire! Keep it up!`, "happy");
+      } else if (repCount % 3 === 0) {
+        setSpeechBubble("Keep going! 💪");
+        say("Great job! Keep going!", "encouraging");
+      }
+      const t = setTimeout(() => { setExpression("happy"); setGesture("exercise"); setSpeechBubble(null); }, 1800);
+      return () => clearTimeout(t);
+    }
+  }, [repCount]);
+
+  // Real-time feedback reaction — instant, no debounce
+  useEffect(() => {
+    if (!feedback || feedback.message === prevFeedbackMsg.current) return;
+    prevFeedbackMsg.current = feedback.message;
+
+    if (feedback.status === "good") {
+      setExpression("happy");
+      setGesture("thumbsup");
+      setSpeechBubble("✅ " + feedback.message);
+      say(feedback.message, "happy");
+      const t = setTimeout(() => { setGesture(isActive ? "exercise" : "idle"); setSpeechBubble(null); }, 2500);
+      return () => clearTimeout(t);
+    } else if (feedback.status === "warning") {
+      setExpression("concerned");
+      setGesture("pointLeft");
+      setSpeechBubble("⚠️ " + feedback.message);
+      say(feedback.message, "neutral");
+      const t = setTimeout(() => { setGesture(isActive ? "exercise" : "idle"); setSpeechBubble(null); }, 3000);
+      return () => clearTimeout(t);
+    } else if (feedback.status === "out_of_range") {
+      setExpression("warning");
+      setHeadShake(true);
+      setSpeechBubble("❌ " + feedback.message);
+      say("Careful! " + feedback.message, "warning");
+      const t = setTimeout(() => {
+        setHeadShake(false);
+        setExpression("encouraging");
+        setSpeechBubble("You can do it! 💪");
+        const t2 = setTimeout(() => setSpeechBubble(null), 1500);
+        return () => clearTimeout(t2);
+      }, 2000);
+      return () => clearTimeout(t);
+    }
+  }, [feedback, isActive]);
+
+  // Form score drives continuous expression
+  useEffect(() => {
+    if (formScore === null || gesture !== "exercise") return;
+    if (formScore >= 85) setExpression("happy");
+    else if (formScore >= 70) setExpression("encouraging");
+    else if (formScore >= 55) setExpression("concerned");
+    else setExpression("warning");
+  }, [formScore, gesture]);
+
+  return (
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
       {/* Header */}
       <div style={{
-        padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
+        position: "absolute", top: 10, left: 0, right: 0, zIndex: 10,
+        display: "flex", flexDirection: "column", alignItems: "center", pointerEvents: "none"
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 8, height: 8, borderRadius: "50%", background: isActive ? "#22c55e" : "rgba(255,255,255,0.2)", animation: isActive ? "pulseDot 1.5s ease-in-out infinite" : "none" }} />
-          <span style={{ fontSize: 12, fontWeight: 600, color: "#e8f4f0" }}>{t("session.physio")}</span>
-        </div>
-        <span style={{ fontSize: 11, color: config.color, fontWeight: 600 }}>{config.name}</span>
+        <span style={{ background: "rgba(37,99,235,0.85)", color: "#fff", borderRadius: 8, padding: "2px 14px", fontSize: 13, fontWeight: 700, letterSpacing: 1 }}>
+          AI Physiotherapist
+        </span>
+        {exercise && (
+          <span style={{ background: "rgba(0,0,0,0.45)", color: "#0fffc5", borderRadius: 6, padding: "1px 10px", fontSize: 11, marginTop: 4 }}>
+            {exercise.replace(/_/g, " ").toUpperCase()}
+          </span>
+        )}
       </div>
 
-      {/* 3D Canvas */}
-      <canvas ref={canvasRef} style={{ width: "100%", height: 220, display: "block", background: "rgba(2,24,43,0.6)" }} />
-
-      {/* Hidden face analysis elements */}
-      <video ref={faceVideoRef} style={{ display: "none" }} playsInline muted autoPlay />
-      <canvas ref={faceCanvasRef} style={{ display: "none" }} />
-
-      {/* Voice cue banner */}
-      {isActive && voiceCue && (
-        <div style={{
-          padding: "10px 14px", borderTop: "1px solid rgba(255,255,255,0.06)",
-          display: "flex", alignItems: "center", gap: 8,
-          background: "rgba(15,255,197,0.04)",
-        }}>
-          <span style={{ fontSize: 14 }}>🗣️</span>
-          <p style={{ fontSize: 12, color: "rgba(232,244,240,0.7)", fontStyle: "italic" }}>{voiceCue}</p>
-        </div>
-      )}
-
       {/* Expression indicator */}
-      {isActive && faceActive && (
+      <div style={{
+        position: "absolute", top: 44, right: 10, zIndex: 10,
+        display: "flex", alignItems: "center", gap: 5, pointerEvents: "none",
+      }}>
+        <span style={{ fontSize: 18 }}>
+          {expression === "happy" ? "😊" : expression === "celebrating" ? "🎉" :
+           expression === "encouraging" ? "💪" : expression === "concerned" ? "😟" : "😤"}
+        </span>
+        {speaking && (
+          <div style={{ display: "flex", gap: 2, alignItems: "flex-end" }}>
+            {[0, 1, 2].map(i => (
+              <div key={i} style={{
+                width: 3, borderRadius: 2, background: "#0fffc5",
+                height: 6 + i * 4,
+                animation: `speakBar 0.6s ease-in-out ${i * 0.1}s infinite alternate`,
+              }} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Speech Bubble */}
+      {speechBubble && (
         <div style={{
-          position: "absolute", top: 48, right: 10,
-          background: "rgba(0,0,0,0.7)", borderRadius: 8, padding: "4px 8px",
-          fontSize: 11, color: "rgba(232,244,240,0.6)",
-          display: "flex", alignItems: "center", gap: 4,
+          position: "absolute", bottom: 18, left: "50%", transform: "translateX(-50%)",
+          background: "rgba(255,255,255,0.97)", color: "#1a1a2e", borderRadius: 14,
+          padding: "9px 18px", fontSize: 13, fontWeight: 600, zIndex: 10,
+          boxShadow: "0 4px 20px rgba(0,0,0,0.25)", maxWidth: "85%", textAlign: "center",
+          border: "2px solid #3B82F6",
+          animation: "fadeInUp 0.2s ease-out",
         }}>
-          <span>{expression === "happy" ? "😊" : expression === "pain" ? "😣" : expression === "tired" ? "😴" : expression === "focused" ? "😤" : "😐"}</span>
-          <span style={{ textTransform: "capitalize" }}>{expression}</span>
+          {speechBubble}
+          <div style={{
+            position: "absolute", bottom: -8, left: "50%", transform: "translateX(-50%)",
+            width: 0, height: 0,
+            borderLeft: "8px solid transparent", borderRight: "8px solid transparent",
+            borderTop: "8px solid #3B82F6",
+          }} />
         </div>
       )}
 
-      {/* Idle state overlay */}
-      {!isActive && (
-        <div style={{
-          position: "absolute", inset: 0, top: 40,
-          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          background: "rgba(2,24,43,0.5)", gap: 8,
-        }}>
-          <p style={{ fontSize: 12, color: "rgba(232,244,240,0.4)", textAlign: "center", padding: "0 16px" }}>
-            {t("session.demo")} — {config.name}
-          </p>
-        </div>
-      )}
+      <style>{`
+        @keyframes speakBar { from { transform: scaleY(0.4); } to { transform: scaleY(1); } }
+        @keyframes fadeInUp { from { opacity:0; transform: translateX(-50%) translateY(8px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }
+      `}</style>
+
+      <Canvas
+        shadows
+        camera={{ position: [0, 0.5, 5.5], fov: 55 }}
+        onCreated={({ gl, camera }) => {
+          gl.shadowMap.enabled = true;
+          gl.shadowMap.type = THREE.PCFShadowMap;
+          // Point camera at model center
+          (camera as THREE.PerspectiveCamera).lookAt(0, 0.5, 0);
+        }}
+      >
+        <color attach="background" args={["#0d1b2a"]} />
+        <ambientLight intensity={1.8} />
+        <directionalLight position={[3, 6, 4]} intensity={2.0} castShadow />
+        <directionalLight position={[-3, 4, 2]} intensity={1.0} color="#b3d9ff" />
+        <pointLight position={[0, 3, 3]} intensity={1.2} color="#ffffff" />
+        <pointLight position={[0, 0, 3]} intensity={0.8} color="#0fffc5" />
+        {/* Floor */}
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.22, 0]} receiveShadow>
+          <circleGeometry args={[2, 32]} />
+          <meshStandardMaterial color="#1a2a3a" roughness={0.9} />
+        </mesh>
+        <Scene
+          expression={expression}
+          gesture={gesture}
+          exercise={exercise}
+          headShake={headShake}
+          autoRotate={!isActive}
+          speaking={speaking}
+        />
+      </Canvas>
     </div>
   );
 }
