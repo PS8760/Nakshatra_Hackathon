@@ -16,6 +16,9 @@ const JOINT_PRESETS = [
   { id: "knee",     label: "Knee Rehab",   joints: ["knee_left", "knee_right"] as JointName[],                  icon: "🦵" },
   { id: "shoulder", label: "Shoulder",     joints: ["shoulder_left", "shoulder_right"] as JointName[],          icon: "💪" },
   { id: "hip",      label: "Hip",          joints: ["hip_left", "hip_right"] as JointName[],                    icon: "🦴" },
+  { id: "wrist",    label: "Wrist",        joints: ["wrist_left", "wrist_right"] as JointName[],                icon: "🤚" },
+  { id: "ankle",    label: "Ankle",        joints: ["ankle_left", "ankle_right"] as JointName[],                icon: "🦶" },
+  { id: "finger",   label: "Finger",       joints: ["finger_left", "finger_right"] as JointName[],              icon: "🖐️" },
 ];
 
 /* ── Pain modal ─────────────────────────────────────────────────────────── */
@@ -95,6 +98,15 @@ export default function SessionPage() {
   const [ending,        setEnding]        = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Detailed feedback for real-time form correction
+  const [detailedFeedback, setDetailedFeedback] = useState<{
+    joint: string;
+    currentAngle: number;
+    targetAngle: number;
+    deviation: number;
+    correction: string;
+  } | null>(null);
+
   useEffect(() => { useAuthStore.getState().hydrate(); }, []);
 
   // Timer
@@ -113,14 +125,35 @@ export default function SessionPage() {
 
   const handleStart = async () => {
     try {
+      // Ensure token is loaded
+      const currentToken = token || localStorage.getItem("nr_token");
+      if (!currentToken) {
+        alert("⚠️ Not Signed In\n\nPlease sign in first:\n\n📧 Email: demo@neurorestore.ai\n🔑 Password: Demo@1234\n\nClick OK to go to sign-in page.");
+        router.push("/auth");
+        return;
+      }
+      
       const res = await createSession("physical");
       setSessionId(res.data.id);
       setIsActive(true);
       setStartTime(Date.now());
       setRepCounts({});
       setPhysScores([]);
-    } catch {
-      alert("Failed to start session. Is the backend running?");
+    } catch (error: any) {
+      console.error("Session creation error:", error);
+      
+      // Check if it's a 401 error
+      if (error?.response?.status === 401) {
+        alert("🔐 Authentication Error\n\nYour session has expired or you're not signed in.\n\nPlease sign in again:\n\n📧 Email: demo@neurorestore.ai\n🔑 Password: Demo@1234\n\nClick OK to go to sign-in page.");
+        // Clear invalid token
+        localStorage.removeItem("nr_token");
+        localStorage.removeItem("nr_user");
+        router.push("/auth");
+        return;
+      }
+      
+      const errorMsg = error?.response?.data?.detail || error?.message || "Unknown error";
+      alert(`❌ Failed to start session\n\n${errorMsg}\n\nPlease check:\n✓ Backend is running (http://localhost:8000)\n✓ You are signed in\n✓ Check browser console for details`);
     }
   };
 
@@ -136,7 +169,7 @@ export default function SessionPage() {
     router.push("/dashboard");
   };
 
-  const handleRepComplete = useCallback((joint: JointName, angle: number, repCount: number) => {
+  const handleRepComplete = useCallback((joint: string, angle: number, repCount: number) => {
     setRepCounts((prev) => ({ ...prev, [joint]: repCount }));
     setPhysScores((prev) => [...prev.slice(-50), Math.min(100, (angle / 120) * 100)]);
   }, []);
@@ -146,6 +179,18 @@ export default function SessionPage() {
     setTimeout(() => setFeedback(null), 4000);
   }, []);
 
+  const handleDetailedFeedback = useCallback((feedback: {
+    joint: string;
+    currentAngle: number;
+    targetAngle: number;
+    deviation: number;
+    correction: string;
+  }) => {
+    setDetailedFeedback(feedback);
+    // Clear after PhysioGuide processes it
+    setTimeout(() => setDetailedFeedback(null), 500);
+  }, []);
+
   const handlePainLog = async (joint: string, intensity: number) => {
     if (!sessionId) return;
     try { await logPainEvent(sessionId, joint, intensity); } catch {}
@@ -153,13 +198,48 @@ export default function SessionPage() {
 
   if (!token) {
     return (
-      <div style={{ minHeight: "100vh", background: "#02182b", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ textAlign: "center" }}>
-          <p style={{ color: "rgba(232,244,240,0.6)", marginBottom: 16 }}>Please sign in to start a session.</p>
+      <div style={{ minHeight: "100vh", background: "#02182b", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+        <div style={{ textAlign: "center", maxWidth: 480 }}>
+          <div style={{ fontSize: 48, marginBottom: 20 }}>🔐</div>
+          <h2 style={{ color: "#e8f4f0", fontSize: 24, fontWeight: 700, marginBottom: 12 }}>
+            Authentication Required
+          </h2>
+          <p style={{ color: "rgba(232,244,240,0.6)", marginBottom: 24, lineHeight: 1.6 }}>
+            Please sign in to start a rehabilitation session.
+          </p>
+          
+          <div style={{ 
+            background: "rgba(15,255,197,0.05)", 
+            border: "1px solid rgba(15,255,197,0.15)",
+            borderRadius: 12,
+            padding: 20,
+            marginBottom: 24,
+            textAlign: "left"
+          }}>
+            <p style={{ color: "#0fffc5", fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
+              Demo Credentials:
+            </p>
+            <div style={{ fontSize: 13, color: "rgba(232,244,240,0.7)", lineHeight: 1.8 }}>
+              <div>📧 Email: <code style={{ background: "rgba(0,0,0,0.3)", padding: "2px 8px", borderRadius: 4 }}>demo@neurorestore.ai</code></div>
+              <div>🔑 Password: <code style={{ background: "rgba(0,0,0,0.3)", padding: "2px 8px", borderRadius: 4 }}>Demo@1234</code></div>
+            </div>
+          </div>
+
           <button onClick={() => router.push("/auth")} style={{
-            padding: "10px 24px", borderRadius: 10, background: "#0fffc5",
+            padding: "14px 32px", borderRadius: 12, background: "#0fffc5",
             color: "#02182b", fontWeight: 700, border: "none", cursor: "pointer",
-          }}>Sign In</button>
+            fontSize: 15, boxShadow: "0 0 24px rgba(15,255,197,0.3)",
+            transition: "all .2s",
+          }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 40px rgba(15,255,197,0.5)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 24px rgba(15,255,197,0.3)"; }}
+          >
+            Go to Sign In →
+          </button>
+          
+          <p style={{ color: "rgba(232,244,240,0.4)", fontSize: 12, marginTop: 20 }}>
+            Tip: Click "Patient demo" button on the sign-in page for quick access
+          </p>
         </div>
       </div>
     );
@@ -229,6 +309,7 @@ export default function SessionPage() {
                 onRepComplete={handleRepComplete}
                 onFeedback={handleFeedback}
                 onFormScore={(score) => setPhysScores(prev => [...prev.slice(-50), score])}
+                onDetailedFeedback={handleDetailedFeedback}
               />
             ) : (
               <div style={{
@@ -265,6 +346,7 @@ export default function SessionPage() {
             repCount={Object.values(repCounts).reduce((a, b) => a + (b ?? 0), 0)}
             feedback={feedback}
             formScore={physScores.length ? physScores[physScores.length - 1] : null}
+            detailedFeedback={detailedFeedback}
           />
 
           {/* Right panel */}

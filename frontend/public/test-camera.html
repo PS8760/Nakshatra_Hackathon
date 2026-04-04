@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Camera Test - NeuroRestore</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #02182b;
+            color: #0fffc5;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 { color: #0fffc5; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: rgba(34, 197, 94, 0.2); border: 1px solid #22c55e; }
+        .error { background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #ef4444; }
+        .warning { background: rgba(234, 179, 8, 0.2); border: 1px solid #eab308; color: #eab308; }
+        .info { background: rgba(96, 165, 250, 0.2); border: 1px solid #60a5fa; }
+        video { width: 100%; max-width: 640px; border: 2px solid #0fffc5; border-radius: 8px; margin: 20px 0; }
+        button { 
+            background: #0fffc5; 
+            color: #02182b; 
+            border: none; 
+            padding: 12px 24px; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            margin: 10px 5px;
+        }
+        button:hover { background: #0dddb0; }
+        pre { background: rgba(0,0,0,0.3); padding: 10px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🎥 Camera Diagnostic Test</h1>
+    <p>This will test if your camera works in the browser.</p>
+    
+    <div id="results"></div>
+    
+    <button onclick="testCamera()">Test Camera</button>
+    <button onclick="listDevices()">List Devices</button>
+    <button onclick="checkPermissions()">Check Permissions</button>
+    
+    <video id="video" autoplay playsinline muted style="display:none;"></video>
+    
+    <script>
+        const results = document.getElementById('results');
+        const video = document.getElementById('video');
+        
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = message;
+            results.appendChild(div);
+            console.log(message);
+        }
+        
+        async function testCamera() {
+            results.innerHTML = '';
+            log('🔍 Starting camera test...', 'info');
+            
+            try {
+                // Check if getUserMedia is supported
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    log('❌ getUserMedia not supported in this browser', 'error');
+                    return;
+                }
+                log('✅ getUserMedia API is supported', 'success');
+                
+                // Request camera access
+                log('📹 Requesting camera access...', 'info');
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        width: { ideal: 1280 }, 
+                        height: { ideal: 720 }, 
+                        facingMode: "user" 
+                    },
+                    audio: false
+                });
+                
+                log('✅ Camera access granted!', 'success');
+                
+                // Show video
+                video.srcObject = stream;
+                video.style.display = 'block';
+                
+                // Get video track info
+                const videoTrack = stream.getVideoTracks()[0];
+                const settings = videoTrack.getSettings();
+                log(`📊 Camera Settings:<br>
+                    - Resolution: ${settings.width}x${settings.height}<br>
+                    - Frame Rate: ${settings.frameRate} FPS<br>
+                    - Device: ${videoTrack.label}`, 'success');
+                
+                log('✅ Camera is working! You should see video above.', 'success');
+                
+            } catch (err) {
+                log(`❌ Camera Error: ${err.name}`, 'error');
+                log(`📝 Message: ${err.message}`, 'error');
+                
+                // Provide specific guidance
+                if (err.name === 'NotAllowedError') {
+                    log('🔒 Camera permission denied. Please:<br>1. Click the camera icon in address bar<br>2. Select "Allow"<br>3. Refresh and try again', 'warning');
+                } else if (err.name === 'NotFoundError') {
+                    log('📷 No camera found. Please check:<br>1. Camera is connected<br>2. Camera works in other apps<br>3. Try a different USB port', 'warning');
+                } else if (err.name === 'NotReadableError') {
+                    log('🚫 Camera is in use by another app. Please:<br>1. Close Zoom, Skype, Teams, etc.<br>2. Try again', 'warning');
+                } else if (err.name === 'OverconstrainedError') {
+                    log('⚙️ Camera resolution too high. Trying lower resolution...', 'warning');
+                    tryLowerResolution();
+                }
+            }
+        }
+        
+        async function tryLowerResolution() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        width: { ideal: 640 }, 
+                        height: { ideal: 480 }, 
+                        facingMode: "user" 
+                    },
+                    audio: false
+                });
+                video.srcObject = stream;
+                video.style.display = 'block';
+                log('✅ Camera working with lower resolution (640x480)', 'success');
+            } catch (err) {
+                log(`❌ Still failed: ${err.name} - ${err.message}`, 'error');
+            }
+        }
+        
+        async function listDevices() {
+            results.innerHTML = '';
+            log('🔍 Listing media devices...', 'info');
+            
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const cameras = devices.filter(d => d.kind === 'videoinput');
+                
+                if (cameras.length === 0) {
+                    log('❌ No cameras found', 'error');
+                } else {
+                    log(`✅ Found ${cameras.length} camera(s):`, 'success');
+                    cameras.forEach((cam, i) => {
+                        log(`${i + 1}. ${cam.label || 'Camera ' + (i + 1)} (${cam.deviceId.substring(0, 20)}...)`, 'info');
+                    });
+                }
+            } catch (err) {
+                log(`❌ Error listing devices: ${err.message}`, 'error');
+            }
+        }
+        
+        async function checkPermissions() {
+            results.innerHTML = '';
+            log('🔍 Checking camera permissions...', 'info');
+            
+            try {
+                if (!navigator.permissions) {
+                    log('⚠️ Permissions API not supported', 'warning');
+                    return;
+                }
+                
+                const result = await navigator.permissions.query({ name: 'camera' });
+                
+                if (result.state === 'granted') {
+                    log('✅ Camera permission: GRANTED', 'success');
+                } else if (result.state === 'prompt') {
+                    log('⚠️ Camera permission: NOT YET ASKED (will prompt when you test)', 'warning');
+                } else if (result.state === 'denied') {
+                    log('❌ Camera permission: DENIED', 'error');
+                    log('To fix: Click camera icon in address bar → Allow → Refresh', 'warning');
+                }
+            } catch (err) {
+                log(`⚠️ Could not check permissions: ${err.message}`, 'warning');
+            }
+        }
+        
+        // Auto-run on load
+        window.onload = () => {
+            log('🌐 Browser: ' + navigator.userAgent, 'info');
+            log('🔗 URL: ' + window.location.href, 'info');
+            log('🔒 Secure Context: ' + (window.isSecureContext ? 'YES ✅' : 'NO ❌'), window.isSecureContext ? 'success' : 'error');
+            
+            if (!window.isSecureContext) {
+                log('⚠️ Camera requires HTTPS or localhost. Current URL may not work!', 'error');
+            }
+        };
+    </script>
+</body>
+</html>

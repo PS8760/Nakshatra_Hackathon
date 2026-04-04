@@ -15,6 +15,13 @@ interface Props {
   repCount: number;
   feedback: { message: string; status: string } | null;
   formScore: number | null;
+  detailedFeedback?: {
+    joint: string;
+    currentAngle: number;
+    targetAngle: number;
+    deviation: number;
+    correction: string;
+  } | null;
 }
 
 const SKIN  = "#E8B89A";
@@ -23,26 +30,98 @@ const SHIRT = "#3B82F6";   // brighter blue — visible under lighting
 const PANTS = "#4B6FA8";   // medium blue — not black
 const SHOES = "#4A4A6A";   // dark purple-grey — visible
 
-// ── Voice engine — expressive, emotion-aware ──────────────────────────────────
+// ── Enhanced Voice engine with debugging and voice loading ──────
 let speakTimer: ReturnType<typeof setTimeout> | null = null;
+let currentUtterance: SpeechSynthesisUtterance | null = null;
+let voicesLoaded = false;
 
 function speak(text: string, emotion: "happy" | "warning" | "encouraging" | "neutral" = "neutral", onEnd?: () => void) {
-  if (typeof window === "undefined" || !window.speechSynthesis) return;
+  if (typeof window === "undefined" || !window.speechSynthesis) {
+    console.warn("❌ Speech synthesis not available");
+    return;
+  }
+  
+  // Cancel any ongoing speech
   if (speakTimer) clearTimeout(speakTimer);
   window.speechSynthesis.cancel();
+  
   // Small delay so cancel() takes effect
   speakTimer = setTimeout(() => {
     const u = new SpeechSynthesisUtterance(text);
-    u.rate  = emotion === "happy" ? 1.15 : emotion === "warning" ? 0.9 : emotion === "encouraging" ? 1.1 : 1.0;
-    u.pitch = emotion === "happy" ? 1.3 : emotion === "warning" ? 0.8 : emotion === "encouraging" ? 1.2 : 1.0;
-    u.volume = 1.0;
-    // Pick a friendly voice if available
+    currentUtterance = u;
+    
+    // AUDIO ENHANCEMENT: Better voice parameters for each emotion
+    switch (emotion) {
+      case "happy":
+        u.rate = 1.15;
+        u.pitch = 1.35;
+        u.volume = 1.0;
+        break;
+      case "warning":
+        u.rate = 0.85;
+        u.pitch = 0.75;
+        u.volume = 1.0;
+        break;
+      case "encouraging":
+        u.rate = 1.1;
+        u.pitch = 1.25;
+        u.volume = 1.0;
+        break;
+      default:
+        u.rate = 1.0;
+        u.pitch = 1.0;
+        u.volume = 1.0;
+    }
+    
+    // Pick the best available voice
     const voices = window.speechSynthesis.getVoices();
-    const preferred = voices.find(v => v.name.includes("Google") && v.lang.startsWith("en"))
-      ?? voices.find(v => v.lang.startsWith("en-US"))
-      ?? voices[0];
-    if (preferred) u.voice = preferred;
+    
+    // If no voices loaded yet, retry
+    if (voices.length === 0 && !voicesLoaded) {
+      console.warn("⚠️ No voices available yet. Retrying in 100ms...");
+      setTimeout(() => speak(text, emotion, onEnd), 100);
+      return;
+    }
+    
+    const preferred = 
+      voices.find(v => v.name.includes("Samantha") && v.lang.startsWith("en")) || // Mac - natural female
+      voices.find(v => v.name.includes("Google") && v.lang.startsWith("en-US")) || // Chrome - Google voices
+      voices.find(v => v.name.includes("Microsoft Zira") && v.lang.startsWith("en")) || // Windows - Zira
+      voices.find(v => v.lang.startsWith("en-US") && v.name.includes("Female")) ||
+      voices.find(v => v.lang.startsWith("en-US")) ||
+      voices[0];
+    
+    if (preferred) {
+      u.voice = preferred;
+      console.log(`🔊 Speaking with voice: ${preferred.name}`);
+    } else {
+      console.warn("⚠️ No preferred voice found, using default");
+    }
+    
     if (onEnd) u.onend = onEnd;
+    u.onerror = (error: SpeechSynthesisErrorEvent) => {
+      // Common errors: "interrupted", "canceled", "audio-busy", "network"
+      const errorType = error.error;
+      
+      if (errorType === "interrupted" || errorType === "canceled") {
+        // These are normal when speech is interrupted by new speech
+        console.log(`ℹ️ Speech ${errorType}: "${text.substring(0, 30)}..."`);
+      } else {
+        console.error("❌ Speech synthesis error:", {
+          error: error.error,
+          message: error.message,
+          type: error.type,
+          text: text.substring(0, 50)
+        });
+      }
+      
+      if (onEnd) onEnd();
+    };
+    
+    u.onstart = () => {
+      console.log(`🔊 Started speaking: "${text.substring(0, 50)}..." (${emotion})`);
+    };
+    
     window.speechSynthesis.speak(u);
   }, 80);
 }
@@ -134,36 +213,50 @@ function Humanoid({
       rBrowRef.current.rotation.z = lerp(rBrowRef.current.rotation.z, -lrz, 0.1);
     }
 
-    // Gesture animations
+    // GESTURE ENHANCEMENT: More expressive and natural animations
     const rArm = rArmRef.current;
     const lArm = lArmRef.current;
     const rFore = rForeRef.current;
     const lFore = lForeRef.current;
 
     if (gesture === "wave" && rArm && rFore) {
-      rArm.rotation.z = lerp(rArm.rotation.z, -1.2 + Math.sin(time * 4) * 0.4, 0.15);
-      rArm.rotation.x = lerp(rArm.rotation.x, 0, 0.1);
-      rFore.rotation.x = lerp(rFore.rotation.x, Math.sin(time * 4) * 0.5, 0.15);
+      // More enthusiastic wave
+      rArm.rotation.z = lerp(rArm.rotation.z, -1.3 + Math.sin(time * 5) * 0.5, 0.18);
+      rArm.rotation.x = lerp(rArm.rotation.x, 0.2, 0.12);
+      rFore.rotation.x = lerp(rFore.rotation.x, Math.sin(time * 5) * 0.6, 0.18);
     } else if (gesture === "thumbsup" && rArm && rFore) {
-      rArm.rotation.z = lerp(rArm.rotation.z, -1.4, 0.1);
-      rArm.rotation.x = lerp(rArm.rotation.x, -0.3, 0.1);
-      rFore.rotation.x = lerp(rFore.rotation.x, 0, 0.1);
+      // Confident thumbs up with slight bounce
+      rArm.rotation.z = lerp(rArm.rotation.z, -1.5 + Math.sin(time * 2) * 0.1, 0.12);
+      rArm.rotation.x = lerp(rArm.rotation.x, -0.4, 0.12);
+      rFore.rotation.x = lerp(rFore.rotation.x, 0.1, 0.12);
     } else if (gesture === "pointLeft" && lArm && lFore) {
-      lArm.rotation.z = lerp(lArm.rotation.z, 1.2, 0.1);
-      lArm.rotation.x = lerp(lArm.rotation.x, -0.3, 0.1);
-      lFore.rotation.x = lerp(lFore.rotation.x, 0.3, 0.1);
+      // Pointing with emphasis
+      lArm.rotation.z = lerp(lArm.rotation.z, 1.3, 0.12);
+      lArm.rotation.x = lerp(lArm.rotation.x, -0.4, 0.12);
+      lFore.rotation.x = lerp(lFore.rotation.x, 0.4, 0.12);
+      // Add slight bob
+      if (lArm) lArm.position.y = 1.6 + Math.sin(time * 3) * 0.03;
     } else if (gesture === "clap" && rArm && lArm) {
-      const clap = Math.abs(Math.sin(time * 4)) * 0.5;
-      rArm.rotation.z = lerp(rArm.rotation.z, -0.5 - clap, 0.15);
-      lArm.rotation.z = lerp(lArm.rotation.z, 0.5 + clap, 0.15);
-      rArm.rotation.x = lerp(rArm.rotation.x, 0.5, 0.1);
-      lArm.rotation.x = lerp(lArm.rotation.x, 0.5, 0.1);
+      // Energetic clapping
+      const clap = Math.abs(Math.sin(time * 5)) * 0.6;
+      rArm.rotation.z = lerp(rArm.rotation.z, -0.6 - clap, 0.2);
+      lArm.rotation.z = lerp(lArm.rotation.z, 0.6 + clap, 0.2);
+      rArm.rotation.x = lerp(rArm.rotation.x, 0.6, 0.15);
+      lArm.rotation.x = lerp(lArm.rotation.x, 0.6, 0.15);
     } else if (gesture === "exercise") {
       animateExercise(exercise, time, rArm, lArm, rFore, lFore, rLegRef.current, lLegRef.current, rShinRef.current, lShinRef.current);
     } else {
-      // idle reset
-      if (rArm) { rArm.rotation.z = lerp(rArm.rotation.z, -0.15, 0.05); rArm.rotation.x = lerp(rArm.rotation.x, 0, 0.05); }
-      if (lArm) { lArm.rotation.z = lerp(lArm.rotation.z, 0.15, 0.05); lArm.rotation.x = lerp(lArm.rotation.x, 0, 0.05); }
+      // Idle with natural breathing motion in arms
+      if (rArm) { 
+        rArm.rotation.z = lerp(rArm.rotation.z, -0.15 + Math.sin(time * 1.2) * 0.02, 0.05); 
+        rArm.rotation.x = lerp(rArm.rotation.x, Math.sin(time * 1.2) * 0.03, 0.05);
+        rArm.position.y = 1.6;
+      }
+      if (lArm) { 
+        lArm.rotation.z = lerp(lArm.rotation.z, 0.15 - Math.sin(time * 1.2) * 0.02, 0.05); 
+        lArm.rotation.x = lerp(lArm.rotation.x, Math.sin(time * 1.2) * 0.03, 0.05);
+        lArm.position.y = 1.6;
+      }
       if (rFore) rFore.rotation.x = lerp(rFore.rotation.x, 0, 0.05);
       if (lFore) lFore.rotation.x = lerp(lFore.rotation.x, 0, 0.05);
     }
@@ -183,33 +276,106 @@ function Humanoid({
   function animateExercise(
     ex: string, time: number,
     rA: THREE.Group | null, lA: THREE.Group | null,
-    _rF: THREE.Group | null, lF: THREE.Group | null,
+    rF: THREE.Group | null, lF: THREE.Group | null,
     rL: THREE.Group | null, lL: THREE.Group | null,
     rS: THREE.Group | null, lS: THREE.Group | null
   ) {
-    const s = Math.sin(time * 2);
+    // EXERCISE ANIMATION ENHANCEMENT: More realistic and smooth movements
+    const s = Math.sin(time * 1.8); // Slightly slower for realism
+    const phase = (s + 1) / 2; // 0 to 1
+    
     if (ex === "squat") {
-      if (rL) rL.rotation.x = lerp(rL.rotation.x, -0.6 + s * 0.4, 0.1);
-      if (lL) lL.rotation.x = lerp(lL.rotation.x, -0.6 + s * 0.4, 0.1);
-      if (rS) rS.rotation.x = lerp(rS.rotation.x, 0.8 - s * 0.4, 0.1);
-      if (lS) lS.rotation.x = lerp(lS.rotation.x, 0.8 - s * 0.4, 0.1);
-      if (rA) rA.rotation.x = lerp(rA.rotation.x, 0.5 + s * 0.2, 0.1);
-      if (lA) lA.rotation.x = lerp(lA.rotation.x, 0.5 + s * 0.2, 0.1);
-    } else if (ex === "knee_left") {
-      if (lL) lL.rotation.x = lerp(lL.rotation.x, s * 0.6, 0.1);
-      if (lS) lS.rotation.x = lerp(lS.rotation.x, Math.max(0, s) * 1.2, 0.1);
-    } else if (ex === "knee_right") {
-      if (rL) rL.rotation.x = lerp(rL.rotation.x, s * 0.6, 0.1);
-      if (rS) rS.rotation.x = lerp(rS.rotation.x, Math.max(0, s) * 1.2, 0.1);
-    } else if (ex === "shoulder_left") {
-      if (lA) lA.rotation.z = lerp(lA.rotation.z, 0.3 + Math.max(0, s) * 1.2, 0.1);
-      if (lF) lF.rotation.x = lerp(lF.rotation.x, -Math.max(0, s) * 0.5, 0.1);
-    } else if (ex === "hip_left") {
-      if (lL) lL.rotation.z = lerp(lL.rotation.z, Math.max(0, s) * 0.6, 0.1);
+      // Realistic squat with hip hinge
+      const depth = 0.5 + phase * 0.5; // 0.5 to 1.0
+      if (rL) rL.rotation.x = lerp(rL.rotation.x, -0.7 * depth, 0.12);
+      if (lL) lL.rotation.x = lerp(lL.rotation.x, -0.7 * depth, 0.12);
+      if (rS) rS.rotation.x = lerp(rS.rotation.x, 0.9 * depth, 0.12);
+      if (lS) lS.rotation.x = lerp(lS.rotation.x, 0.9 * depth, 0.12);
+      // Arms forward for balance
+      if (rA) rA.rotation.x = lerp(rA.rotation.x, 0.6 * depth, 0.12);
+      if (lA) lA.rotation.x = lerp(lA.rotation.x, 0.6 * depth, 0.12);
+    } else if (ex === "knee_left" || ex.includes("knee")) {
+      // Knee raise with hip flexion
+      const lift = Math.max(0, s) * 0.8;
+      if (lL) lL.rotation.x = lerp(lL.rotation.x, lift, 0.12);
+      if (lS) lS.rotation.x = lerp(lS.rotation.x, lift * 1.3, 0.12);
+      // Opposite arm swing
+      if (rA) rA.rotation.x = lerp(rA.rotation.x, lift * 0.5, 0.12);
+    } else if (ex === "shoulder_press" || ex.includes("shoulder")) {
+      // Shoulder press with full ROM
+      const press = Math.max(0, s);
+      if (lA) lA.rotation.z = lerp(lA.rotation.z, 0.4 + press * 1.3, 0.12);
+      if (rA) rA.rotation.z = lerp(rA.rotation.z, -0.4 - press * 1.3, 0.12);
+      if (lF) lF.rotation.x = lerp(lF.rotation.x, -press * 0.6, 0.12);
+      if (rF) rF.rotation.x = lerp(rF.rotation.x, -press * 0.6, 0.12);
+    } else if (ex === "bicep_curl" || ex.includes("elbow")) {
+      // Bicep curl with controlled motion
+      const curl = (Math.sin(time * 2) + 1) / 2; // 0 to 1
+      if (rA) rA.rotation.x = lerp(rA.rotation.x, -0.3, 0.12);
+      if (lA) lA.rotation.x = lerp(lA.rotation.x, -0.3, 0.12);
+      if (rF) rF.rotation.x = lerp(rF.rotation.x, curl * 2.2, 0.15);
+      if (lF) lF.rotation.x = lerp(lF.rotation.x, curl * 2.2, 0.15);
+    } else if (ex === "hip_abduction" || ex.includes("hip")) {
+      // Hip abduction (leg raise to side)
+      const abduct = Math.max(0, s) * 0.7;
+      if (lL) lL.rotation.z = lerp(lL.rotation.z, abduct, 0.12);
+      // Balance shift
+      if (rA) rA.rotation.z = lerp(rA.rotation.z, -0.3 - abduct * 0.3, 0.12);
+    } else if (ex === "lunge") {
+      // Lunge with alternating legs
+      const forward = s > 0;
+      if (forward) {
+        if (rL) rL.rotation.x = lerp(rL.rotation.x, -0.8 * phase, 0.12);
+        if (lL) lL.rotation.x = lerp(lL.rotation.x, 0.4 * phase, 0.12);
+      } else {
+        if (lL) lL.rotation.x = lerp(lL.rotation.x, -0.8 * (1 - phase), 0.12);
+        if (rL) rL.rotation.x = lerp(rL.rotation.x, 0.4 * (1 - phase), 0.12);
+      }
+    } else if (ex === "wrist_rotation" || ex.includes("wrist")) {
+      // Wrist rotation — forearms extend forward, hands rotate in circles
+      const rot = time * 2.5;
+      // Arms held out in front
+      if (rA) rA.rotation.x = lerp(rA.rotation.x, 0.8, 0.12);
+      if (lA) lA.rotation.x = lerp(lA.rotation.x, 0.8, 0.12);
+      // Forearms with circular wrist rotation
+      if (rF) {
+        rF.rotation.x = lerp(rF.rotation.x, 0.3 + Math.sin(rot) * 0.6, 0.15);
+        rF.rotation.z = lerp(rF.rotation.z, Math.cos(rot) * 0.4, 0.15);
+      }
+      if (lF) {
+        lF.rotation.x = lerp(lF.rotation.x, 0.3 + Math.sin(rot + Math.PI) * 0.6, 0.15);
+        lF.rotation.z = lerp(lF.rotation.z, Math.cos(rot + Math.PI) * 0.4, 0.15);
+      }
+    } else if (ex === "ankle_circles" || ex.includes("ankle")) {
+      // Ankle circles — one leg raised, foot rotates
+      const rot = time * 2;
+      // Raise left leg
+      if (lL) lL.rotation.x = lerp(lL.rotation.x, 0.5, 0.12);
+      if (lS) {
+        lS.rotation.x = lerp(lS.rotation.x, 0.7 + Math.sin(rot) * 0.3, 0.15);
+        lS.rotation.z = lerp(lS.rotation.z, Math.cos(rot) * 0.25, 0.15);
+      }
+      // Balance arms
+      if (rA) rA.rotation.z = lerp(rA.rotation.z, -0.5, 0.12);
+      if (lA) lA.rotation.z = lerp(lA.rotation.z, 0.5, 0.12);
+    } else if (ex === "finger_flexion" || ex.includes("finger")) {
+      // Finger flexion — arms extend forward, forearms open/close (mimicking fingers)
+      const grip = (Math.sin(time * 2.2) + 1) / 2; // 0 to 1
+      // Arms held out
+      if (rA) rA.rotation.x = lerp(rA.rotation.x, 0.6, 0.12);
+      if (lA) lA.rotation.x = lerp(lA.rotation.x, 0.6, 0.12);
+      // Forearms simulate finger opening/closing
+      if (rF) rF.rotation.x = lerp(rF.rotation.x, grip * 1.8, 0.15);
+      if (lF) lF.rotation.x = lerp(lF.rotation.x, grip * 1.8, 0.15);
+      // Slight arm rotation to show wrist engagement
+      if (rA) rA.rotation.z = lerp(rA.rotation.z, -0.2 + Math.sin(time * 1.5) * 0.1, 0.12);
+      if (lA) lA.rotation.z = lerp(lA.rotation.z, 0.2 - Math.sin(time * 1.5) * 0.1, 0.12);
     } else {
-      // full / default: arms swing
-      if (rA) rA.rotation.x = lerp(rA.rotation.x, s * 0.5, 0.1);
-      if (lA) lA.rotation.x = lerp(lA.rotation.x, -s * 0.5, 0.1);
+      // Default: full body movement with arm swings
+      if (rA) rA.rotation.x = lerp(rA.rotation.x, s * 0.6, 0.12);
+      if (lA) lA.rotation.x = lerp(lA.rotation.x, -s * 0.6, 0.12);
+      if (rL) rL.rotation.x = lerp(rL.rotation.x, -s * 0.3, 0.12);
+      if (lL) lL.rotation.x = lerp(lL.rotation.x, s * 0.3, 0.12);
     }
   }
 
@@ -316,7 +482,7 @@ function Scene({ expression, gesture, exercise, headShake, autoRotate, speaking 
   );
 }
 
-export default function PhysioGuide({ exercise, isActive, repCount, feedback, formScore }: Props) {
+export default function PhysioGuide({ exercise, isActive, repCount, feedback, formScore, detailedFeedback }: Props) {
   const [expression, setExpression] = useState<Expression>("happy");
   const [gesture, setGesture] = useState<Gesture>("idle");
   const [speechBubble, setSpeechBubble] = useState<string | null>(null);
@@ -325,6 +491,52 @@ export default function PhysioGuide({ exercise, isActive, repCount, feedback, fo
   const prevRepCount = useRef(0);
   const prevActive = useRef(false);
   const prevFeedbackMsg = useRef("");
+  const lastCorrectionTime = useRef(0);
+  const correctionCooldown = 8000; // 8 seconds between corrections
+
+  // ✅ FIX: Load voices on component mount
+  useEffect(() => {
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        voicesLoaded = true;
+        console.log(`✅ TTS: Loaded ${voices.length} voices`);
+        voices.slice(0, 5).forEach(v => console.log(`  - ${v.name} (${v.lang})`));
+      }
+    };
+
+    // Voices might load asynchronously
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+      }
+
+      // Try loading immediately
+      loadVoices();
+    }
+
+    // Cleanup
+    return () => {
+      if (typeof window !== "undefined" && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  // ✅ FIX: Resume speech on page visibility change
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (typeof window !== "undefined" && window.speechSynthesis) {
+        if (!document.hidden && window.speechSynthesis.paused) {
+          console.log("🔊 TTS: Resuming speech (page visible)");
+          window.speechSynthesis.resume();
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, []);
 
   // Helper: speak with visual sync
   const say = (text: string, emotion: "happy" | "warning" | "encouraging" | "neutral" = "neutral") => {
@@ -332,19 +544,42 @@ export default function PhysioGuide({ exercise, isActive, repCount, feedback, fo
     speak(text, emotion, () => setSpeaking(false));
   };
 
-  // Intro sequence
+  // Intro sequence with detailed instructions
   useEffect(() => {
     if (isActive && !prevActive.current) {
       prevActive.current = true;
-      setExpression("encouraging"); setGesture("wave");
+      setExpression("encouraging"); 
+      setGesture("wave");
       setSpeechBubble("Hey! Let's do this! 💪");
-      say("Hey! Let's do this together. Watch my demonstration first, then follow along!", "encouraging");
-      const t1 = setTimeout(() => { setGesture("pointLeft"); setSpeechBubble("Watch me first! 👀"); }, 2500);
-      const t2 = setTimeout(() => { setGesture("exercise"); setSpeechBubble(null); }, 5000);
-      return () => { clearTimeout(t1); clearTimeout(t2); };
+      say("Hey! I'm your AI physiotherapist. Let me show you how to do this exercise correctly.", "encouraging");
+      
+      const t1 = setTimeout(() => { 
+        setGesture("pointLeft"); 
+        setSpeechBubble("Watch me first! 👀");
+        say("Watch my demonstration carefully. Pay attention to my form and movement speed.", "neutral");
+      }, 4000);
+      
+      const t2 = setTimeout(() => { 
+        setGesture("exercise"); 
+        setSpeechBubble("Follow along! 🏃");
+        say("Now follow along with me. I'll guide you and correct your form in real-time.", "encouraging");
+      }, 8000);
+      
+      const t3 = setTimeout(() => { 
+        setSpeechBubble(null);
+      }, 12000);
+      
+      return () => { 
+        clearTimeout(t1); 
+        clearTimeout(t2); 
+        clearTimeout(t3);
+      };
     } else if (!isActive) {
       prevActive.current = false;
-      setGesture("idle"); setExpression("happy"); setSpeechBubble(null); setSpeaking(false);
+      setGesture("idle"); 
+      setExpression("happy"); 
+      setSpeechBubble(null); 
+      setSpeaking(false);
     }
   }, [isActive]);
 
@@ -412,6 +647,53 @@ export default function PhysioGuide({ exercise, isActive, repCount, feedback, fo
     else if (formScore >= 55) setExpression("concerned");
     else setExpression("warning");
   }, [formScore, gesture]);
+
+  // Detailed form correction with cooldown
+  useEffect(() => {
+    if (!detailedFeedback || !isActive) return;
+    
+    const now = Date.now();
+    if (now - lastCorrectionTime.current < correctionCooldown) return;
+    
+    lastCorrectionTime.current = now;
+    
+    const { joint, currentAngle, targetAngle, deviation, correction } = detailedFeedback;
+    
+    // Visual feedback based on deviation
+    if (deviation > 30) {
+      setExpression("warning");
+      setHeadShake(true);
+      setGesture("pointLeft");
+      setSpeechBubble(`⚠️ ${correction}`);
+      say(correction, "warning");
+      
+      setTimeout(() => {
+        setHeadShake(false);
+        setGesture("exercise");
+        setSpeechBubble(null);
+      }, 4000);
+    } else if (deviation > 15) {
+      setExpression("concerned");
+      setGesture("pointLeft");
+      setSpeechBubble(`💡 ${correction}`);
+      say(correction, "neutral");
+      
+      setTimeout(() => {
+        setGesture("exercise");
+        setSpeechBubble(null);
+      }, 3500);
+    } else if (deviation < 10) {
+      setExpression("happy");
+      setGesture("thumbsup");
+      setSpeechBubble(`✅ ${correction}`);
+      say(correction, "happy");
+      
+      setTimeout(() => {
+        setGesture("exercise");
+        setSpeechBubble(null);
+      }, 2500);
+    }
+  }, [detailedFeedback, isActive]);
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
@@ -482,7 +764,7 @@ export default function PhysioGuide({ exercise, isActive, repCount, feedback, fo
         camera={{ position: [0, 0.5, 5.5], fov: 55 }}
         onCreated={({ gl, camera }) => {
           gl.shadowMap.enabled = true;
-          gl.shadowMap.type = THREE.PCFShadowMap;
+          gl.shadowMap.type = THREE.PCFShadowMap; // Using PCFShadowMap (PCFSoftShadowMap is deprecated)
           // Point camera at model center
           (camera as THREE.PerspectiveCamera).lookAt(0, 0.5, 0);
         }}

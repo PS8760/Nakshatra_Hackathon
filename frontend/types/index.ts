@@ -73,7 +73,13 @@ export type JointName =
   | "shoulder_left"
   | "shoulder_right"
   | "hip_left"
-  | "hip_right";
+  | "hip_right"
+  | "wrist_left"
+  | "wrist_right"
+  | "ankle_left"
+  | "ankle_right"
+  | "finger_left"
+  | "finger_right";
 
 export interface JointAngleResult {
   joint: JointName;

@@ -1,531 +1,886 @@
 "use client";
-/**
- * PoseCamera — BlazePose Heavy + AI Posture Analysis
- *
- * Uses @tensorflow-models/pose-detection with BlazePose GHUM Heavy:
- * - 33 keypoints with 3D coordinates (x, y, z + visibility)
- * - Detects wrong posture, form faults, asymmetry in real time
- * - Exercise classifier identifies squat/lunge/shoulder press/curl etc.
- * - Per-exercise fault detection with specific coaching cues
- * - Sends fault data to Groq AI for natural language feedback
- */
-import { useEffect, useRef, useState, useCallback } from "react";
-import {
-  analyzePosture, classifyExercise,
-  createRepPhaseState, BLAZEPOSE_CONNECTIONS, JOINT_KP_MAP,
-  getScoreBand, getScoreBandLabel,
-  type ExerciseType, type RepPhaseState, type PostureFault, type Keypoint3D,
-} from "@/lib/postureEngine";
-import type { JointName } from "@/types";
 
-interface Props {
-  sessionId: number;
-  token: string;
+import { useEffect, useRef, useState } from "react";
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TYPE DEFINITIONS
+// ═══════════════════════════════════════════════════════════════════════════
+interface PoseCameraProps {
+  sessionId?: number;
+  token?: string;
   preset?: string;
-  activeJoints?: JointName[];
-  onRepComplete?: (joint: JointName, angle: number, repCount: number) => void;
-  onFeedback?: (msg: string, status: string) => void;
+  activeJoints?: string[];
+  onRepComplete?: (joint: string, angle: number, repCount: number) => void;
+  onFeedback?: (message: string, status: string) => void;
   onFormScore?: (score: number) => void;
+  onDetailedFeedback?: (feedback: {
+    joint: string;
+    currentAngle: number;
+    targetAngle: number;
+    deviation: number;
+    correction: string;
+  }) => void;
 }
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
-
-// Fault severity → colour
-const FAULT_COLOR: Record<string, string> = {
-  error: "#ef4444",
-  warning: "#eab308",
-  info: "#60a5fa",
-};
-
-// Joint status colour
-function jointColor(fault: PostureFault | undefined, hasAngle: boolean): string {
-  if (!hasAngle) return "rgba(255,255,255,0.5)";
-  if (!fault) return "#22c55e";
-  return FAULT_COLOR[fault.severity] ?? "#22c55e";
+interface Landmark {
+  x: number;
+  y: number;
+  z: number;
+  visibility?: number;
 }
 
-export default function PoseCamera({
-  sessionId, token, preset = "full", activeJoints,
-  onRepComplete, onFeedback, onFormScore,
-}: Props) {
-  const videoRef    = useRef<HTMLVideoElement>(null);
-  const canvasRef   = useRef<HTMLCanvasElement>(null);
-  const wsRef       = useRef<WebSocket | null>(null);
-  const detectorRef = useRef<any>(null);
-  const rafRef      = useRef<number>(0);
-  const activeRef   = useRef(true);
-  const repStateRef = useRef<RepPhaseState>(createRepPhaseState());
-  const exerciseRef = useRef<ExerciseType>("unknown");
-  const fpsRef      = useRef({ frames: 0, lastTime: Date.now() });
-  const lastFaultRef = useRef<string>("");
-  const lastFaultTime = useRef<number>(0);
+interface RepState {
+  stage: "up" | "down" | "neutral";
+  count: number;
+  lastAngle: number;
+}
 
-  const [isLoading,   setIsLoading]   = useState(true);
-  const [loadingMsg,  setLoadingMsg]  = useState("Initialising…");
-  const [loadingPct,  setLoadingPct]  = useState(0);
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  const [fps,         setFps]         = useState(0);
-  const [formScore,   setFormScore]   = useState<number | null>(null);
-  const [faults,      setFaults]      = useState<PostureFault[]>([]);
-  const [exercise,    setExercise]    = useState<string>("Detecting…");
-  const [phase,       setPhase]       = useState<string>("");
-  const [repCount,    setRepCount]    = useState(0);
-  const [angles,      setAngles]      = useState<Record<string, number>>({});
+// ═══════════════════════════════════════════════════════════════════════════
+// VOICE AUDIO ENGINE — Throttled speech synthesis for real-time coaching
+// ═══════════════════════════════════════════════════════════════════════════
+let _voiceTimer: ReturnType<typeof setTimeout> | null = null;
+let _lastVoiceTime = 0;
+const VOICE_COOLDOWN = 4000; // 4 seconds between voice cues
 
-  // ── Voice ──────────────────────────────────────────────────────────────────
-  const speak = useCallback((text: string) => {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
+function speakCue(text: string, force = false) {
+  if (typeof window === "undefined" || !window.speechSynthesis) return;
+  const now = Date.now();
+  if (!force && now - _lastVoiceTime < VOICE_COOLDOWN) return;
+  _lastVoiceTime = now;
+
+  if (_voiceTimer) clearTimeout(_voiceTimer);
+  window.speechSynthesis.cancel();
+
+  _voiceTimer = setTimeout(() => {
     const u = new SpeechSynthesisUtterance(text);
-    u.rate = 1.05; u.pitch = 1;
-    window.speechSynthesis.speak(u);
-  }, []);
+    u.rate = 1.05;
+    u.pitch = 1.1;
+    u.volume = 1.0;
 
-  // ── WebSocket ──────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const wsToken = token || (typeof window !== "undefined" ? localStorage.getItem("nr_token") : null);
-    if (!wsToken) return;
-    const ws = new WebSocket(`${WS_URL}/ws/session/${sessionId}?token=${wsToken}`);
-    wsRef.current = ws;
-    ws.onmessage = (e) => {
-      try {
-        const d = JSON.parse(e.data);
-        if (d.event === "feedback") onFeedback?.(d.message, d.status);
-      } catch {}
+    const voices = window.speechSynthesis.getVoices();
+    const preferred =
+      voices.find(v => v.name.includes("Samantha") && v.lang.startsWith("en")) ||
+      voices.find(v => v.name.includes("Google") && v.lang.startsWith("en-US")) ||
+      voices.find(v => v.lang.startsWith("en-US")) ||
+      voices[0];
+    if (preferred) u.voice = preferred;
+
+    u.onerror = (error: SpeechSynthesisErrorEvent) => {
+      // Suppress "interrupted" and "canceled" errors (normal behavior)
+      if (error.error === "interrupted" || error.error === "canceled") {
+        console.log(`ℹ️ Voice cue ${error.error}`);
+      } else {
+        console.warn("Voice synthesis error:", error.error);
+      }
     };
-    ws.onerror = () => {};
-    return () => { try { ws.close(); } catch {} };
-  }, [sessionId, token, onFeedback]);
+    window.speechSynthesis.speak(u);
+  }, 60);
+}
 
-  const sendRepEvent = useCallback((angle: number, target: number) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        event: "rep_complete",
-        joint: exerciseRef.current,
-        angle, target,
-        timestamp: Math.floor(Date.now() / 1000),
-        session_id: sessionId,
-      }));
+// ═══════════════════════════════════════════════════════════════════════════
+// FINGER JOINT NAMES for hand landmark labeling
+// ═══════════════════════════════════════════════════════════════════════════
+const FINGER_NAMES = [
+  "Wrist",
+  "Thumb CMC", "Thumb MCP", "Thumb IP", "Thumb Tip",
+  "Index MCP", "Index PIP", "Index DIP", "Index Tip",
+  "Middle MCP", "Middle PIP", "Middle DIP", "Middle Tip",
+  "Ring MCP", "Ring PIP", "Ring DIP", "Ring Tip",
+  "Pinky MCP", "Pinky PIP", "Pinky DIP", "Pinky Tip",
+];
+
+// Finger curl measurement: MCP → PIP → DIP for each finger
+const FINGER_CURL_TRIPLETS = [
+  { name: "Index",  joints: [5, 6, 7] },
+  { name: "Middle", joints: [9, 10, 11] },
+  { name: "Ring",   joints: [13, 14, 15] },
+  { name: "Pinky",  joints: [17, 18, 19] },
+  { name: "Thumb",  joints: [1, 2, 3] },
+];
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MAIN COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════
+export default function PoseCamera({
+  sessionId,
+  token,
+  preset = "full",
+  activeJoints,
+  onRepComplete,
+  onFeedback,
+  onFormScore,
+  onDetailedFeedback,
+}: PoseCameraProps) {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // REFS
+  // ═══════════════════════════════════════════════════════════════════════════
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const holisticRef = useRef<any>(null);
+  const cameraRef = useRef<any>(null);
+
+  // FPS tracking
+  const fpsRef = useRef<{
+    lastTime: number;
+    frameCount: number;
+    currentFPS: number;
+  }>({
+    lastTime: performance.now(),
+    frameCount: 0,
+    currentFPS: 0,
+  });
+
+  // Rep counting state machines
+  const repStatesRef = useRef<{
+    rightElbow: RepState;
+    leftElbow: RepState;
+    rightKnee: RepState;
+    leftKnee: RepState;
+    rightWrist: RepState;
+    leftWrist: RepState;
+    rightAnkle: RepState;
+    leftAnkle: RepState;
+  }>({
+    rightElbow: { stage: "neutral", count: 0, lastAngle: 180 },
+    leftElbow: { stage: "neutral", count: 0, lastAngle: 180 },
+    rightKnee: { stage: "neutral", count: 0, lastAngle: 180 },
+    leftKnee: { stage: "neutral", count: 0, lastAngle: 180 },
+    rightWrist: { stage: "neutral", count: 0, lastAngle: 180 },
+    leftWrist: { stage: "neutral", count: 0, lastAngle: 180 },
+    rightAnkle: { stage: "neutral", count: 0, lastAngle: 180 },
+    leftAnkle: { stage: "neutral", count: 0, lastAngle: 180 },
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STATE
+  // ═══════════════════════════════════════════════════════════════════════════
+  const [isLoading, setIsLoading] = useState(true);
+  const [totalReps, setTotalReps] = useState(0);
+  const [currentFPS, setCurrentFPS] = useState(0);
+
+  // Session metrics tracking
+  const sessionMetricsRef = useRef<{
+    formScores: number[];
+    jointAngles: Record<string, number[]>;
+    startTime: number;
+  }>({
+    formScores: [],
+    jointAngles: {},
+    startTime: Date.now(),
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONSTANTS - HARDCODED THRESHOLDS
+  // ═══════════════════════════════════════════════════════════════════════════
+  const MIN_DETECTION_CONFIDENCE = 0.1; // LOWERED: was 0.65 — draw skeleton no matter what
+  const MIN_TRACKING_CONFIDENCE = 0.1; // LOWERED: was 0.65 — keep tracking even at low confidence
+
+  // Rep counting thresholds
+  const CURL_CONTRACTED_ANGLE = 45; // Arm fully curled
+  const CURL_EXTENDED_ANGLE = 160; // Arm fully extended
+  const SQUAT_DOWN_ANGLE = 90; // Knee bent (squatting)
+  const SQUAT_UP_ANGLE = 160; // Knee extended (standing)
+  const WRIST_FLEX_ANGLE = 120; // Wrist flexed
+  const WRIST_EXT_ANGLE = 165; // Wrist extended
+  const ANKLE_FLEX_ANGLE = 80;  // Ankle dorsiflexed
+  const ANKLE_EXT_ANGLE = 140;  // Ankle plantarflexed
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HELPER FUNCTIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Calculate 3D angle between three landmarks
+   * @param a - First landmark (e.g., shoulder)
+   * @param b - Middle landmark/vertex (e.g., elbow)
+   * @param c - Third landmark (e.g., wrist)
+   * @returns Angle in degrees (0-180)
+   */
+  const calculate3DAngle = (a: Landmark, b: Landmark, c: Landmark): number => {
+    // Vector BA (from B to A)
+    const ba = {
+      x: a.x - b.x,
+      y: a.y - b.y,
+      z: a.z - b.z,
+    };
+
+    // Vector BC (from B to C)
+    const bc = {
+      x: c.x - b.x,
+      y: c.y - b.y,
+      z: c.z - b.z,
+    };
+
+    // Dot product
+    const dotProduct = ba.x * bc.x + ba.y * bc.y + ba.z * bc.z;
+
+    // Magnitudes
+    const magnitudeBA = Math.sqrt(ba.x ** 2 + ba.y ** 2 + ba.z ** 2);
+    const magnitudeBC = Math.sqrt(bc.x ** 2 + bc.y ** 2 + bc.z ** 2);
+
+    // Avoid division by zero
+    if (magnitudeBA === 0 || magnitudeBC === 0) {
+      return 0;
     }
-  }, [sessionId]);
 
-  // ── Draw skeleton ──────────────────────────────────────────────────────────
-  const drawSkeleton = useCallback((
-    kp: Keypoint3D[],
-    faultList: PostureFault[],
-    ctx: CanvasRenderingContext2D,
-    w: number, h: number
+    // Calculate angle
+    const cosAngle = dotProduct / (magnitudeBA * magnitudeBC);
+    
+    // Clamp to [-1, 1] to avoid NaN from acos
+    const clampedCos = Math.max(-1, Math.min(1, cosAngle));
+    
+    const angleRadians = Math.acos(clampedCos);
+    const angleDegrees = (angleRadians * 180) / Math.PI;
+
+    return Math.round(angleDegrees);
+  };
+
+  /**
+   * Update FPS counter
+   */
+  const updateFPS = () => {
+    const now = performance.now();
+    const deltaTime = now - fpsRef.current.lastTime;
+
+    fpsRef.current.frameCount++;
+
+    // Update FPS every second
+    if (deltaTime >= 1000) {
+      const fps = Math.round((fpsRef.current.frameCount * 1000) / deltaTime);
+      fpsRef.current.currentFPS = fps;
+      fpsRef.current.frameCount = 0;
+      fpsRef.current.lastTime = now;
+      setCurrentFPS(fps);
+    }
+  };
+
+  /**
+   * Track angle for session metrics
+   */
+  const trackAngle = (jointName: string, angle: number) => {
+    if (!sessionMetricsRef.current.jointAngles[jointName]) {
+      sessionMetricsRef.current.jointAngles[jointName] = [];
+    }
+    sessionMetricsRef.current.jointAngles[jointName].push(angle);
+  };
+
+  /**
+   * Track form score for session metrics
+   */
+  const trackFormScore = (score: number) => {
+    sessionMetricsRef.current.formScores.push(score);
+  };
+
+  /**
+   * Get session metrics for report generation
+   */
+  const getSessionMetrics = () => {
+    const formScores = sessionMetricsRef.current.formScores;
+    const duration = Math.floor((Date.now() - sessionMetricsRef.current.startTime) / 1000);
+
+    return {
+      sessionId: sessionId || 0,
+      duration,
+      totalReps,
+      avgFormScore: formScores.length > 0 
+        ? formScores.reduce((a, b) => a + b, 0) / formScores.length 
+        : 0,
+      peakFormScore: formScores.length > 0 ? Math.max(...formScores) : 0,
+      lowestFormScore: formScores.length > 0 ? Math.min(...formScores) : 0,
+      painEvents: [],
+      jointAngles: sessionMetricsRef.current.jointAngles,
+      exerciseType: preset || "full",
+      completionRate: 100,
+    };
+  };
+
+  /**
+   * Provide detailed form correction feedback
+   */
+  const provideFormCorrection = (
+    jointName: string,
+    currentAngle: number,
+    targetAngle: number,
+    exerciseType: "curl" | "squat",
+    stage: "up" | "down" | "neutral"
   ) => {
-    const faultMap = new Map(faultList.map(f => [f.joint ?? "", f]));
+    const deviation = Math.abs(currentAngle - targetAngle);
+    let correction = "";
+    let feedbackStatus = "good";
 
-    // Bones
-    ctx.lineWidth = 2.5;
-    for (const [ai, bi] of BLAZEPOSE_CONNECTIONS) {
-      const a = kp[ai], b = kp[bi];
-      if (!a || !b || a.score < 0.3 || b.score < 0.3) continue;
-      ctx.beginPath();
-      ctx.strokeStyle = "rgba(255,255,255,0.55)";
-      ctx.moveTo(a.x * w, a.y * h);
-      ctx.lineTo(b.x * w, b.y * h);
-      ctx.stroke();
-    }
-
-    // Joints — colour-coded by fault
-    for (let i = 0; i < kp.length; i++) {
-      const k = kp[i];
-      if (!k || k.score < 0.3) continue;
-      const jointName = Object.entries(JOINT_KP_MAP).find(([, idx]) => idx === i)?.[0];
-      const fault = jointName ? faultMap.get(jointName) : undefined;
-      const hasAngle = jointName ? (angles[jointName] !== undefined) : false;
-      const color = jointColor(fault, hasAngle);
-      const radius = jointName ? 8 : 4;
-
-      ctx.beginPath();
-      ctx.arc(k.x * w, k.y * h, radius, 0, Math.PI * 2);
-      ctx.fillStyle = color;
-      ctx.fill();
-      if (radius > 4) {
-        ctx.strokeStyle = "rgba(0,0,0,0.5)";
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
+    if (exerciseType === "curl") {
+      if (stage === "up" && currentAngle > targetAngle + 15) {
+        correction = `Bend your ${jointName.includes("left") ? "left" : "right"} elbow more! Aim for ${targetAngle}°`;
+        feedbackStatus = "warning";
+      } else if (stage === "down" && currentAngle < targetAngle - 15) {
+        correction = `Straighten your ${jointName.includes("left") ? "left" : "right"} arm fully! Extend to ${targetAngle}°`;
+        feedbackStatus = "warning";
+      } else if (deviation < 10) {
+        correction = `Perfect form on your ${jointName.includes("left") ? "left" : "right"} arm!`;
+        feedbackStatus = "good";
+      }
+    } else if (exerciseType === "squat") {
+      if (stage === "up" && currentAngle > targetAngle + 20) {
+        correction = `Squat deeper! Bend your ${jointName.includes("left") ? "left" : "right"} knee to ${targetAngle}°`;
+        feedbackStatus = "warning";
+      } else if (stage === "down" && currentAngle < targetAngle - 20) {
+        correction = `Stand up fully! Extend your ${jointName.includes("left") ? "left" : "right"} leg to ${targetAngle}°`;
+        feedbackStatus = "warning";
+      } else if (currentAngle < 70) {
+        correction = `Don't go too deep! Risk of knee strain. Keep angle above 70°`;
+        feedbackStatus = "out_of_range";
+      } else if (deviation < 15) {
+        correction = `Excellent squat depth on ${jointName.includes("left") ? "left" : "right"} leg!`;
+        feedbackStatus = "good";
       }
     }
 
-    // Angle labels on tracked joints
-    ctx.font = "bold 12px monospace";
-    ctx.textAlign = "center";
-    for (const [jointName, kpIdx] of Object.entries(JOINT_KP_MAP)) {
-      const angle = angles[jointName];
-      if (angle === undefined) continue;
-      const k = kp[kpIdx];
-      if (!k || k.score < 0.3) continue;
-      const x = k.x * w, y = k.y * h - 18;
-      const label = `${angle.toFixed(0)}°`;
-      const mw = ctx.measureText(label).width;
-      ctx.fillStyle = "rgba(0,0,0,0.72)";
-      ctx.beginPath();
-      ctx.roundRect(x - mw / 2 - 5, y - 13, mw + 10, 18, 4);
-      ctx.fill();
-      const fault = faultMap.get(jointName);
-      ctx.fillStyle = fault ? FAULT_COLOR[fault.severity] : "#22c55e";
-      ctx.fillText(label, x, y);
+    if (correction && onDetailedFeedback) {
+      onDetailedFeedback({
+        joint: jointName,
+        currentAngle,
+        targetAngle,
+        deviation,
+        correction,
+      });
     }
 
-    // Fault overlays — draw warning arrows on affected joints
-    for (const fault of faultList) {
-      if (!fault.joint) continue;
-      const kpIdx = JOINT_KP_MAP[fault.joint];
-      if (kpIdx === undefined) continue;
-      const k = kp[kpIdx];
-      if (!k || k.score < 0.3) continue;
-      const x = k.x * w, y = k.y * h;
-      // Pulsing ring around faulty joint
-      ctx.beginPath();
-      ctx.arc(x, y, 16, 0, Math.PI * 2);
-      ctx.strokeStyle = FAULT_COLOR[fault.severity] + "99";
-      ctx.lineWidth = 2;
-      ctx.stroke();
+    if (correction && onFeedback) {
+      onFeedback(correction, feedbackStatus);
     }
-  }, [angles]);
+  };
 
-  // ── Inference loop ─────────────────────────────────────────────────────────
-  const runLoop = useCallback(async () => {
-    if (!activeRef.current || !detectorRef.current || !videoRef.current || !canvasRef.current) return;
-    const video = videoRef.current;
-    if (video.readyState < 2) { rafRef.current = requestAnimationFrame(runLoop); return; }
+  /**
+   * Threshold-gated rep counter with state machine and form correction
+   */
+  const countRep = (
+    jointName: keyof typeof repStatesRef.current,
+    angle: number,
+    exerciseType: "curl" | "squat",
+    poseConfidence: number
+  ) => {
+    // Gate: Only count if confidence meets a very low threshold (effectively always count)
+    if (poseConfidence < 0.05) {
+      console.warn(`⚠️ countRep SKIPPED for ${jointName} — confidence too low: ${poseConfidence.toFixed(3)}`);
+      return;
+    }
 
+    const state = repStatesRef.current[jointName];
+
+    let contractedThreshold: number;
+    let extendedThreshold: number;
+    let targetContracted: number;
+    let targetExtended: number;
+
+    if (exerciseType === "curl") {
+      contractedThreshold = CURL_CONTRACTED_ANGLE;
+      extendedThreshold = CURL_EXTENDED_ANGLE;
+      targetContracted = 45;
+      targetExtended = 170;
+    } else {
+      contractedThreshold = SQUAT_DOWN_ANGLE;
+      extendedThreshold = SQUAT_UP_ANGLE;
+      targetContracted = 90;
+      targetExtended = 170;
+    }
+
+    // Provide real-time form correction
+    if (state.stage === "down") {
+      provideFormCorrection(jointName, angle, targetContracted, exerciseType, "up");
+    } else if (state.stage === "up") {
+      provideFormCorrection(jointName, angle, targetExtended, exerciseType, "down");
+    }
+
+    // State machine: DOWN -> UP transition counts as 1 rep
+    if (angle > extendedThreshold && state.stage !== "down") {
+      // Fully extended position
+      state.stage = "down";
+      console.log(`${jointName}: Stage DOWN (${angle}°)`);
+      
+      if (onFeedback) {
+        onFeedback(`Good! Now ${exerciseType === "curl" ? "curl" : "squat"} down slowly`, "good");
+      }
+    } else if (angle < contractedThreshold && state.stage === "down") {
+      // Fully contracted position - complete rep
+      state.stage = "up";
+      state.count++;
+      setTotalReps((prev) => prev + 1);
+
+      console.log(`✅ ${jointName}: REP ${state.count} COMPLETED! (${angle}°)`);
+
+      // 🔊 AUDIO: Voice announce rep completion
+      speakCue(`Rep ${state.count} complete! Great form.`);
+
+      // Callbacks
+      if (onRepComplete) {
+        onRepComplete(jointName, angle, state.count);
+      }
+      if (onFeedback) {
+        onFeedback(`Excellent! Rep ${state.count} completed! Now extend back up`, "good");
+      }
+    }
+
+    state.lastAngle = angle;
+  };
+
+  /**
+   * Draw text on canvas with shadow
+   */
+  const drawText = (
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    x: number,
+    y: number,
+    fontSize: number,
+    color: string
+  ) => {
+    ctx.font = `bold ${fontSize}px Arial`;
+    ctx.fillStyle = color;
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = 4;
+    ctx.shadowColor = "#000000";
+    ctx.shadowBlur = 8;
+
+    // Draw outline
+    ctx.strokeText(text, x, y);
+    // Draw fill
+    ctx.fillText(text, x, y);
+
+    ctx.shadowBlur = 0;
+  };
+
+  /**
+   * Draw angle text next to joint
+   */
+  const drawAngleText = (
+    ctx: CanvasRenderingContext2D,
+    landmark: Landmark,
+    angle: number,
+    width: number,
+    height: number
+  ) => {
+    const x = landmark.x * width + 15;
+    const y = landmark.y * height - 10;
+
+    drawText(ctx, `${angle}°`, x, y, 16, "#ffffff");
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MEDIAPIPE HOLISTIC RESULTS CALLBACK
+  // ═══════════════════════════════════════════════════════════════════════════
+  const onResults = (results: any) => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
+
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const w = video.videoWidth || 640;
-    const h = video.videoHeight || 480;
-    canvas.width = w; canvas.height = h;
+    // Update FPS
+    updateFPS();
 
-    try {
-      const poses = await detectorRef.current.estimatePoses(video, {
-        maxPoses: 1,
-        flipHorizontal: false,
-        scoreThreshold: 0.3,
+    // Set canvas size to match video
+    canvas.width = results.image.width;
+    canvas.height = results.image.height;
+
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw the video frame
+    ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // DRAW POSE LANDMARKS (BODY) - BLUE
+    // ═══════════════════════════════════════════════════════════════════════
+    if (results.poseLandmarks) {
+      // 🔍 DEBUG: Log nose keypoint visibility on every frame
+      const nose = results.poseLandmarks[0];
+      if (nose) {
+        console.log(
+          `👃 Nose keypoint — visibility: ${nose.visibility?.toFixed(4) ?? 'N/A'}, ` +
+          `x: ${nose.x.toFixed(3)}, y: ${nose.y.toFixed(3)}, z: ${nose.z.toFixed(3)}`
+        );
+      } else {
+        console.warn('👃 Nose keypoint (index 0) is missing from poseLandmarks!');
+      }
+
+      // Draw connections (skeleton)
+      if (window.drawConnectors) {
+        window.drawConnectors(ctx, results.poseLandmarks, window.POSE_CONNECTIONS, {
+          color: "#0000FF",
+          lineWidth: 4,
+        });
+      }
+
+      // Draw landmarks (joints)
+      if (window.drawLandmarks) {
+        window.drawLandmarks(ctx, results.poseLandmarks, {
+          color: "#00FFFF",
+          lineWidth: 2,
+          radius: 6,
+        });
+      }
+
+      // ═══════════════════════════════════════════════════════════════════
+      // CALCULATE ANGLES AND COUNT REPS
+      // ═══════════════════════════════════════════════════════════════════
+      const pose = results.poseLandmarks;
+
+      // Calculate average pose confidence
+      const avgConfidence =
+        pose.reduce((sum: number, lm: Landmark) => sum + (lm.visibility || 0), 0) /
+        pose.length;
+
+      // Right Elbow Angle (Shoulder -> Elbow -> Wrist)
+      if (pose[12] && pose[14] && pose[16]) {
+        const angle = calculate3DAngle(pose[12], pose[14], pose[16]);
+        drawAngleText(ctx, pose[14], angle, canvas.width, canvas.height);
+        trackAngle("rightElbow", angle);
+        countRep("rightElbow", angle, "curl", avgConfidence);
+      }
+
+      // Left Elbow Angle
+      if (pose[11] && pose[13] && pose[15]) {
+        const angle = calculate3DAngle(pose[11], pose[13], pose[15]);
+        drawAngleText(ctx, pose[13], angle, canvas.width, canvas.height);
+        trackAngle("leftElbow", angle);
+        countRep("leftElbow", angle, "curl", avgConfidence);
+      }
+
+      // Right Knee Angle (Hip -> Knee -> Ankle)
+      if (pose[24] && pose[26] && pose[28]) {
+        const angle = calculate3DAngle(pose[24], pose[26], pose[28]);
+        drawAngleText(ctx, pose[26], angle, canvas.width, canvas.height);
+        trackAngle("rightKnee", angle);
+        countRep("rightKnee", angle, "squat", avgConfidence);
+      }
+
+      // Left Knee Angle
+      if (pose[23] && pose[25] && pose[27]) {
+        const angle = calculate3DAngle(pose[23], pose[25], pose[27]);
+        drawAngleText(ctx, pose[25], angle, canvas.width, canvas.height);
+        trackAngle("leftKnee", angle);
+        countRep("leftKnee", angle, "squat", avgConfidence);
+      }
+
+      // ═══════════════════════════════════════════════════════════════════
+      // WRIST ANGLES (Elbow → Wrist → Index Finger MCP)
+      // Right Wrist: landmarks 14 (elbow) → 16 (wrist) → 20 (index finger)
+      // Left Wrist:  landmarks 13 (elbow) → 15 (wrist) → 19 (index finger)
+      // ═══════════════════════════════════════════════════════════════════
+      if (pose[14] && pose[16] && pose[20]) {
+        const wristAngle = calculate3DAngle(pose[14], pose[16], pose[20]);
+        drawAngleText(ctx, pose[16], wristAngle, canvas.width, canvas.height);
+        drawText(ctx, "R.Wrist", pose[16].x * canvas.width - 40, pose[16].y * canvas.height + 20, 11, "#FF69B4");
+        trackAngle("rightWrist", wristAngle);
+        countRep("rightWrist", wristAngle, "curl", avgConfidence);
+      }
+      if (pose[13] && pose[15] && pose[19]) {
+        const wristAngle = calculate3DAngle(pose[13], pose[15], pose[19]);
+        drawAngleText(ctx, pose[15], wristAngle, canvas.width, canvas.height);
+        drawText(ctx, "L.Wrist", pose[15].x * canvas.width - 40, pose[15].y * canvas.height + 20, 11, "#FF69B4");
+        trackAngle("leftWrist", wristAngle);
+        countRep("leftWrist", wristAngle, "curl", avgConfidence);
+      }
+
+      // ═══════════════════════════════════════════════════════════════════
+      // ANKLE ANGLES (Knee → Ankle → Foot Index)
+      // Right Ankle: landmarks 26 (knee) → 28 (ankle) → 32 (foot index)
+      // Left Ankle:  landmarks 25 (knee) → 27 (ankle) → 31 (foot index)
+      // ═══════════════════════════════════════════════════════════════════
+      if (pose[26] && pose[28] && pose[32]) {
+        const ankleAngle = calculate3DAngle(pose[26], pose[28], pose[32]);
+        drawAngleText(ctx, pose[28], ankleAngle, canvas.width, canvas.height);
+        drawText(ctx, "R.Ankle", pose[28].x * canvas.width - 40, pose[28].y * canvas.height + 20, 11, "#FFA500");
+        trackAngle("rightAnkle", ankleAngle);
+        countRep("rightAnkle", ankleAngle, "squat", avgConfidence);
+      }
+      if (pose[25] && pose[27] && pose[31]) {
+        const ankleAngle = calculate3DAngle(pose[25], pose[27], pose[31]);
+        drawAngleText(ctx, pose[27], ankleAngle, canvas.width, canvas.height);
+        drawText(ctx, "L.Ankle", pose[27].x * canvas.width - 40, pose[27].y * canvas.height + 20, 11, "#FFA500");
+        trackAngle("leftAnkle", ankleAngle);
+        countRep("leftAnkle", ankleAngle, "squat", avgConfidence);
+      }
+
+      // Calculate form score
+      const formScore = Math.round(avgConfidence * 100);
+      trackFormScore(formScore);
+      if (onFormScore) {
+        onFormScore(formScore);
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // DRAW RIGHT HAND LANDMARKS (ALL 21 JOINTS) - GREEN + FINGER LABELS
+    // ═══════════════════════════════════════════════════════════════════════
+    if (results.rightHandLandmarks) {
+      const rh = results.rightHandLandmarks;
+
+      // Draw connections (finger bones)
+      if (window.drawConnectors) {
+        window.drawConnectors(ctx, rh, window.HAND_CONNECTIONS, {
+          color: "#00FF00",
+          lineWidth: 3,
+        });
+      }
+
+      // Draw landmarks (knuckles, fingertips, palm)
+      if (window.drawLandmarks) {
+        window.drawLandmarks(ctx, rh, {
+          color: "#00FF00",
+          lineWidth: 2,
+          radius: 4,
+        });
+      }
+
+      // Draw fingertip labels (tips: 4, 8, 12, 16, 20)
+      const tipIndices = [4, 8, 12, 16, 20];
+      const tipNames = ["Thumb", "Index", "Middle", "Ring", "Pinky"];
+      tipIndices.forEach((idx, i) => {
+        if (rh[idx]) {
+          drawText(ctx, tipNames[i], rh[idx].x * canvas.width + 8, rh[idx].y * canvas.height - 6, 10, "#00FF88");
+        }
       });
 
-      ctx.save();
-      ctx.clearRect(0, 0, w, h);
-      ctx.drawImage(video, 0, 0, w, h);
-
-      if (poses.length > 0) {
-        // BlazePose returns 33 keypoints with 3D (x, y, z) + score
-        // Keypoints are already normalized 0-1 for x,y
-        // z is relative depth (negative = closer to camera)
-        const rawKp = poses[0].keypoints3D ?? poses[0].keypoints;
-        const kp: Keypoint3D[] = new Array(33).fill(null).map(() => ({ x: 0, y: 0, z: 0, score: 0 }));
-
-        if (poses[0].keypoints3D) {
-          // BlazePose 3D — use directly, already normalized
-          for (let i = 0; i < rawKp.length && i < 33; i++) {
-            const k = rawKp[i];
-            kp[i] = { x: k.x, y: k.y, z: (k as any).z ?? 0, score: k.score ?? 0 };
-          }
-        } else {
-          // Fallback: MoveNet COCO 17 → BlazePose 33 slot remapping
-          const cocoToBP: Record<number, number> = {
-            5: 11, 6: 12, 7: 13, 8: 14, 9: 15, 10: 16,
-            11: 23, 12: 24, 13: 25, 14: 26, 15: 27, 16: 28,
-          };
-          for (let i = 0; i < rawKp.length; i++) {
-            const bpIdx = cocoToBP[i];
-            if (bpIdx !== undefined) {
-              kp[bpIdx] = { x: rawKp[i].x / w, y: rawKp[i].y / h, z: 0, score: rawKp[i].score ?? 0 };
-            }
-          }
+      // Calculate and display finger curl angles
+      FINGER_CURL_TRIPLETS.forEach(({ name, joints }) => {
+        if (rh[joints[0]] && rh[joints[1]] && rh[joints[2]]) {
+          const curlAngle = calculate3DAngle(rh[joints[0]], rh[joints[1]], rh[joints[2]]);
+          const pip = rh[joints[1]];
+          drawText(ctx, `${curlAngle}°`, pip.x * canvas.width - 20, pip.y * canvas.height - 12, 9, "#AAFFAA");
         }
+      });
 
-        // Classify exercise from pose
-        const detectedExercise = classifyExercise(kp, preset);
-        if (detectedExercise !== "unknown") exerciseRef.current = detectedExercise;
-
-        // Full posture analysis
-        const analysis = analyzePosture(kp, exerciseRef.current, repStateRef.current);
-        repStateRef.current = analysis.repState;
-
-        // Update state
-        setAngles(analysis.angles);
-        setFaults(analysis.faults);
-        setFormScore(analysis.score);
-        setExercise(exerciseRef.current.replace("_", " "));
-        setPhase(analysis.phase);
-        onFormScore?.(analysis.score);
-
-        // Rep completed
-        if (analysis.repCompleted) {
-          const newCount = repStateRef.current.count;
-          setRepCount(newCount);
-          // Use the correct primary joint for the exercise
-          const primaryJoint = (
-            exerciseRef.current === "shoulder_press" || exerciseRef.current === "lateral_raise" ? "shoulder_left" :
-            exerciseRef.current === "bicep_curl" ? "elbow_left" :
-            exerciseRef.current === "hip_abduction" ? "hip_left" : "knee_left"
-          ) as JointName;
-          const primaryAngle = analysis.angles[primaryJoint] ?? analysis.angles["knee_left"] ?? 0;
-          onRepComplete?.(primaryJoint, primaryAngle, newCount);
-          sendRepEvent(primaryAngle, 90);
-          speak(`Rep ${newCount}`);
-        }
-
-        // Fault voice feedback — throttled to 4s per unique fault
-        const topFault = analysis.faults.find(f => f.severity === "error")
-          ?? analysis.faults.find(f => f.severity === "warning");
-        if (topFault) {
-          const now = Date.now();
-          if (topFault.fault !== lastFaultRef.current || now - lastFaultTime.current > 4000) {
-            lastFaultRef.current = topFault.fault;
-            lastFaultTime.current = now;
-            onFeedback?.(topFault.message, topFault.severity === "error" ? "out_of_range" : "warning");
-            if (topFault.severity === "error") speak(topFault.message);
-          }
-        } else if (analysis.score === 100) {
-          onFeedback?.("Perfect form!", "good");
-        }
-
-        drawSkeleton(kp, analysis.faults, ctx, w, h);
+      // Palm label
+      if (rh[0]) {
+        drawText(ctx, "R.Palm", rh[0].x * canvas.width - 20, rh[0].y * canvas.height + 18, 11, "#00FF00");
       }
-      ctx.restore();
-    } catch {}
-
-    // FPS
-    const now = Date.now();
-    fpsRef.current.frames++;
-    if (now - fpsRef.current.lastTime >= 1000) {
-      setFps(fpsRef.current.frames);
-      fpsRef.current = { frames: 0, lastTime: now };
     }
 
-    if (activeRef.current) rafRef.current = requestAnimationFrame(runLoop);
-  }, [drawSkeleton, preset, onRepComplete, onFeedback, onFormScore, sendRepEvent, speak]);
+    // ═══════════════════════════════════════════════════════════════════════
+    // DRAW LEFT HAND LANDMARKS (ALL 21 JOINTS) - RED + FINGER LABELS
+    // ═══════════════════════════════════════════════════════════════════════
+    if (results.leftHandLandmarks) {
+      const lh = results.leftHandLandmarks;
 
-  // ── Init ───────────────────────────────────────────────────────────────────
+      // Draw connections (finger bones)
+      if (window.drawConnectors) {
+        window.drawConnectors(ctx, lh, window.HAND_CONNECTIONS, {
+          color: "#FF4444",
+          lineWidth: 3,
+        });
+      }
+
+      // Draw landmarks (knuckles, fingertips, palm)
+      if (window.drawLandmarks) {
+        window.drawLandmarks(ctx, lh, {
+          color: "#FF4444",
+          lineWidth: 2,
+          radius: 4,
+        });
+      }
+
+      // Draw fingertip labels
+      const tipIndices = [4, 8, 12, 16, 20];
+      const tipNames = ["Thumb", "Index", "Middle", "Ring", "Pinky"];
+      tipIndices.forEach((idx, i) => {
+        if (lh[idx]) {
+          drawText(ctx, tipNames[i], lh[idx].x * canvas.width + 8, lh[idx].y * canvas.height - 6, 10, "#FF8888");
+        }
+      });
+
+      // Calculate and display finger curl angles
+      FINGER_CURL_TRIPLETS.forEach(({ name, joints }) => {
+        if (lh[joints[0]] && lh[joints[1]] && lh[joints[2]]) {
+          const curlAngle = calculate3DAngle(lh[joints[0]], lh[joints[1]], lh[joints[2]]);
+          const pip = lh[joints[1]];
+          drawText(ctx, `${curlAngle}°`, pip.x * canvas.width - 20, pip.y * canvas.height - 12, 9, "#FFAAAA");
+        }
+      });
+
+      // Palm label
+      if (lh[0]) {
+        drawText(ctx, "L.Palm", lh[0].x * canvas.width - 20, lh[0].y * canvas.height + 18, 11, "#FF4444");
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // DRAW UI OVERLAYS
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // FPS Counter (top-left)
+    drawText(ctx, `FPS: ${currentFPS}`, 20, 40, 28, "#00FF00");
+
+    // Rep Counter (top-right)
+    const repText = `Reps: ${totalReps}`;
+    const textWidth = ctx.measureText(repText).width;
+    drawText(ctx, repText, canvas.width - textWidth - 20, 45, 32, "#FFFF00");
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // INITIALIZATION
+  // ═══════════════════════════════════════════════════════════════════════════
   useEffect(() => {
-    activeRef.current = true;
-    let stream: MediaStream | null = null;
+    let isActive = true;
 
-    async function init() {
+    const initialize = async () => {
       try {
-        setLoadingMsg("Loading TensorFlow.js…");
-        setLoadingPct(15);
-        const tf = await import("@tensorflow/tfjs-core");
-        await import("@tensorflow/tfjs-backend-webgl");
-        const poseDetection = await import("@tensorflow-models/pose-detection");
+        console.log("🚀 Initializing MediaPipe Holistic...");
 
-        setLoadingMsg("Setting up WebGL backend…");
-        setLoadingPct(30);
-        await tf.setBackend("webgl");
-        await tf.ready();
+        // Dynamically import MediaPipe modules
+        const holisticModule = await import("@mediapipe/holistic");
+        const cameraUtilsModule = await import("@mediapipe/camera_utils");
+        const drawingUtilsModule = await import("@mediapipe/drawing_utils");
 
-        setLoadingMsg("Loading BlazePose Heavy model…");
-        setLoadingPct(55);
+        // Make drawing utilities globally available
+        (window as any).drawConnectors = drawingUtilsModule.drawConnectors;
+        (window as any).drawLandmarks = drawingUtilsModule.drawLandmarks;
+        (window as any).POSE_CONNECTIONS = holisticModule.POSE_CONNECTIONS;
+        (window as any).HAND_CONNECTIONS = holisticModule.HAND_CONNECTIONS;
 
-        // BlazePose Heavy — best browser-based pose model
-        // 33 keypoints with 3D depth, 95.2% PCK@0.2
-        // Specifically designed for full-body pose estimation
-        // runtime: "tfjs" avoids @mediapipe/pose dependency issues
-        const detector = await poseDetection.createDetector(
-          poseDetection.SupportedModels.BlazePose,
-          {
-            runtime: "tfjs" as const,
-            modelType: "heavy",        // heavy > full > lite (accuracy)
-            enableSmoothing: true,     // built-in temporal smoothing
-            enableSegmentation: false, // not needed, saves memory
-          }
-        );
-
-        detectorRef.current = detector;
-        setLoadingMsg("Starting camera…");
-        setLoadingPct(75);
-
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" },
-          audio: false,
+        // Initialize Holistic model
+        const holistic = new holisticModule.Holistic({
+          locateFile: (file: string) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`;
+          },
         });
 
-        if (!videoRef.current) return;
-        videoRef.current.srcObject = stream;
-
-        // Wait for video to be ready before playing
-        await new Promise<void>((resolve, reject) => {
-          const v = videoRef.current!;
-          v.onloadedmetadata = () => {
-            v.play().then(resolve).catch(reject);
-          };
-          v.onerror = reject;
+        // CRITICAL: Set hardcoded confidence thresholds
+        holistic.setOptions({
+          modelComplexity: 2, // 0=Lite, 1=Full, 2=Heavy (maximum accuracy)
+          smoothLandmarks: true,
+          enableSegmentation: false, // Disable for performance
+          smoothSegmentation: false,
+          refineFaceLandmarks: false, // Disable face mesh for performance
+          minDetectionConfidence: MIN_DETECTION_CONFIDENCE, // 0.65
+          minTrackingConfidence: MIN_TRACKING_CONFIDENCE, // 0.65
         });
 
-        setLoadingPct(100);
+        console.log(`✅ Holistic configured with confidence thresholds: ${MIN_DETECTION_CONFIDENCE}`);
+
+        // Set results callback
+        holistic.onResults(onResults);
+
+        holisticRef.current = holistic;
+
+        // Initialize camera
+        const video = videoRef.current;
+        if (!video || !isActive) return;
+
+        const camera = new cameraUtilsModule.Camera(video, {
+          onFrame: async () => {
+            if (holisticRef.current && isActive) {
+              await holisticRef.current.send({ image: video });
+            }
+          },
+          width: 1280,
+          height: 720,
+        });
+
+        cameraRef.current = camera;
+
+        // Start camera
+        await camera.start();
+
+        console.log("✅ Camera started");
+        // 🔊 AUDIO: Announce tracking is live
+        speakCue("Tracking started. Stand in frame so I can see your full body.", true);
         setIsLoading(false);
-        rafRef.current = requestAnimationFrame(runLoop);
-      } catch (err: any) {
-        setCameraError(err?.message || "Failed to start pose engine");
+      } catch (error) {
+        console.error("❌ Initialization error:", error);
         setIsLoading(false);
       }
-    }
-
-    init();
-    return () => {
-      activeRef.current = false;
-      cancelAnimationFrame(rafRef.current);
-      if (stream) stream.getTracks().forEach(t => t.stop());
-      detectorRef.current?.dispose?.();
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    if (!isLoading && !cameraError) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = requestAnimationFrame(runLoop);
-    }
-  }, [runLoop, isLoading, cameraError]);
+    initialize();
 
-  const scoreColor = formScore == null ? "#6b7280"
-    : formScore >= 92 ? "#22c55e"   // excellent (dataset top 25%)
-    : formScore >= 77 ? "#0fffc5"   // good (dataset median)
-    : formScore >= 60 ? "#eab308"   // fair
-    : "#ef4444";                    // needs work (dataset bottom quartile)
+    // ═══════════════════════════════════════════════════════════════════════
+    // CLEANUP
+    // ═══════════════════════════════════════════════════════════════════════
+    return () => {
+      console.log("🛑 Cleaning up...");
+      isActive = false;
 
+      // Stop camera
+      if (cameraRef.current) {
+        cameraRef.current.stop();
+        cameraRef.current = null;
+      }
+
+      // Close Holistic model
+      if (holisticRef.current) {
+        holisticRef.current.close();
+        holisticRef.current = null;
+      }
+
+      // Stop video stream
+      const video = videoRef.current;
+      if (video && video.srcObject) {
+        const stream = video.srcObject as MediaStream;
+        stream.getTracks().forEach((track) => track.stop());
+        video.srcObject = null;
+      }
+
+      console.log("✅ Cleanup complete");
+    };
+  }, []);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════════════════════
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      {/* Camera canvas */}
-      <div style={{
-        position: "relative", width: "100%", background: "#000",
-        borderRadius: 16, overflow: "hidden", minHeight: 320,
-        border: "1px solid rgba(15,255,197,0.15)",
-      }}>
-        <video ref={videoRef} style={{ display: "none" }} playsInline muted />
-        <canvas ref={canvasRef} style={{ width: "100%", height: "auto", display: "block", maxHeight: "60vh" }} />
-
-        {/* Loading */}
-        {isLoading && (
-          <div style={{
-            position: "absolute", inset: 0, background: "rgba(2,24,43,0.93)",
-            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 20,
-          }}>
-            <div style={{ position: "relative", width: 72, height: 72 }}>
-              <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "2px solid transparent", borderTopColor: "#0fffc5", animation: "spinCW 1s linear infinite" }} />
-              <div style={{ position: "absolute", inset: 8, borderRadius: "50%", border: "2px solid transparent", borderBottomColor: "rgba(15,255,197,0.5)", animation: "spinCW 1.5s linear infinite reverse" }} />
-              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>🦴</div>
-            </div>
-            <div style={{ textAlign: "center" }}>
-              <p style={{ color: "#0fffc5", fontSize: 14, fontWeight: 600, marginBottom: 6 }}>{loadingMsg}</p>
-              <p style={{ color: "rgba(232,244,240,0.4)", fontSize: 12 }}>BlazePose Heavy · 33 keypoints · 3D · ~8MB · 95% PCK</p>
-            </div>
-            <div style={{ width: 200, height: 3, background: "rgba(15,255,197,0.1)", borderRadius: 2 }}>
-              <div style={{ height: "100%", borderRadius: 2, background: "linear-gradient(90deg,rgba(15,255,197,0.5),#0fffc5)", width: `${loadingPct}%`, transition: "width 0.4s ease", boxShadow: "0 0 8px rgba(15,255,197,0.6)" }} />
-            </div>
+    <div className="relative w-full h-full">
+      {/* Loading Indicator */}
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/70 z-20 rounded-lg">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-20 w-20 border-t-4 border-b-4 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-white text-xl font-bold">Loading MediaPipe Holistic...</p>
+            <p className="text-gray-300 text-sm mt-2">
+              Initializing full body + hand tracking
+            </p>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Error */}
-        {cameraError && (
-          <div style={{
-            position: "absolute", inset: 0, background: "rgba(2,24,43,0.95)",
-            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-            padding: 32, textAlign: "center", gap: 16,
-          }}>
-            <div style={{ fontSize: 40 }}>⚠️</div>
-            <div>
-              <p style={{ color: "#ff6b6b", fontWeight: 700, fontSize: 16, marginBottom: 8 }}>Pose Engine Error</p>
-              <p style={{ color: "rgba(232,244,240,0.6)", fontSize: 13, marginBottom: 12, maxWidth: 320 }}>{cameraError}</p>
-              <p style={{ color: "rgba(232,244,240,0.35)", fontSize: 11 }}>Chrome/Edge · Camera permission · HTTPS or localhost</p>
-            </div>
-            <button onClick={() => { setCameraError(null); setIsLoading(true); setLoadingPct(0); }}
-              style={{ padding: "10px 24px", borderRadius: 10, fontSize: 13, fontWeight: 600, background: "#0fffc5", color: "#02182b", border: "none", cursor: "pointer" }}>
-              Retry
-            </button>
+      {/* Video Element (hidden, used as source) */}
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        className="hidden"
+      />
+
+      {/* Canvas Overlay (visible, shows skeleton) */}
+      <canvas
+        ref={canvasRef}
+        className="w-full h-full object-contain rounded-lg"
+      />
+
+      {/* Status Badge */}
+      {!isLoading && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full z-10">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+            <span className="text-white text-sm font-semibold">
+              Holistic Tracking Active
+            </span>
           </div>
-        )}
-
-        {/* HUD */}
-        {!isLoading && !cameraError && (
-          <>
-            {/* Top-left: FPS + model */}
-            <div style={{ position: "absolute", top: 10, left: 10, display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ background: "rgba(0,0,0,0.7)", color: fps >= 20 ? "#0fffc5" : "#eab308", fontSize: 10, fontFamily: "monospace", padding: "3px 7px", borderRadius: 5, border: "1px solid rgba(15,255,197,0.2)" }}>
-                {fps} FPS
-              </span>
-              <span style={{ background: "rgba(0,0,0,0.7)", color: "rgba(232,244,240,0.4)", fontSize: 9, fontFamily: "monospace", padding: "3px 7px", borderRadius: 5 }}>
-                BlazePose Heavy · 95%
-              </span>
-            </div>
-
-            {/* Top-right: form score */}
-            {formScore !== null && (
-              <div style={{
-                position: "absolute", top: 10, right: 10,
-                background: "rgba(0,0,0,0.75)", borderRadius: 10,
-                padding: "8px 12px", textAlign: "center",
-                border: `1px solid ${scoreColor}40`,
-              }}>
-                <p style={{ fontSize: 22, fontWeight: 800, color: scoreColor, lineHeight: 1 }}>{formScore}</p>
-                <p style={{ fontSize: 9, color: scoreColor, marginTop: 2, fontWeight: 600 }}>
-                  {getScoreBandLabel(formScore).toUpperCase()}
-                </p>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* Live fault panel */}
-      {!isLoading && !cameraError && (
-        <div style={{
-          background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)",
-          borderRadius: 12, padding: "12px 14px",
-        }}>
-          {/* Exercise + phase */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "#0fffc5", textTransform: "capitalize" }}>{exercise}</span>
-              {phase && <span style={{ fontSize: 10, color: "rgba(232,244,240,0.4)", background: "rgba(255,255,255,0.05)", padding: "2px 7px", borderRadius: 5 }}>{phase}</span>}
-            </div>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "#0fffc5" }}>Rep {repCount}</span>
-          </div>
-
-          {/* Faults */}
-          {faults.length === 0 ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e" }} />
-              <span style={{ fontSize: 12, color: "#22c55e" }}>Good form — keep it up</span>
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {faults.slice(0, 3).map((f, i) => (
-                <div key={i} style={{
-                  display: "flex", alignItems: "flex-start", gap: 8,
-                  padding: "7px 10px", borderRadius: 8,
-                  background: `${FAULT_COLOR[f.severity]}10`,
-                  border: `1px solid ${FAULT_COLOR[f.severity]}30`,
-                }}>
-                  <div style={{ width: 7, height: 7, borderRadius: "50%", background: FAULT_COLOR[f.severity], flexShrink: 0, marginTop: 3 }} />
-                  <span style={{ fontSize: 12, color: FAULT_COLOR[f.severity], lineHeight: 1.4 }}>{f.message}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Angle readouts */}
-          {Object.keys(angles).length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 10 }}>
-              {Object.entries(angles).map(([joint, angle]) => (
-                <span key={joint} style={{
-                  fontSize: 10, fontFamily: "monospace",
-                  background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
-                  borderRadius: 5, padding: "2px 7px", color: "rgba(232,244,240,0.5)",
-                }}>
-                  {joint.replace("_", " ")}: <span style={{ color: "#0fffc5" }}>{angle.toFixed(0)}°</span>
-                </span>
-              ))}
-            </div>
-          )}
         </div>
       )}
     </div>
   );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GLOBAL TYPE AUGMENTATION FOR MEDIAPIPE UTILITIES
+// ═══════════════════════════════════════════════════════════════════════════
+declare global {
+  interface Window {
+    drawConnectors: any;
+    drawLandmarks: any;
+    POSE_CONNECTIONS: any;
+    HAND_CONNECTIONS: any;
+  }
 }
