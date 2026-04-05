@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simple Voice Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    button {
+      padding: 15px 30px;
+      font-size: 18px;
+      margin: 10px;
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      background: #0fffc5;
+      color: #000;
+      font-weight: bold;
+    }
+    button:hover {
+      background: #0dd9a8;
+    }
+    #status {
+      margin-top: 20px;
+      padding: 15px;
+      background: white;
+      border-radius: 8px;
+      min-height: 100px;
+    }
+    .log {
+      margin: 5px 0;
+      padding: 5px;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    .success { color: green; }
+    .error { color: red; }
+    .info { color: blue; }
+  </style>
+</head>
+<body>
+  <h1>🔊 Simple Voice Test</h1>
+  <p>Click the button below to test if voice works in your browser:</p>
+  
+  <button onclick="testVoice()">🔊 Test Voice Now</button>
+  <button onclick="clearLog()">🗑️ Clear Log</button>
+  
+  <div id="status"></div>
+
+  <script>
+    const statusDiv = document.getElementById('status');
+    
+    function log(message, type = 'info') {
+      const div = document.createElement('div');
+      div.className = `log ${type}`;
+      div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      statusDiv.appendChild(div);
+      statusDiv.scrollTop = statusDiv.scrollHeight;
+    }
+    
+    function clearLog() {
+      statusDiv.innerHTML = '';
+    }
+    
+    function testVoice() {
+      log('🧪 Starting voice test...', 'info');
+      
+      // Check API
+      if (!window.speechSynthesis) {
+        log('❌ Speech Synthesis API not available!', 'error');
+        log('💡 Try a different browser (Chrome recommended)', 'info');
+        return;
+      }
+      log('✅ Speech Synthesis API available', 'success');
+      
+      // Check voices
+      const voices = window.speechSynthesis.getVoices();
+      log(`✅ Found ${voices.length} voices`, 'success');
+      
+      if (voices.length === 0) {
+        log('⏳ Waiting for voices to load...', 'info');
+        window.speechSynthesis.onvoiceschanged = () => {
+          const v = window.speechSynthesis.getVoices();
+          log(`✅ Voices loaded: ${v.length}`, 'success');
+          speakTest();
+        };
+        return;
+      }
+      
+      speakTest();
+    }
+    
+    function speakTest() {
+      log('🔊 Attempting to speak...', 'info');
+      
+      const utterance = new SpeechSynthesisUtterance(
+        "Hello! If you can hear this, voice is working correctly."
+      );
+      
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+      
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        utterance.voice = voices[0];
+        log(`🎤 Using voice: ${voices[0].name}`, 'info');
+      }
+      
+      utterance.onstart = () => {
+        log('✅ Speech started successfully!', 'success');
+        log('👂 Can you hear it? Check your volume!', 'info');
+      };
+      
+      utterance.onend = () => {
+        log('✅ Speech completed successfully!', 'success');
+        log('🎉 Voice is working! Your system is OK.', 'success');
+      };
+      
+      utterance.onerror = (error) => {
+        log(`❌ Speech error: ${error.error}`, 'error');
+        
+        if (error.error === 'audio-busy') {
+          log('💡 Close other audio apps and try again', 'info');
+        } else if (error.error === 'network') {
+          log('💡 Check your internet connection', 'info');
+        } else if (error.error === 'synthesis-failed') {
+          log('💡 Try restarting your browser', 'info');
+        }
+      };
+      
+      window.speechSynthesis.speak(utterance);
+      
+      // Check status after 500ms
+      setTimeout(() => {
+        if (window.speechSynthesis.speaking) {
+          log('🔊 Status: Currently speaking', 'success');
+        } else if (window.speechSynthesis.pending) {
+          log('⏳ Status: Speech pending', 'info');
+        } else {
+          log('⚠️ Status: Not speaking (might have finished)', 'info');
+        }
+      }, 500);
+    }
+    
+    // Auto-load voices on page load
+    window.addEventListener('load', () => {
+      log('📄 Page loaded', 'info');
+      log('🔄 Loading voices...', 'info');
+      
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        log(`✅ ${voices.length} voices ready`, 'success');
+      } else {
+        window.speechSynthesis.onvoiceschanged = () => {
+          const v = window.speechSynthesis.getVoices();
+          log(`✅ ${v.length} voices loaded`, 'success');
+        };
+      }
+      
+      log('💡 Click "Test Voice Now" button to test', 'info');
+    });
+  </script>
+</body>
+</html>

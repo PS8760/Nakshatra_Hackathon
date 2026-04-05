@@ -61,6 +61,9 @@ export const getDashboardSummary = () => api.get("/ai/dashboard-summary");
 export const getReportInsights = (sessionIds?: number[], reportType = "overall") =>
   api.post("/ai/report-insights", { session_ids: sessionIds, report_type: reportType });
 
+export const getDoctorAnalysis = (graphData: Record<string, unknown>) =>
+  api.post("/ai/doctor-analysis", graphData);
+
 // ── Session CRUD ─────────────────────────────────────────────────────────────
 export const getSessionDetail = (id: number) =>
   api.get(`/sessions/${id}/detail`);

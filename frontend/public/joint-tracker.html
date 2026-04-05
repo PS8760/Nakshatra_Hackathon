@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Joint Movement Tracker | MediaPipe Holistic</title>
+    
+    <style>
+        /* ═══════════════════════════════════════════════════════════════
+           GLOBAL STYLES & RESET
+           ═══════════════════════════════════════════════════════════════ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #fff;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           HEADER
+           ═══════════════════════════════════════════════════════════════ */
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.3);
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            text-shadow: 1px 1px 4px rgba(0,0,0,0.2);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           MAIN CONTAINER
+           ═══════════════════════════════════════════════════════════════ */
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            max-width: 1400px;
+            width: 100%;
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           VIDEO & CANVAS CONTAINER
+           ═══════════════════════════════════════════════════════════════ */
+        .video-container {
+            position: relative;
+            width: 100%;
+            max-width: 960px;
+            margin: 0 auto 30px;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        #videoElement {
+            width: 100%;
+            height: auto;
+            display: block;
+            transform: scaleX(-1); /* Mirror effect for natural movement */
+        }
+
+        #canvasElement {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform: scaleX(-1); /* Mirror effect to match video */
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           LOADING INDICATOR
+           ═══════════════════════════════════════════════════════════════ */
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 10;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #fff;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        .loading-text {
+            font-size: 1.2rem;
+            font-weight: 600;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .loading.hidden {
+            display: none;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           ANGLE DISPLAY PANEL
+           ═══════════════════════════════════════════════════════════════ */
+        .angle-panel {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 20px;
+        }
+
+        .angle-panel h2 {
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            text-align: center;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .angle-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .angle-item {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .angle-item:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .angle-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .angle-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #4ade80;
+            text-shadow: 0 0 10px rgba(74, 222, 128, 0.5);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           STATUS INDICATOR
+           ═══════════════════════════════════════════════════════════════ */
+        .status {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px 20px;
+            border-radius: 25px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            z-index: 5;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4ade80;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           ANIMATIONS
+           ═══════════════════════════════════════════════════════════════ */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           RESPONSIVE DESIGN
+           ═══════════════════════════════════════════════════════════════ */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .header p {
+                font-size: 0.9rem;
+            }
+
+            .container {
+                padding: 20px;
+            }
+
+            .angle-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+
+            .angle-value {
+                font-size: 1.5rem;
+            }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           FOOTER
+           ═══════════════════════════════════════════════════════════════ */
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            opacity: 0.7;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- ═══════════════════════════════════════════════════════════════
+         HEADER SECTION
+         ═══════════════════════════════════════════════════════════════ -->
+    <div class="header">
+        <h1>🦴 Real-Time Joint Movement Tracker</h1>
+        <p>Powered by Google MediaPipe Holistic AI</p>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         MAIN CONTAINER
+         ═══════════════════════════════════════════════════════════════ -->
+    <div class="container">
+        <!-- Video & Canvas Container -->
+        <div class="video-container">
+            <!-- Loading Indicator -->
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <div class="loading-text">Loading AI Model...</div>
+            </div>
+
+            <!-- Status Indicator -->
+            <div class="status" id="status" style="display: none;">
+                <div class="status-dot"></div>
+                <span>TRACKING ACTIVE</span>
+            </div>
+
+            <!-- Video Element (Hidden, used as source) -->
+            <video id="videoElement" autoplay playsinline></video>
+
+            <!-- Canvas Element (Overlay for drawing landmarks) -->
+            <canvas id="canvasElement"></canvas>
+        </div>
+
+        <!-- Angle Display Panel -->
+        <div class="angle-panel">
+            <h2>📊 Joint Angles (Real-Time)</h2>
+            <div class="angle-grid" id="angleGrid">
+                <!-- Angles will be dynamically inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>Built with ❤️ using MediaPipe Holistic | Move your body to see real-time tracking</p>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         MEDIAPIPE HOLISTIC CDN IMPORTS
+         ═══════════════════════════════════════════════════════════════ -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js" crossorigin="anonymous"></script>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         MAIN JAVASCRIPT APPLICATION
+         ═══════════════════════════════════════════════════════════════ -->
+    <script>
+        // ═══════════════════════════════════════════════════════════════
+        // GLOBAL VARIABLES
+        // ═══════════════════════════════════════════════════════════════
+        const videoElement = document.getElementById('videoElement');
+        const canvasElement = document.getElementById('canvasElement');
+        const canvasCtx = canvasElement.getContext('2d');
+        const loading = document.getElementById('loading');
+        const status = document.getElementById('status');
+        const angleGrid = document.getElementById('angleGrid');
+
+        // Store current angles for display
+        let currentAngles = {};
+
+        // ═══════════════════════════════════════════════════════════════
+        // HELPER FUNCTION: Calculate angle between three points
+        // ═══════════════════════════════════════════════════════════════
+        /**
+         * Calculates the angle (in degrees) formed by three points.
+         * @param {Object} a - First point {x, y, z}
+         * @param {Object} b - Middle point (vertex) {x, y, z}
+         * @param {Object} c - Third point {x, y, z}
+         * @returns {number} - Angle in degrees (0-180)
+         */
+        function calculateAngle(a, b, c) {
+            // Calculate vectors
+            const radians = Math.atan2(c.y - b.y, c.x - b.x) - 
+                           Math.atan2(a.y - b.y, a.x - b.x);
+            
+            // Convert to degrees
+            let angle = Math.abs(radians * 180.0 / Math.PI);
+            
+            // Normalize to 0-180 range
+            if (angle > 180.0) {
+                angle = 360 - angle;
+            }
+            
+            return Math.round(angle);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // HELPER FUNCTION: Update angle display panel
+        // ═══════════════════════════════════════════════════════════════
+        function updateAngleDisplay() {
+            angleGrid.innerHTML = '';
+            
+            for (const [label, value] of Object.entries(currentAngles)) {
+                const angleItem = document.createElement('div');
+                angleItem.className = 'angle-item';
+                angleItem.innerHTML = `
+                    <div class="angle-label">${label}</div>
+                    <div class="angle-value">${value}°</div>
+                `;
+                angleGrid.appendChild(angleItem);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // MEDIAPIPE HOLISTIC RESULTS CALLBACK
+        // ═══════════════════════════════════════════════════════════════
+        function onResults(results) {
+            // Hide loading indicator on first result
+            if (loading.style.display !== 'none') {
+                loading.classList.add('hidden');
+                status.style.display = 'flex';
+            }
+
+            // Set canvas size to match video
+            canvasElement.width = videoElement.videoWidth;
+            canvasElement.height = videoElement.videoHeight;
+
+            // Clear canvas
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+            // Draw the video frame (optional, for debugging)
+            // canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+            // ═══════════════════════════════════════════════════════════
+            // DRAW POSE LANDMARKS
+            // ═══════════════════════════════════════════════════════════
+            if (results.poseLandmarks) {
+                // Draw pose connections (skeleton)
+                drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {
+                    color: '#00FF00',
+                    lineWidth: 4
+                });
+
+                // Draw pose landmarks (joints)
+                drawLandmarks(canvasCtx, results.poseLandmarks, {
+                    color: '#FFFF00',
+                    lineWidth: 2,
+                    radius: 6
+                });
+
+                // ═══════════════════════════════════════════════════════
+                // CALCULATE JOINT ANGLES
+                // ═══════════════════════════════════════════════════════
+                const pose = results.poseLandmarks;
+
+                // Left Elbow Angle (Shoulder -> Elbow -> Wrist)
+                if (pose[11] && pose[13] && pose[15]) {
+                    currentAngles['Left Elbow'] = calculateAngle(
+                        pose[11], // Left shoulder
+                        pose[13], // Left elbow
+                        pose[15]  // Left wrist
+                    );
+                }
+
+                // Right Elbow Angle
+                if (pose[12] && pose[14] && pose[16]) {
+                    currentAngles['Right Elbow'] = calculateAngle(
+                        pose[12], // Right shoulder
+                        pose[14], // Right elbow
+                        pose[16]  // Right wrist
+                    );
+                }
+
+                // Left Shoulder Angle (Elbow -> Shoulder -> Hip)
+                if (pose[13] && pose[11] && pose[23]) {
+                    currentAngles['Left Shoulder'] = calculateAngle(
+                        pose[13], // Left elbow
+                        pose[11], // Left shoulder
+                        pose[23]  // Left hip
+                    );
+                }
+
+                // Right Shoulder Angle
+                if (pose[14] && pose[12] && pose[24]) {
+                    currentAngles['Right Shoulder'] = calculateAngle(
+                        pose[14], // Right elbow
+                        pose[12], // Right shoulder
+                        pose[24]  // Right hip
+                    );
+                }
+
+                // Left Knee Angle (Hip -> Knee -> Ankle)
+                if (pose[23] && pose[25] && pose[27]) {
+                    currentAngles['Left Knee'] = calculateAngle(
+                        pose[23], // Left hip
+                        pose[25], // Left knee
+                        pose[27]  // Left ankle
+                    );
+                }
+
+                // Right Knee Angle
+                if (pose[24] && pose[26] && pose[28]) {
+                    currentAngles['Right Knee'] = calculateAngle(
+                        pose[24], // Right hip
+                        pose[26], // Right knee
+                        pose[28]  // Right ankle
+                    );
+                }
+
+                // Left Hip Angle (Shoulder -> Hip -> Knee)
+                if (pose[11] && pose[23] && pose[25]) {
+                    currentAngles['Left Hip'] = calculateAngle(
+                        pose[11], // Left shoulder
+                        pose[23], // Left hip
+                        pose[25]  // Left knee
+                    );
+                }
+
+                // Right Hip Angle
+                if (pose[12] && pose[24] && pose[26]) {
+                    currentAngles['Right Hip'] = calculateAngle(
+                        pose[12], // Right shoulder
+                        pose[24], // Right hip
+                        pose[26]  // Right knee
+                    );
+                }
+            }
+
+            // ═══════════════════════════════════════════════════════════
+            // DRAW LEFT HAND LANDMARKS
+            // ═══════════════════════════════════════════════════════════
+            if (results.leftHandLandmarks) {
+                drawConnectors(canvasCtx, results.leftHandLandmarks, HAND_CONNECTIONS, {
+                    color: '#00FFFF',
+                    lineWidth: 3
+                });
+                drawLandmarks(canvasCtx, results.leftHandLandmarks, {
+                    color: '#FF00FF',
+                    lineWidth: 2,
+                    radius: 4
+                });
+
+                // Calculate finger angles (example: index finger)
+                const hand = results.leftHandLandmarks;
+                if (hand[5] && hand[6] && hand[7]) {
+                    currentAngles['L Index Finger'] = calculateAngle(
+                        hand[5], // MCP joint
+                        hand[6], // PIP joint
+                        hand[7]  // DIP joint
+                    );
+                }
+            }
+
+            // ═══════════════════════════════════════════════════════════
+            // DRAW RIGHT HAND LANDMARKS
+            // ═══════════════════════════════════════════════════════════
+            if (results.rightHandLandmarks) {
+                drawConnectors(canvasCtx, results.rightHandLandmarks, HAND_CONNECTIONS, {
+                    color: '#00FFFF',
+                    lineWidth: 3
+                });
+                drawLandmarks(canvasCtx, results.rightHandLandmarks, {
+                    color: '#FF00FF',
+                    lineWidth: 2,
+                    radius: 4
+                });
+
+                // Calculate finger angles (example: index finger)
+                const hand = results.rightHandLandmarks;
+                if (hand[5] && hand[6] && hand[7]) {
+                    currentAngles['R Index Finger'] = calculateAngle(
+                        hand[5], // MCP joint
+                        hand[6], // PIP joint
+                        hand[7]  // DIP joint
+                    );
+                }
+            }
+
+            // Update angle display panel
+            updateAngleDisplay();
+
+            canvasCtx.restore();
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // INITIALIZE MEDIAPIPE HOLISTIC
+        // ═══════════════════════════════════════════════════════════════
+        const holistic = new Holistic({
+            locateFile: (file) => {
+                return `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`;
+            }
+        });
+
+        // Configure Holistic model
+        holistic.setOptions({
+            modelComplexity: 1,        // 0=Lite, 1=Full, 2=Heavy
+            smoothLandmarks: true,      // Smooth landmark positions
+            enableSegmentation: false,  // Disable segmentation for performance
+            smoothSegmentation: false,
+            refineFaceLandmarks: false, // Disable face mesh for performance
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        // Set results callback
+        holistic.onResults(onResults);
+
+        // ═══════════════════════════════════════════════════════════════
+        // INITIALIZE CAMERA
+        // ═══════════════════════════════════════════════════════════════
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await holistic.send({ image: videoElement });
+            },
+            width: 1280,
+            height: 720
+        });
+
+        // Start camera
+        camera.start();
+
+        // ═══════════════════════════════════════════════════════════════
+        // UTILITY FUNCTIONS FROM MEDIAPIPE DRAWING UTILS
+        // ═══════════════════════════════════════════════════════════════
+        function drawConnectors(ctx, landmarks, connections, style) {
+            if (!landmarks) return;
+
+            ctx.strokeStyle = style.color || '#00FF00';
+            ctx.lineWidth = style.lineWidth || 2;
+
+            for (const connection of connections) {
+                const start = landmarks[connection[0]];
+                const end = landmarks[connection[1]];
+
+                if (start && end) {
+                    ctx.beginPath();
+                    ctx.moveTo(start.x * ctx.canvas.width, start.y * ctx.canvas.height);
+                    ctx.lineTo(end.x * ctx.canvas.width, end.y * ctx.canvas.height);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        function drawLandmarks(ctx, landmarks, style) {
+            if (!landmarks) return;
+
+            ctx.fillStyle = style.color || '#FF0000';
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = style.lineWidth || 1;
+
+            for (const landmark of landmarks) {
+                ctx.beginPath();
+                ctx.arc(
+                    landmark.x * ctx.canvas.width,
+                    landmark.y * ctx.canvas.height,
+                    style.radius || 3,
+                    0,
+                    2 * Math.PI
+                );
+                ctx.fill();
+                ctx.stroke();
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // MEDIAPIPE CONNECTION DEFINITIONS
+        // ═══════════════════════════════════════════════════════════════
+        const POSE_CONNECTIONS = [
+            [0, 1], [1, 2], [2, 3], [3, 7], [0, 4], [4, 5], [5, 6], [6, 8],
+            [9, 10], [11, 12], [11, 13], [13, 15], [15, 17], [15, 19], [15, 21],
+            [17, 19], [12, 14], [14, 16], [16, 18], [16, 20], [16, 22], [18, 20],
+            [11, 23], [12, 24], [23, 24], [23, 25], [24, 26], [25, 27], [26, 28],
+            [27, 29], [28, 30], [29, 31], [30, 32], [27, 31], [28, 32]
+        ];
+
+        const HAND_CONNECTIONS = [
+            [0, 1], [1, 2], [2, 3], [3, 4],           // Thumb
+            [0, 5], [5, 6], [6, 7], [7, 8],           // Index
+            [0, 9], [9, 10], [10, 11], [11, 12],      // Middle
+            [0, 13], [13, 14], [14, 15], [15, 16],    // Ring
+            [0, 17], [17, 18], [18, 19], [19, 20],    // Pinky
+            [5, 9], [9, 13], [13, 17]                 // Palm
+        ];
+
+        // ═══════════════════════════════════════════════════════════════
+        // CONSOLE LOG FOR DEBUGGING
+        // ═══════════════════════════════════════════════════════════════
+        console.log('🚀 MediaPipe Holistic Joint Tracker Initialized');
+        console.log('📹 Camera starting...');
+        console.log('🤖 AI Model loading...');
+    </script>
+</body>
+</html>

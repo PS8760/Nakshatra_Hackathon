@@ -238,8 +238,8 @@ Be encouraging, specific to their progress, and suggest one next step."""
 # ── Report Insights ────────────────────────────────────────────────────────
 
 class ReportRequest(BaseModel):
-    session_ids: Optional[List[int]] = None  # None = all sessions
-    report_type: str = "overall"  # overall | session
+    session_ids: Optional[List[int]] = None
+    report_type: str = "overall"
 
 
 @router.post("/report-insights")
@@ -309,4 +309,113 @@ Keep each bullet point concise and specific."""
         "insights": reply,
         "sessions_analyzed": len(sessions),
         "average_score": round(avg_score, 1),
+    }
+
+
+# ── Doctor Analysis from Graph Data ───────────────────────────────────────
+
+class DoctorAnalysisRequest(BaseModel):
+    joint: str
+    sessions_count: int
+    max_angles: List[float]
+    mean_angles: List[float]
+    targets: List[float]
+    labels: List[str]
+    today_best: Optional[float] = None
+    yesterday_best: Optional[float] = None
+    total_gain: Optional[float] = None
+    highlight_index: Optional[int] = None
+    recovery_score: Optional[float] = None
+    total_sessions: Optional[int] = None
+
+
+@router.post("/doctor-analysis")
+async def get_doctor_analysis(
+    payload: DoctorAnalysisRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    Generate a clinical doctor's analysis based on the joint angle graph data.
+    Returns structured analysis suitable for PDF inclusion.
+    """
+    # Compute derived metrics
+    if payload.max_angles:
+        peak = max(payload.max_angles)
+        latest = payload.max_angles[-1]
+        first = payload.max_angles[0]
+        avg_target = sum(payload.targets) / len(payload.targets) if payload.targets else 90
+        latest_accuracy = round((latest / avg_target) * 100, 1) if avg_target > 0 else 0
+        peak_accuracy   = round((peak  / avg_target) * 100, 1) if avg_target > 0 else 0
+        overall_trend   = "improving" if latest > first else ("declining" if latest < first else "stable")
+        gain_pct = round(((latest - first) / first) * 100, 1) if first > 0 else 0
+    else:
+        peak = latest = first = avg_target = 0
+        latest_accuracy = peak_accuracy = gain_pct = 0
+        overall_trend = "insufficient data"
+
+    prompt = f"""You are a senior physiotherapist writing a clinical analysis for a patient's rehabilitation report.
+
+PATIENT JOINT ANGLE DATA — {payload.joint.replace('_', ' ').title()}:
+- Sessions analyzed: {payload.sessions_count}
+- First session angle: {first:.1f}°
+- Latest session angle: {latest:.1f}°
+- Peak angle achieved: {peak:.1f}°
+- Target ROM: {avg_target:.1f}°
+- Latest accuracy vs target: {latest_accuracy}%
+- Peak accuracy vs target: {peak_accuracy}%
+- Overall trend: {overall_trend}
+- Total improvement: {payload.total_gain or gain_pct}° ({gain_pct:+.1f}%)
+- Today's best: {payload.today_best or 'N/A'}°
+- Recovery score: {payload.recovery_score or 'N/A'}/100
+- Total sessions completed: {payload.total_sessions or payload.sessions_count}
+
+Write a structured clinical doctor's analysis with these EXACT sections:
+
+**Clinical Assessment:**
+[2-3 sentences evaluating the patient's current ROM status and progress relative to target]
+
+**Progress Analysis:**
+• [specific observation about trend with numbers]
+• [observation about consistency or variability]
+• [observation about peak performance vs average]
+
+**Clinical Interpretation:**
+[2 sentences interpreting what these angles mean clinically — e.g. functional implications, comparison to normal ROM ranges]
+
+**Risk Indicators:**
+• [any concern or positive indicator]
+• [pain/plateau/regression risk if applicable]
+
+**Doctor's Recommendations:**
+1. [specific exercise or therapy recommendation]
+2. [frequency/intensity adjustment]
+3. [next milestone target]
+4. [lifestyle or home exercise advice]
+
+**Prognosis:**
+[1-2 sentences on expected recovery trajectory based on current data]
+
+Be specific with numbers. Use clinical language appropriate for a doctor's report."""
+
+    messages = [
+        {"role": "system", "content": "You are a senior physiotherapist writing clinical rehabilitation reports. Be precise, data-driven, and use medical terminology."},
+        {"role": "user", "content": prompt},
+    ]
+
+    analysis = await call_groq(messages, max_tokens=600)
+
+    return {
+        "analysis": analysis,
+        "metrics": {
+            "joint": payload.joint,
+            "peak_angle": peak,
+            "latest_angle": latest,
+            "target": avg_target,
+            "latest_accuracy_pct": latest_accuracy,
+            "peak_accuracy_pct": peak_accuracy,
+            "overall_trend": overall_trend,
+            "total_gain_degrees": payload.total_gain or round(latest - first, 1),
+            "gain_percent": gain_pct,
+        }
     }

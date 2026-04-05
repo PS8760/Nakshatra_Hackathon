@@ -140,6 +140,10 @@ export default function SessionPage() {
     const duration_s = Math.floor((Date.now() - startTime) / 1000);
     const avgPhysical = physScores.length ? physScores.reduce((a, b) => a + b, 0) / physScores.length : undefined;
     try { await endSession(sessionId, duration_s, avgPhysical); } catch {}
+    // Signal dashboard chart to refresh
+    if (typeof window !== "undefined") {
+      localStorage.setItem("nr_session_ended", String(Date.now()));
+    }
     setIsActive(false);
     setSessionId(null);
     setEnding(false);

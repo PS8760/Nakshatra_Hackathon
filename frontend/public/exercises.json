@@ -1,0 +1,226 @@
+{
+  "exercises": [
+    {
+      "id": "knee_flexion_basic",
+      "name": "Knee Flexion Exercise",
+      "description": "Basic knee flexion for post-surgery rehabilitation",
+      "category": "knee_rehab",
+      "difficulty": "beginner",
+      "duration": 180,
+      "warmupSteps": [
+        {
+          "id": "warmup_1",
+          "text": "Sit comfortably with your back supported",
+          "audioText": "Sit comfortably with your back supported. Make sure you're in a stable position.",
+          "nextStepDelay": 4000
+        },
+        {
+          "id": "warmup_2",
+          "text": "Take 3 deep breaths to relax",
+          "audioText": "Take three deep breaths to relax. Breathe in through your nose, out through your mouth.",
+          "duration": 10
+        }
+      ],
+      "steps": [
+        {
+          "id": "step_1",
+          "text": "Slowly lift your right leg",
+          "audioText": "Slowly lift your right leg. Keep your knee straight.",
+          "holdTime": 5
+        },
+        {
+          "id": "step_2",
+          "text": "Bend your knee to 45 degrees",
+          "audioText": "Now bend your knee to about 45 degrees. Move slowly and controlled.",
+          "holdTime": 3
+        },
+        {
+          "id": "step_3",
+          "text": "Straighten your leg slowly",
+          "audioText": "Straighten your leg slowly. Control the movement.",
+          "holdTime": 3
+        },
+        {
+          "id": "step_4",
+          "text": "Lower your leg back down",
+          "audioText": "Lower your leg back down to the starting position.",
+          "nextStepDelay": 3000
+        },
+        {
+          "id": "step_5",
+          "text": "Repeat with left leg",
+          "audioText": "Great! Now let's repeat with your left leg.",
+          "repetitions": 1
+        }
+      ],
+      "cooldownSteps": [
+        {
+          "id": "cooldown_1",
+          "text": "Relax both legs",
+          "audioText": "Relax both legs. Let them rest naturally.",
+          "duration": 5
+        },
+        {
+          "id": "cooldown_2",
+          "text": "Take deep breaths",
+          "audioText": "Take a few deep breaths. You did great!",
+          "duration": 5
+        }
+      ]
+    },
+    {
+      "id": "shoulder_flexion_basic",
+      "name": "Shoulder Flexion Exercise",
+      "description": "Basic shoulder flexion for rotator cuff rehabilitation",
+      "category": "shoulder_rehab",
+      "difficulty": "beginner",
+      "duration": 120,
+      "steps": [
+        {
+          "id": "step_1",
+          "text": "Stand with feet shoulder-width apart",
+          "audioText": "Stand with your feet shoulder-width apart. Keep your posture straight.",
+          "nextStepDelay": 4000
+        },
+        {
+          "id": "step_2",
+          "text": "Raise your right arm forward",
+          "audioText": "Slowly raise your right arm forward to shoulder height. Keep your elbow straight.",
+          "holdTime": 5
+        },
+        {
+          "id": "step_3",
+          "text": "Lower your arm slowly",
+          "audioText": "Lower your arm slowly back to your side. Control the movement.",
+          "nextStepDelay": 3000
+        },
+        {
+          "id": "step_4",
+          "text": "Repeat with left arm",
+          "audioText": "Good! Now repeat with your left arm.",
+          "repetitions": 1
+        },
+        {
+          "id": "step_5",
+          "text": "Complete 10 repetitions per arm",
+          "audioText": "Complete ten repetitions with each arm. Take your time.",
+          "repetitions": 10
+        }
+      ]
+    },
+    {
+      "id": "squat_basic",
+      "name": "Basic Squat",
+      "description": "Fundamental squat exercise for lower body strength",
+      "category": "strength",
+      "difficulty": "beginner",
+      "duration": 90,
+      "steps": [
+        {
+          "id": "step_1",
+          "text": "Stand with feet hip-width apart",
+          "audioText": "Stand with your feet hip-width apart. Toes pointing slightly outward.",
+          "nextStepDelay": 4000
+        },
+        {
+          "id": "step_2",
+          "text": "Lower your body by bending knees",
+          "audioText": "Lower your body by bending your knees. Keep your back straight and chest up.",
+          "holdTime": 3
+        },
+        {
+          "id": "step_3",
+          "text": "Go down until thighs are parallel",
+          "audioText": "Go down until your thighs are parallel to the ground. Don't let your knees go past your toes.",
+          "holdTime": 2
+        },
+        {
+          "id": "step_4",
+          "text": "Push through heels to stand",
+          "audioText": "Push through your heels to stand back up. Squeeze your glutes at the top.",
+          "nextStepDelay": 3000
+        },
+        {
+          "id": "step_5",
+          "text": "Complete 10 repetitions",
+          "audioText": "Complete ten repetitions. Focus on form over speed.",
+          "repetitions": 10
+        }
+      ]
+    },
+    {
+      "id": "balance_single_leg",
+      "name": "Single Leg Balance",
+      "description": "Balance exercise for ankle and knee stability",
+      "category": "balance",
+      "difficulty": "intermediate",
+      "duration": 60,
+      "steps": [
+        {
+          "id": "step_1",
+          "text": "Stand near a wall for support",
+          "audioText": "Stand near a wall for support if needed. Start with your feet together.",
+          "nextStepDelay": 4000
+        },
+        {
+          "id": "step_2",
+          "text": "Lift your right foot off the ground",
+          "audioText": "Lift your right foot off the ground. Balance on your left leg.",
+          "holdTime": 15
+        },
+        {
+          "id": "step_3",
+          "text": "Switch to right leg",
+          "audioText": "Good! Now switch. Balance on your right leg.",
+          "holdTime": 15
+        },
+        {
+          "id": "step_4",
+          "text": "Repeat 3 times per leg",
+          "audioText": "Repeat three times per leg. Try to hold steady.",
+          "repetitions": 3
+        }
+      ]
+    },
+    {
+      "id": "hip_abduction",
+      "name": "Hip Abduction",
+      "description": "Hip strengthening exercise for lateral stability",
+      "category": "hip_rehab",
+      "difficulty": "beginner",
+      "duration": 100,
+      "steps": [
+        {
+          "id": "step_1",
+          "text": "Lie on your left side",
+          "audioText": "Lie on your left side with your legs straight. Support your head with your left arm.",
+          "nextStepDelay": 5000
+        },
+        {
+          "id": "step_2",
+          "text": "Lift your right leg upward",
+          "audioText": "Lift your right leg upward about 45 degrees. Keep your leg straight.",
+          "holdTime": 3
+        },
+        {
+          "id": "step_3",
+          "text": "Lower your leg slowly",
+          "audioText": "Lower your leg slowly back down. Don't let it touch your other leg.",
+          "nextStepDelay": 2000
+        },
+        {
+          "id": "step_4",
+          "text": "Complete 15 repetitions",
+          "audioText": "Complete fifteen repetitions on this side.",
+          "repetitions": 15
+        },
+        {
+          "id": "step_5",
+          "text": "Switch to right side",
+          "audioText": "Great! Now switch to your right side and repeat.",
+          "repetitions": 15
+        }
+      ]
+    }
+  ]
+}

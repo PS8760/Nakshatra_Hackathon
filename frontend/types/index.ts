@@ -7,29 +7,37 @@ export interface User {
 }
 
 // Joint names for pose tracking
-export type JointName = 
-  | "knee_left" 
-  | "knee_right" 
-  | "elbow_left" 
-  | "elbow_right" 
-  | "shoulder_left" 
-  | "shoulder_right" 
-  | "hip_left" 
-  | "hip_right";
+export type JointName =
+  | "knee_left"
+  | "knee_right"
+  | "elbow_left"
+  | "elbow_right"
+  | "shoulder_left"
+  | "shoulder_right"
+  | "hip_left"
+  | "hip_right"
+  | "wrist_left"
+  | "wrist_right"
+  | "ankle_left"
+  | "ankle_right"
+  | "finger_left"
+  | "finger_right";
 
 // Joint angle result from pose detection
 export interface JointAngleResult {
-  name: JointName;
+  joint: JointName;
   angle: number;
-  visibility: number;
+  target: number;
   side: "left" | "right";
+  visibility: number;
+  status: "good" | "warning" | "out_of_range" | "invisible";
 }
 
 // Rep state for tracking exercise repetitions
 export interface RepState {
   joint: JointName;
   count: number;
-  phase: "idle" | "flexing" | "extending";
+  phase: "extending" | "flexing" | "idle";
   lastAngle: number;
   peakAngle: number;
 }

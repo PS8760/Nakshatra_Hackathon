@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TTS Test - NeuroRestore AI</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #02182b 0%, #0a3a5c 100%);
+      color: #e8f4f0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(15,255,197,0.2);
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 600px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    h1 {
+      color: #0fffc5;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+    .subtitle {
+      color: rgba(232,244,240,0.6);
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    .status {
+      background: rgba(15,255,197,0.1);
+      border: 1px solid rgba(15,255,197,0.3);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .status-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .status-item:last-child { border-bottom: none; }
+    .status-label {
+      color: rgba(232,244,240,0.7);
+      font-size: 14px;
+    }
+    .status-value {
+      color: #0fffc5;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .status-value.error { color: #ef4444; }
+    .status-value.warning { color: #eab308; }
+    button {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 12px;
+    }
+    .btn-primary {
+      background: #0fffc5;
+      color: #02182b;
+      box-shadow: 0 0 20px rgba(15,255,197,0.3);
+    }
+    .btn-primary:hover {
+      box-shadow: 0 0 30px rgba(15,255,197,0.5);
+      transform: translateY(-2px);
+    }
+    .btn-secondary {
+      background: rgba(255,255,255,0.1);
+      color: #e8f4f0;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .btn-secondary:hover {
+      background: rgba(255,255,255,0.15);
+    }
+    .log {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 15px;
+      margin-top: 20px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+    }
+    .log-entry {
+      padding: 4px 0;
+      color: rgba(232,244,240,0.8);
+    }
+    .log-entry.success { color: #22c55e; }
+    .log-entry.error { color: #ef4444; }
+    .log-entry.warning { color: #eab308; }
+    .voices-list {
+      max-height: 150px;
+      overflow-y: auto;
+      margin-top: 10px;
+      font-size: 12px;
+      color: rgba(232,244,240,0.6);
+    }
+    .voice-item {
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔊 TTS System Test</h1>
+    <p class="subtitle">NeuroRestore AI - Voice Capability Diagnostic</p>
+
+    <div class="status">
+      <div class="status-item">
+        <span class="status-label">Speech Synthesis API:</span>
+        <span class="status-value" id="api-status">Checking...</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Voices Loaded:</span>
+        <span class="status-value" id="voices-count">0</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Preferred Voice:</span>
+        <span class="status-value" id="preferred-voice">None</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Last Test:</span>
+        <span class="status-value" id="last-test">Not tested</span>
+      </div>
+    </div>
+
+    <button class="btn-primary" onclick="testBasicTTS()">
+      🔊 Test Basic TTS
+    </button>
+
+    <button class="btn-secondary" onclick="testEmotions()">
+      🎭 Test Emotional Voices
+    </button>
+
+    <button class="btn-secondary" onclick="testRehab()">
+      💪 Test Rehab Phrases
+    </button>
+
+    <button class="btn-secondary" onclick="showVoices()">
+      📋 Show All Voices
+    </button>
+
+    <div class="log" id="log"></div>
+
+    <div class="voices-list" id="voices-list" style="display: none;"></div>
+  </div>
+
+  <script>
+    let voicesLoaded = false;
+
+    // Initialize
+    function init() {
+      log('🚀 Initializing TTS test...', 'success');
+      
+      // Check API availability
+      if (!window.speechSynthesis) {
+        updateStatus('api-status', '❌ Not Available', 'error');
+        log('❌ Speech Synthesis API not available', 'error');
+        return;
+      }
+      
+      updateStatus('api-status', '✅ Available', 'success');
+      log('✅ Speech Synthesis API available', 'success');
+      
+      // Load voices
+      loadVoices();
+      
+      // Listen for voice changes
+      if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+      }
+    }
+
+    function loadVoices() {
+      const voices = window.speechSynthesis.getVoices();
+      
+      if (voices.length > 0) {
+        voicesLoaded = true;
+        updateStatus('voices-count', voices.length);
+        log(`✅ Loaded ${voices.length} voices`, 'success');
+        
+        // Find preferred voice
+        const preferred = 
+          voices.find(v => v.name.includes("Samantha") && v.lang.startsWith("en")) ||
+          voices.find(v => v.name.includes("Google") && v.lang.startsWith("en-US")) ||
+          voices.find(v => v.name.includes("Microsoft Zira") && v.lang.startsWith("en")) ||
+          voices.find(v => v.lang.startsWith("en-US") && v.name.includes("Female")) ||
+          voices.find(v => v.lang.startsWith("en-US")) ||
+          voices[0];
+        
+        if (preferred) {
+          updateStatus('preferred-voice', preferred.name);
+          log(`🎤 Preferred voice: ${preferred.name}`, 'success');
+        }
+      } else {
+        log('⚠️ No voices loaded yet, waiting...', 'warning');
+      }
+    }
+
+    function speak(text, emotion = 'neutral') {
+      if (!window.speechSynthesis) {
+        log('❌ Speech synthesis not available', 'error');
+        return;
+      }
+
+      window.speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      
+      // Set emotion parameters
+      switch (emotion) {
+        case 'happy':
+          utterance.rate = 1.15;
+          utterance.pitch = 1.35;
+          utterance.volume = 1.0;
+          break;
+        case 'warning':
+          utterance.rate = 0.85;
+          utterance.pitch = 0.75;
+          utterance.volume = 1.0;
+          break;
+        case 'encouraging':
+          utterance.rate = 1.1;
+          utterance.pitch = 1.25;
+          utterance.volume = 1.0;
+          break;
+        default:
+          utterance.rate = 1.0;
+          utterance.pitch = 1.0;
+          utterance.volume = 1.0;
+      }
+
+      // Select voice
+      const voices = window.speechSynthesis.getVoices();
+      const preferred = 
+        voices.find(v => v.name.includes("Samantha") && v.lang.startsWith("en")) ||
+        voices.find(v => v.name.includes("Google") && v.lang.startsWith("en-US")) ||
+        voices.find(v => v.name.includes("Microsoft Zira") && v.lang.startsWith("en")) ||
+        voices.find(v => v.lang.startsWith("en-US") && v.name.includes("Female")) ||
+        voices.find(v => v.lang.startsWith("en-US")) ||
+        voices[0];
+
+      if (preferred) utterance.voice = preferred;
+
+      utterance.onstart = () => {
+        log(`🔊 Speaking: "${text.substring(0, 50)}..." (${emotion})`, 'success');
+        updateStatus('last-test', 'Speaking...');
+      };
+
+      utterance.onend = () => {
+        log('✅ Speech completed', 'success');
+        updateStatus('last-test', 'Completed');
+      };
+
+      utterance.onerror = (error) => {
+        log(`❌ Speech error: ${error.error}`, 'error');
+        updateStatus('last-test', 'Error', 'error');
+      };
+
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function testBasicTTS() {
+      log('🧪 Testing basic TTS...', 'warning');
+      speak('Hello! This is a test of the text to speech system. If you can hear this, the system is working correctly.', 'neutral');
+    }
+
+    function testEmotions() {
+      log('🎭 Testing emotional voices...', 'warning');
+      
+      speak('This is a happy voice! Everything is going great!', 'happy');
+      
+      setTimeout(() => {
+        speak('This is an encouraging voice. You can do it! Keep going!', 'encouraging');
+      }, 3000);
+      
+      setTimeout(() => {
+        speak('This is a warning voice. Be careful with your form.', 'warning');
+      }, 6000);
+    }
+
+    function testRehab() {
+      log('💪 Testing rehab phrases...', 'warning');
+      
+      const phrases = [
+        { text: "Hey! I'm your AI physiotherapist. Let me show you how to do this exercise correctly.", emotion: 'encouraging' },
+        { text: "Bend your right elbow more! Aim for 45 degrees.", emotion: 'neutral' },
+        { text: "Perfect form on your right arm!", emotion: 'happy' },
+        { text: "Don't go too deep! Risk of knee strain. Keep angle above 70 degrees.", emotion: 'warning' },
+        { text: "Excellent! Rep 5 completed! You're on fire! Keep it up!", emotion: 'happy' }
+      ];
+
+      phrases.forEach((phrase, index) => {
+        setTimeout(() => {
+          speak(phrase.text, phrase.emotion);
+        }, index * 4000);
+      });
+    }
+
+    function showVoices() {
+      const voices = window.speechSynthesis.getVoices();
+      const voicesList = document.getElementById('voices-list');
+      
+      if (voices.length === 0) {
+        log('⚠️ No voices available', 'warning');
+        return;
+      }
+
+      voicesList.innerHTML = '<h3 style="margin-bottom: 10px; color: #0fffc5;">Available Voices:</h3>';
+      voices.forEach((voice, index) => {
+        const div = document.createElement('div');
+        div.className = 'voice-item';
+        div.textContent = `${index + 1}. ${voice.name} (${voice.lang})`;
+        voicesList.appendChild(div);
+      });
+
+      voicesList.style.display = 'block';
+      log(`📋 Showing ${voices.length} voices`, 'success');
+    }
+
+    function log(message, type = '') {
+      const logDiv = document.getElementById('log');
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      logDiv.appendChild(entry);
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    function updateStatus(id, value, type = '') {
+      const element = document.getElementById(id);
+      element.textContent = value;
+      element.className = `status-value ${type}`;
+    }
+
+    // Initialize on load
+    window.addEventListener('load', init);
+  </script>
+</body>
+</html>

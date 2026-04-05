@@ -17,7 +17,7 @@ interface DashboardData {
   recovery_trend: any[];
 }
 
-function ScoreRing({ score, size = 110 }: { score: number | null; size?: number }) {
+function ScoreRing({ score, size = 110 }: { score: number | null | undefined; size?: number }) {
   const pct = score ?? 0;
   const r = (size / 2) - 10;
   const circ = 2 * Math.PI * r;

@@ -43,20 +43,7 @@ def get_joint_progress(
 ):
     """
     Recovery Progress chart data for a specific joint.
-
     Returns per-session aggregates: avg angle, max angle, target, rep count.
-    Designed to feed directly into a Recharts/Chart.js line chart.
-
-    Example response item:
-        {
-          "session_id": 12,
-          "date": "2026-04-01T09:30:00",
-          "avg_angle": 118.4,
-          "max_angle": 127.0,
-          "target": 130.0,
-          "reps": 8,
-          "avg_deviation": -11.6
-        }
     """
     rows = (
         db.query(
@@ -85,7 +72,7 @@ def get_joint_progress(
             "date": r.date.isoformat() if r.date else None,
             "avg_angle": round(r.avg_angle, 1) if r.avg_angle else 0,
             "max_angle": round(r.max_angle, 1) if r.max_angle else 0,
-            "target": round(r.target, 1) if r.target else 0,
+            "target": round(r.target, 1) if r.target else 90.0,
             "reps": r.reps,
             "avg_deviation": round(r.avg_deviation, 1) if r.avg_deviation else 0,
         }

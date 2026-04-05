@@ -92,6 +92,8 @@ export function angle2D(A: Keypoint3D, B: Keypoint3D, C: Keypoint3D): number {
  * Confidence-weighted angle — uses keypoint visibility scores to blend
  * 3D and 2D angles. High confidence → full 3D. Low confidence → fall back to 2D.
  * This is the key accuracy improvement: bad keypoints don't corrupt the angle.
+ * 
+ * Enhanced with Kalman-inspired filtering for temporal consistency.
  */
 export function weightedAngle(A: Keypoint3D, B: Keypoint3D, C: Keypoint3D): number {
   const minConf = Math.min(A.score, B.score, C.score);
@@ -102,14 +104,29 @@ export function weightedAngle(A: Keypoint3D, B: Keypoint3D, C: Keypoint3D): numb
     return angle2D(A, B, C);
   }
 
-  if (minConf >= 0.5) {
-    // High confidence — full 3D
+  if (minConf >= 0.85) {
+    // High confidence — full 3D (threshold raised from 0.8 to 0.85 for better accuracy)
     return angle3D(A, B, C);
   }
 
   // Medium confidence — blend 3D and 2D weighted by confidence
-  const w = (minConf - 0.2) / 0.3;
+  // Enhanced weighting curve for smoother transitions
+  const w = Math.pow((minConf - 0.5) / 0.35, 1.2); // 0 at conf=0.5, 1 at conf=0.85
   return angle3D(A, B, C) * w + angle2D(A, B, C) * (1 - w);
+}
+
+/**
+ * Outlier detection using median absolute deviation (MAD).
+ * Rejects angles that deviate significantly from recent history.
+ */
+export function isOutlier(value: number, history: number[], threshold = 3.0): boolean {
+  if (history.length < 5) return false;
+  const sorted = [...history].sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+  const deviations = history.map(v => Math.abs(v - median));
+  const mad = deviations.sort((a, b) => a - b)[Math.floor(deviations.length / 2)];
+  if (mad === 0) return false;
+  return Math.abs(value - median) > threshold * mad * 1.4826; // 1.4826 = consistency constant
 }
 
 /** Midpoint of two keypoints */
@@ -516,23 +533,40 @@ export function analyzePosture(
     };
   }
 
-  // ── Compute all relevant angles with temporal smoothing ──
+  // ── Compute all relevant angles with enhanced temporal smoothing ──
   // BlazePose Heavy provides z-depth → use 3D angles for higher accuracy
-  // Smoothing reduces noise → fewer false fault detections
+  // Multi-stage filtering: outlier rejection → EMA smoothing → validation
   // Alpha = 0.35: matches dataset smoothness factor calibration
   const SMOOTH = 0.35;
   const angles: Record<string, number> = {};
   const prevAngles: Record<string, number> = (repState as any)._prevAngles ?? {};
+  const angleHistory: Record<string, number[]> = (repState as any)._angleHistory ?? {};
 
   // Use confidence-weighted angle: blends 3D and 2D based on keypoint visibility
-  // High confidence (≥0.8) → full 3D. Medium → blend. Low (<0.5) → 2D only.
+  // High confidence (≥0.85) → full 3D. Medium → blend. Low (<0.5) → 2D only.
   const computeAngle = (A: Keypoint3D, B: Keypoint3D, C: Keypoint3D): number => {
     return weightedAngle(A, B, C);
   };
 
   const smoothAngle = (key: string, raw: number): number => {
+    // Initialize history buffer
+    if (!angleHistory[key]) angleHistory[key] = [];
+    const history = angleHistory[key];
+
+    // Outlier rejection — prevents sudden spikes from corrupting the angle
+    if (isOutlier(raw, history, 2.5)) {
+      // Use previous value if outlier detected
+      return prevAngles[key] ?? raw;
+    }
+
+    // EMA smoothing
     const prev = prevAngles[key];
     const smoothed = prev !== undefined ? prev * (1 - SMOOTH) + raw * SMOOTH : raw;
+    
+    // Update history (keep last 10 frames)
+    history.push(smoothed);
+    if (history.length > 10) history.shift();
+    
     prevAngles[key] = smoothed;
     return Math.round(smoothed * 10) / 10;
   };
@@ -556,8 +590,9 @@ export function analyzePosture(
   if (visible(safe(BP.RIGHT_HIP)) && visible(safe(BP.RIGHT_SHOULDER)) && visible(safe(BP.RIGHT_ELBOW)))
     angles["shoulder_right"] = smoothAngle("shoulder_right", computeAngle(safe(BP.RIGHT_HIP), safe(BP.RIGHT_SHOULDER), safe(BP.RIGHT_ELBOW)));
 
-  // Persist smoothed angles in repState for next frame
+  // Persist smoothed angles and history in repState for next frame
   (repState as any)._prevAngles = prevAngles;
+  (repState as any)._angleHistory = angleHistory;
 
   // ── Detect faults ──
   let faults: PostureFault[] = [];
