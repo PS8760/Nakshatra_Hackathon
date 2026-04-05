@@ -119,7 +119,6 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
   color:var(--primary);background:rgba(0,94,184,.08);border:1px solid rgba(0,94,184,.2);
   margin-bottom:20px;
 }
-}
 .section-heading{font-size:clamp(28px,4vw,46px);font-weight:800;letter-spacing:-.025em;line-height:1.12;color:var(--text)}
 
 /* ─── Buttons ─────────────────────────────────────────────────────────────── */

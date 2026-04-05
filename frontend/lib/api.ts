@@ -79,3 +79,34 @@ export const getWeeklySummary = (weeks = 4) =>
   api.get("/progress/weekly-summary", { params: { weeks } });
 
 export const getMilestones = () => api.get("/progress/milestones");
+
+// ── Training Plans ───────────────────────────────────────────────────────────
+export const createTrainingPlan = (data: {
+  age: number;
+  sex: string;
+  name: string;
+  goal: string;
+  injury_type?: string;
+  fitness_level?: string;
+  available_days_per_week?: number;
+  session_duration_minutes?: number;
+}) => api.post("/training/create-plan", data);
+
+export const getMyTrainingPlan = () => api.get("/training/my-plan");
+
+export const getTodayPlan = () => api.get("/training/today");
+
+export const completeDailyPlan = (data: {
+  day_number: number;
+  completed: boolean;
+  completion_percentage: number;
+  exercises_completed: string[];
+  notes?: string;
+  pain_level?: number;
+  energy_level?: number;
+}) => api.post("/training/complete-day", data);
+
+export const getProgressHistory = () => api.get("/training/progress-history");
+
+export const adjustTrainingPlan = (reason: string, notes?: string) =>
+  api.post("/training/adjust-plan", { reason, notes });
