@@ -74,7 +74,7 @@ export const T: Record<Lang, Record<string, string>> = {
     "chat.mic_off":     "🎤 Speak",
     "chat.placeholder": "Ask your AI physiotherapist anything…",
     "chat.disclaimer":  "Not a substitute for professional medical advice",
-    "chat.greeting":    "Hi! I'm your AI physiotherapist assistant. I can help you with exercise guidance, recovery advice, and answer questions about your rehabilitation journey. What would you like to know?",
+    "chat.greeting":    "System initialized. NeuroRestore AI rehabilitation assistant online. I am programmed to provide exercise protocols, recovery analysis, and rehabilitation guidance. Please state your query or select from quick prompts below. How may this AI system assist you today?",
 
     // Cognitive
     "cog.title":        "Cognitive Test Suite",
@@ -166,7 +166,7 @@ export const T: Record<Lang, Record<string, string>> = {
     "chat.mic_off":     "🎤 बोलें",
     "chat.placeholder": "अपने AI फिजियोथेरेपिस्ट से कुछ भी पूछें…",
     "chat.disclaimer":  "पेशेवर चिकित्सा सलाह का विकल्प नहीं",
-    "chat.greeting":    "नमस्ते! मैं आपका AI फिजियोथेरेपिस्ट सहायक हूं। मैं व्यायाम मार्गदर्शन, रिकवरी सलाह और आपकी पुनर्वास यात्रा के बारे में प्रश्नों में मदद कर सकता हूं।",
+    "chat.greeting":    "सिस्टम प्रारंभ हो गया। NeuroRestore AI पुनर्वास सहायक ऑनलाइन। मैं व्यायाम प्रोटोकॉल, रिकवरी विश्लेषण और पुनर्वास मार्गदर्शन प्रदान करने के लिए प्रोग्राम किया गया हूं। कृपया अपनी क्वेरी बताएं या नीचे त्वरित संकेतों से चुनें। यह AI सिस्टम आज आपकी कैसे सहायता कर सकता है?",
 
     // Cognitive
     "cog.title":        "संज्ञानात्मक परीक्षण सूट",
@@ -258,7 +258,7 @@ export const T: Record<Lang, Record<string, string>> = {
     "chat.mic_off":     "🎤 बोला",
     "chat.placeholder": "तुमच्या AI फिजिओथेरपिस्टला काहीही विचारा…",
     "chat.disclaimer":  "व्यावसायिक वैद्यकीय सल्ल्याचा पर्याय नाही",
-    "chat.greeting":    "नमस्कार! मी तुमचा AI फिजिओथेरपिस्ट सहाय्यक आहे. मी व्यायाम मार्गदर्शन, पुनर्प्राप्ती सल्ला आणि तुमच्या पुनर्वास प्रवासाबद्दल प्रश्नांमध्ये मदत करू शकतो।",
+    "chat.greeting":    "सिस्टम सुरू झाली. NeuroRestore AI पुनर्वास सहाय्यक ऑनलाइन. मी व्यायाम प्रोटोकॉल, पुनर्प्राप्ती विश्लेषण आणि पुनर्वास मार्गदर्शन प्रदान करण्यासाठी प्रोग्राम केलेले आहे. कृपया तुमची क्वेरी सांगा किंवा खालील जलद सूचनांमधून निवडा. ही AI प्रणाली आज तुम्हाला कशी मदत करू शकते?",
 
     // Cognitive
     "cog.title":        "संज्ञानात्मक चाचणी सूट",

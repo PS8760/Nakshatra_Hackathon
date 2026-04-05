@@ -55,16 +55,9 @@ const FAULT_COLOR: Record<string, string> = {
   info: "#60a5fa",
 };
 
-// Joint status colour
-function jointColor(fault: PostureFault | undefined, hasAngle: boolean): string {
-  if (!hasAngle) return "rgba(255,255,255,0.5)";
-  if (!fault) return "#22c55e";
-  return FAULT_COLOR[fault.severity] ?? "#22c55e";
-}
-
 export default function PoseCamera({
-  sessionId, token, preset = "full", activeJoints,
-  onRepComplete, onFeedback, onFormScore, onPainLog, onEndSession, onSessionData,
+  sessionId, token, preset = "full",
+  onRepComplete, onFeedback, onFormScore, onSessionData,
 }: Props) {
   const videoRef    = useRef<HTMLVideoElement>(null);
   const canvasRef   = useRef<HTMLCanvasElement>(null);
@@ -89,7 +82,6 @@ export default function PoseCamera({
   const [phase,       setPhase]       = useState<string>("");
   const [repCount,    setRepCount]    = useState(0);
   const [angles,      setAngles]      = useState<Record<string, number>>({});
-  const [sessionTime, setSessionTime] = useState(0);
   const [avgFormScore, setAvgFormScore] = useState<number | null>(null);
   const sessionStartRef = useRef<number>(0);
   const formScoresRef = useRef<number[]>([]);
@@ -143,65 +135,72 @@ export default function PoseCamera({
     const { drawConnectors, drawLandmarks, POSE_CONNECTIONS } = window;
     
     if (drawConnectors && drawLandmarks && POSE_CONNECTIONS) {
-      // Define body part groups with colors
+      // Define ALL body part groups with colors - COMPLETE 33 KEYPOINTS
       const bodyParts = {
-        // Face connections (0-10)
+        // Face connections (0-10) - 11 keypoints
         face: {
           connections: [
             [0, 1], [1, 2], [2, 3], [3, 7], [0, 4], [4, 5], [5, 6], [6, 8], [9, 10]
           ],
           color: '#FF6B9D', // Pink
-          landmarks: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+          landmarks: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], // Nose, eyes, ears, mouth
+          label: 'Face'
         },
-        // Left arm (11, 13, 15, 17, 19, 21)
+        // Left arm (11, 13, 15, 17, 19, 21) - 6 keypoints
         leftArm: {
           connections: [
             [11, 13], [13, 15], [15, 17], [15, 19], [15, 21], [17, 19]
           ],
           color: '#4ECDC4', // Turquoise
-          landmarks: [11, 13, 15, 17, 19, 21]
+          landmarks: [11, 13, 15, 17, 19, 21], // Shoulder, elbow, wrist, pinky, index, thumb
+          label: 'Left Arm & Hand'
         },
-        // Right arm (12, 14, 16, 18, 20, 22)
+        // Right arm (12, 14, 16, 18, 20, 22) - 6 keypoints
         rightArm: {
           connections: [
             [12, 14], [14, 16], [16, 18], [16, 20], [16, 22], [18, 20]
           ],
           color: '#95E1D3', // Light turquoise
-          landmarks: [12, 14, 16, 18, 20, 22]
+          landmarks: [12, 14, 16, 18, 20, 22], // Shoulder, elbow, wrist, pinky, index, thumb
+          label: 'Right Arm & Hand'
         },
-        // Torso (11, 12, 23, 24)
+        // Torso (11, 12, 23, 24) - 4 keypoints
         torso: {
           connections: [
             [11, 12], [11, 23], [12, 24], [23, 24]
           ],
           color: '#FFE66D', // Yellow
-          landmarks: [11, 12, 23, 24]
+          landmarks: [11, 12, 23, 24], // Shoulders and hips
+          label: 'Torso'
         },
-        // Left leg (23, 25, 27, 29, 31)
+        // Left leg (23, 25, 27, 29, 31) - 5 keypoints
         leftLeg: {
           connections: [
             [23, 25], [25, 27], [27, 29], [27, 31], [29, 31]
           ],
           color: '#FF6B6B', // Red
-          landmarks: [23, 25, 27, 29, 31]
+          landmarks: [23, 25, 27, 29, 31], // Hip, knee, ankle, heel, foot index
+          label: 'Left Leg & Foot'
         },
-        // Right leg (24, 26, 28, 30, 32)
+        // Right leg (24, 26, 28, 30, 32) - 5 keypoints
         rightLeg: {
           connections: [
             [24, 26], [26, 28], [28, 30], [28, 32], [30, 32]
           ],
           color: '#C44569', // Dark red
-          landmarks: [24, 26, 28, 30, 32]
+          landmarks: [24, 26, 28, 30, 32], // Hip, knee, ankle, heel, foot index
+          label: 'Right Leg & Foot'
         }
       };
 
-      // Draw connections for each body part with its color
+      // Draw connections for each body part with its color - ULTRA LOW THRESHOLD
       Object.values(bodyParts).forEach(part => {
         part.connections.forEach(([start, end]) => {
           const startLm = results.poseLandmarks[start];
           const endLm = results.poseLandmarks[end];
           
-          if (startLm && endLm && startLm.visibility > 0.3 && endLm.visibility > 0.3) {
+          // LOWERED from 0.3 to 0.1 - draw almost everything
+          if (startLm && endLm && startLm.visibility > 0.1 && endLm.visibility > 0.1) {
             ctx.beginPath();
             ctx.strokeStyle = part.color;
             ctx.lineWidth = 5;
@@ -213,12 +212,14 @@ export default function PoseCamera({
         });
       });
 
-      // Draw all 33 landmarks with color coding
+      // Draw ALL 33 landmarks with color coding - EVERY SINGLE JOINT (NO LABELS)
       results.poseLandmarks.forEach((landmark: any, index: number) => {
-        if (landmark.visibility < 0.3) return;
+        // LOWERED from 0.3 to 0.1 - draw almost everything
+        if (landmark.visibility < 0.1) return;
 
         // Find which body part this landmark belongs to
-        let color = '#FFFFFF'; // Default white
+        let color = '#FFFFFF'; // Default white for any unmapped keypoints
+        
         for (const part of Object.values(bodyParts)) {
           if (part.landmarks.includes(index)) {
             color = part.color;
@@ -260,10 +261,11 @@ export default function PoseCamera({
       if (angle === undefined) continue;
       
       const landmark = results.poseLandmarks[kpIdx];
-      if (!landmark || landmark.visibility < 0.3) continue;
+      // LOWERED from 0.3 to 0.1 - show labels for almost everything
+      if (!landmark || landmark.visibility < 0.1) continue;
       
       const x = landmark.x * w;
-      const y = landmark.y * h - 22;
+      const y = landmark.y * h - 20; // Positioned above the joint point
       const label = `${angle.toFixed(0)}°`;
       
       // Background with rounded corners
@@ -326,13 +328,12 @@ export default function PoseCamera({
     if (now - fpsRef.current.lastTime >= 1000) {
       setFps(fpsRef.current.frames);
       fpsRef.current = { frames: 0, lastTime: now };
-      const newSessionTime = Math.floor((now - sessionStartRef.current) / 1000);
-      setSessionTime(newSessionTime);
+      const sessionTime = Math.floor((now - sessionStartRef.current) / 1000);
       
       onSessionData?.({
         repCount,
         avgFormScore,
-        sessionTime: newSessionTime,
+        sessionTime,
         exercise,
         formScore,
       });
@@ -530,12 +531,6 @@ export default function PoseCamera({
       rafRef.current = requestAnimationFrame(runLoop);
     }
   }, [runLoop, isLoading, cameraError]);
-
-  const scoreColor = formScore == null ? "#6b7280"
-    : formScore >= 92 ? "#22c55e"   
-    : formScore >= 77 ? "#0fffc5"   
-    : formScore >= 60 ? "#eab308"   
-    : "#ef4444";                    
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

@@ -95,9 +95,7 @@ export default function SessionPage() {
   const [showPain,      setShowPain]      = useState(false);
   const [preset,        setPreset]        = useState(JOINT_PRESETS[0]);
   const [ending,        setEnding]        = useState(false);
-<<<<<<< Updated upstream
   const [referral,      setReferral]      = useState<{ trigger: "pain" | "posture_critical"; intensity?: number } | null>(null);
-=======
   const [sessionData,   setSessionData]   = useState<{
     repCount: number;
     avgFormScore: number | null;
@@ -105,7 +103,6 @@ export default function SessionPage() {
     exercise: string;
     formScore: number | null;
   } | null>(null);
->>>>>>> Stashed changes
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => { useAuthStore.getState().hydrate(); }, []);
