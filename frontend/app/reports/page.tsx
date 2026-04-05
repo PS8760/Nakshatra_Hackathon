@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { getDashboard, getReportInsights, getCognitiveLatestScores } from "@/lib/api";
+import { getDashboard, getReportInsights, getCognitiveLatestScores, getCognitiveReportData } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import { useRouter } from "next/navigation";
 
@@ -135,10 +135,11 @@ export default function ReportsPage() {
   const { user, token } = useAuthStore();
   const [dashData, setDashData] = useState<any>(null);
   const [cogScores, setCogScores] = useState<any>(null);
+  const [cogReportData, setCogReportData] = useState<any>(null);
   const [insights, setInsights] = useState<string>("");
   const [generating, setGenerating] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [reportType, setReportType] = useState<"overall" | "session">("overall");
+  const [reportType, setReportType] = useState<"overall" | "session" | "cognitive">("overall");
 
   useEffect(() => {
     useAuthStore.getState().hydrate();
@@ -146,9 +147,11 @@ export default function ReportsPage() {
     Promise.all([
       getDashboard(),
       getCognitiveLatestScores().catch(() => ({ data: {} })),
-    ]).then(([d, c]) => {
+      getCognitiveReportData().catch(() => ({ data: null })),
+    ]).then(([d, c, cr]) => {
       setDashData(d.data);
       setCogScores(c.data);
+      setCogReportData(cr.data);
     });
   }, [token]);
 
@@ -164,7 +167,203 @@ export default function ReportsPage() {
     }
   };
 
+  const downloadCognitivePDF = async () => {
+    setDownloading(true);
+    try {
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+      const W = 210, margin = 20;
+      let y = margin;
+
+      // ── Header ──
+      doc.setFillColor(2, 24, 43);
+      doc.rect(0, 0, W, 50, "F");
+      doc.setTextColor(15, 255, 197);
+      doc.setFontSize(22);
+      doc.setFont("helvetica", "bold");
+      doc.text("NeuroRestore AI", margin, y + 10);
+      doc.setFontSize(11);
+      doc.setTextColor(200, 230, 220);
+      doc.setFont("helvetica", "normal");
+      doc.text("Cognitive Assessment Report", margin, y + 20);
+      doc.text(`Generated: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`, margin, y + 28);
+      doc.text(`Patient: ${user?.full_name ?? "—"}`, margin, y + 36);
+      y = 60;
+
+      // ── Overall Cognitive Score ──
+      doc.setTextColor(15, 255, 197);
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Overall Cognitive Performance", margin, y);
+      y += 8;
+      doc.setDrawColor(15, 255, 197);
+      doc.setLineWidth(0.3);
+      doc.line(margin, y, W - margin, y);
+      y += 8;
+
+      doc.setTextColor(50, 50, 50);
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      const overallScore = cogReportData?.overall_score;
+      doc.text(`Overall Score: ${overallScore != null ? overallScore.toFixed(0) + "/100" : "No data"}`, margin, y); y += 7;
+      doc.text(`Total Assessments: ${cogReportData?.total_sessions ?? 0}`, margin, y); y += 7;
+      doc.text(`Last Assessment: ${cogReportData?.last_test_date ? new Date(cogReportData.last_test_date).toLocaleDateString() : "None"}`, margin, y); y += 14;
+
+      // ── Individual Test Scores ──
+      doc.setTextColor(15, 255, 197);
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Test Scores & Performance", margin, y); y += 8;
+      doc.setDrawColor(15, 255, 197);
+      doc.line(margin, y, W - margin, y); y += 8;
+
+      const tests = [
+        { key: "memory", label: "Memory Recall", icon: "🧩", weight: "30%", desc: "Immediate + delayed word recall" },
+        { key: "reaction", label: "Reaction Time", icon: "⚡", weight: "25%", desc: "Visual stimulus response speed" },
+        { key: "pattern", label: "Pattern Recognition", icon: "🔷", weight: "25%", desc: "Sequence & visual memory" },
+        { key: "attention", label: "Attention & Focus", icon: "👁️", weight: "20%", desc: "Sustained focus & gaze stability" },
+      ];
+
+      doc.setTextColor(50, 50, 50);
+      doc.setFontSize(10);
+      for (const test of tests) {
+        const data = cogReportData?.latest_scores?.[test.key];
+        const score = data?.score;
+        const trend = cogReportData?.trends?.[test.key];
+        
+        doc.setFont("helvetica", "bold");
+        doc.text(`${test.icon} ${test.label} (${test.weight})`, margin, y); y += 6;
+        doc.setFont("helvetica", "normal");
+        doc.text(`Score: ${score != null ? score.toFixed(0) + "/100" : "Not tested"}`, margin + 5, y); y += 5;
+        doc.text(`Description: ${test.desc}`, margin + 5, y); y += 5;
+        
+        if (trend) {
+          const trendText = trend.direction === "improving" ? `↑ Improving (+${trend.change})` :
+                           trend.direction === "declining" ? `↓ Declining (${trend.change})` :
+                           `→ Stable (${trend.change})`;
+          doc.text(`Trend: ${trendText}`, margin + 5, y); y += 5;
+        }
+        
+        if (data?.date) {
+          doc.text(`Last tested: ${new Date(data.date).toLocaleDateString()}`, margin + 5, y); y += 5;
+        }
+        y += 4;
+      }
+      y += 6;
+
+      // ── Clinical Thresholds ──
+      doc.setTextColor(15, 255, 197);
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Clinical Interpretation", margin, y); y += 8;
+      doc.setDrawColor(15, 255, 197);
+      doc.line(margin, y, W - margin, y); y += 8;
+
+      doc.setTextColor(50, 50, 50);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text("Score Ranges:", margin, y); y += 6;
+      doc.text("  • Excellent (≥85): Above normative range", margin, y); y += 5;
+      doc.text("  • Good (≥70): Within normal range", margin, y); y += 5;
+      doc.text("  • Borderline (≥55): Monitor closely", margin, y); y += 5;
+      doc.text("  • Concern (<55): Consult a clinician", margin, y); y += 10;
+
+      // ── Test History ──
+      if (cogReportData?.history && cogReportData.history.length > 0) {
+        if (y > 220) { doc.addPage(); y = margin; }
+        doc.setTextColor(15, 255, 197);
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text("Assessment History", margin, y); y += 8;
+        doc.setDrawColor(15, 255, 197);
+        doc.line(margin, y, W - margin, y); y += 8;
+
+        doc.setTextColor(50, 50, 50);
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.text("Date", margin, y);
+        doc.text("Overall", margin + 40, y);
+        doc.text("Memory", margin + 70, y);
+        doc.text("Reaction", margin + 100, y);
+        doc.text("Pattern", margin + 130, y);
+        doc.text("Attention", margin + 160, y);
+        y += 6;
+        doc.setFont("helvetica", "normal");
+
+        for (const session of cogReportData.history.slice(0, 10)) {
+          if (y > 270) { doc.addPage(); y = margin; }
+          doc.text(new Date(session.date).toLocaleDateString(), margin, y);
+          doc.text(session.overall_score != null ? session.overall_score.toFixed(0) : "—", margin + 40, y);
+          
+          const testScores: Record<string, string> = {};
+          for (const t of session.tests) {
+            testScores[t.type] = t.score != null ? t.score.toFixed(0) : "—";
+          }
+          
+          doc.text(testScores.memory || "—", margin + 70, y);
+          doc.text(testScores.reaction || "—", margin + 100, y);
+          doc.text(testScores.pattern || "—", margin + 130, y);
+          doc.text(testScores.attention || "—", margin + 160, y);
+          y += 5.5;
+        }
+        y += 8;
+      }
+
+      // ── Clinical Notes ──
+      if (y > 240) { doc.addPage(); y = margin; }
+      doc.setTextColor(15, 255, 197);
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Clinical Notes", margin, y); y += 8;
+      doc.setDrawColor(15, 255, 197);
+      doc.line(margin, y, W - margin, y); y += 8;
+
+      doc.setTextColor(50, 50, 50);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      const notes = [
+        "• Thresholds based on MoCA/MMSE normative data and published cognitive screening benchmarks.",
+        "• Scores in Borderline or Concern range on two or more tests warrant clinical follow-up.",
+        "• Memory test: 30% weight - strongest predictor of MCI (Mild Cognitive Impairment).",
+        "• Reaction time: 25% weight - processing speed affected by neurological fatigue.",
+        "• Pattern recognition: 25% weight - visuospatial ability, parietal lobe function.",
+        "• Attention: 20% weight - executive function, affected by TBI, ADHD, post-stroke.",
+        "• This tool is not a diagnostic instrument. Consult healthcare provider for interpretation.",
+      ];
+      for (const note of notes) {
+        if (y > 275) { doc.addPage(); y = margin; }
+        const lines = doc.splitTextToSize(note, W - margin * 2);
+        for (const line of lines) {
+          doc.text(line, margin, y); y += 5;
+        }
+      }
+
+      // ── Footer ──
+      const pageCount = doc.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text("NeuroRestore AI · Cognitive Assessment · Not a substitute for professional medical advice", margin, 290);
+        doc.text(`Page ${i} of ${pageCount}`, W - margin - 20, 290);
+      }
+
+      doc.save(`NeuroRestore_Cognitive_Report_${new Date().toISOString().split("T")[0]}.pdf`);
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+      alert("PDF generation failed. Please try again.");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const downloadPDF = async () => {
+    if (reportType === "cognitive") {
+      await downloadCognitivePDF();
+      return;
+    }
+
     setDownloading(true);
     try {
       const { jsPDF } = await import("jspdf");
@@ -392,6 +591,7 @@ export default function ReportsPage() {
                 {[
                   { id: "overall", label: "Overall Analysis", desc: "All sessions + cognitive tests + AI insights" },
                   { id: "session", label: "Recent Sessions", desc: "Last 10 sessions with detailed breakdown" },
+                  { id: "cognitive", label: "Cognitive Assessment", desc: "Detailed cognitive test results & trends" },
                 ].map((t) => (
                   <button key={t.id} onClick={() => setReportType(t.id as any)} style={{
                     padding: "12px 14px", borderRadius: 10, textAlign: "left", cursor: "pointer",

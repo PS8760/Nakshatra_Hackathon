@@ -157,3 +157,114 @@ def get_latest_scores(
         }
 
     return result
+
+
+@router.get("/report-data")
+def get_cognitive_report_data(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Get comprehensive cognitive test data for report generation."""
+    # Get all cognitive sessions
+    sessions = (
+        db.query(models.Session)
+        .filter(
+            models.Session.user_id == current_user.id,
+            models.Session.session_type == "cognitive",
+        )
+        .order_by(models.Session.started_at.desc())
+        .all()
+    )
+
+    # Get latest scores for each test type
+    test_types = ["memory", "reaction", "pattern", "attention"]
+    latest_scores = {}
+    
+    for test_type in test_types:
+        log = (
+            db.query(models.CognitiveLog)
+            .join(models.Session)
+            .filter(
+                models.Session.user_id == current_user.id,
+                models.CognitiveLog.game == test_type,
+            )
+            .order_by(models.CognitiveLog.ts.desc())
+            .first()
+        )
+        if log:
+            latest_scores[test_type] = {
+                "score": log.score,
+                "accuracy": log.accuracy,
+                "reaction_ms": log.reaction_ms,
+                "date": log.ts.isoformat(),
+            }
+
+    # Calculate overall cognitive score
+    if latest_scores:
+        weights = {"memory": 0.30, "reaction": 0.25, "pattern": 0.25, "attention": 0.20}
+        weighted_sum = sum(
+            latest_scores[t]["score"] * weights.get(t, 0.25)
+            for t in test_types
+            if t in latest_scores and latest_scores[t]["score"] is not None
+        )
+        overall_score = round(weighted_sum, 1) if weighted_sum > 0 else None
+    else:
+        overall_score = None
+
+    # Get test history (last 10 sessions)
+    history = []
+    for session in sessions[:10]:
+        logs = db.query(models.CognitiveLog).filter(
+            models.CognitiveLog.session_id == session.id
+        ).all()
+        
+        history.append({
+            "date": session.started_at.isoformat(),
+            "overall_score": session.cognitive_score,
+            "tests": [
+                {
+                    "type": log.game,
+                    "score": log.score,
+                    "accuracy": log.accuracy,
+                    "reaction_ms": log.reaction_ms,
+                }
+                for log in logs
+            ],
+        })
+
+    # Calculate trends (compare last 3 vs previous 3 sessions)
+    trends = {}
+    if len(sessions) >= 6:
+        for test_type in test_types:
+            recent_logs = []
+            previous_logs = []
+            
+            for i, session in enumerate(sessions[:6]):
+                log = db.query(models.CognitiveLog).filter(
+                    models.CognitiveLog.session_id == session.id,
+                    models.CognitiveLog.game == test_type,
+                ).first()
+                
+                if log and log.score is not None:
+                    if i < 3:
+                        recent_logs.append(log.score)
+                    else:
+                        previous_logs.append(log.score)
+            
+            if recent_logs and previous_logs:
+                recent_avg = sum(recent_logs) / len(recent_logs)
+                previous_avg = sum(previous_logs) / len(previous_logs)
+                change = recent_avg - previous_avg
+                trends[test_type] = {
+                    "change": round(change, 1),
+                    "direction": "improving" if change > 2 else "declining" if change < -2 else "stable",
+                }
+
+    return {
+        "total_sessions": len(sessions),
+        "overall_score": overall_score,
+        "latest_scores": latest_scores,
+        "history": history,
+        "trends": trends,
+        "last_test_date": sessions[0].started_at.isoformat() if sessions else None,
+    }

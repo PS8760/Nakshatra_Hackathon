@@ -45,6 +45,7 @@ export const submitCognitiveSession = (tests: any[]) =>
 
 export const getCognitiveHistory = () => api.get("/cognitive/history");
 export const getCognitiveLatestScores = () => api.get("/cognitive/latest-scores");
+export const getCognitiveReportData = () => api.get("/cognitive/report-data");
 
 // ── AI ───────────────────────────────────────────────────────────────────────
 export const sendChatMessage = (messages: any[], context?: string) =>
@@ -67,3 +68,14 @@ export const updateSession = (id: number, notes: string) =>
 
 export const deleteSession = (id: number) =>
   api.delete(`/sessions/${id}`);
+
+// ── Progress Tracking ────────────────────────────────────────────────────────
+export const getProgressSummary = () => api.get("/progress/summary");
+
+export const getJointTrends = (joint?: string, days = 30) =>
+  api.get("/progress/joint-trends", { params: { joint, days } });
+
+export const getWeeklySummary = (weeks = 4) =>
+  api.get("/progress/weekly-summary", { params: { weeks } });
+
+export const getMilestones = () => api.get("/progress/milestones");

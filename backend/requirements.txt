@@ -12,3 +12,6 @@ aiofiles
 python-dotenv
 slowapi
 httpx
+mediapipe
+numpy
+opencv-python-headless

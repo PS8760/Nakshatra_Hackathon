@@ -6,9 +6,11 @@ import { createSession, endSession, logPainEvent } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import { useLang } from "@/context/LangContext";
 import type { JointName } from "@/types";
+import { shouldTriggerReferral } from "@/components/session/ReferralCard";
 
 const PoseCamera   = dynamic(() => import("@/components/session/PoseCamera"),   { ssr: false });
 const PhysioGuide  = dynamic(() => import("@/components/session/PhysioGuide"),  { ssr: false });
+const ReferralCard = dynamic(() => import("@/components/session/ReferralCard"), { ssr: false });
 
 /* ── Joint selector ─────────────────────────────────────────────────────── */
 const JOINT_PRESETS = [
@@ -16,9 +18,6 @@ const JOINT_PRESETS = [
   { id: "knee",     label: "Knee Rehab",   joints: ["knee_left", "knee_right"] as JointName[],                  icon: "🦵" },
   { id: "shoulder", label: "Shoulder",     joints: ["shoulder_left", "shoulder_right"] as JointName[],          icon: "💪" },
   { id: "hip",      label: "Hip",          joints: ["hip_left", "hip_right"] as JointName[],                    icon: "🦴" },
-  { id: "wrist",    label: "Wrist",        joints: ["wrist_left", "wrist_right"] as JointName[],                icon: "🤚" },
-  { id: "ankle",    label: "Ankle",        joints: ["ankle_left", "ankle_right"] as JointName[],                icon: "🦶" },
-  { id: "finger",   label: "Finger",       joints: ["finger_left", "finger_right"] as JointName[],              icon: "🖐️" },
 ];
 
 /* ── Pain modal ─────────────────────────────────────────────────────────── */
@@ -96,16 +95,15 @@ export default function SessionPage() {
   const [showPain,      setShowPain]      = useState(false);
   const [preset,        setPreset]        = useState(JOINT_PRESETS[0]);
   const [ending,        setEnding]        = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Detailed feedback for real-time form correction
-  const [detailedFeedback, setDetailedFeedback] = useState<{
-    joint: string;
-    currentAngle: number;
-    targetAngle: number;
-    deviation: number;
-    correction: string;
+  const [referral,      setReferral]      = useState<{ trigger: "pain" | "posture_critical"; intensity?: number } | null>(null);
+  const [sessionData,   setSessionData]   = useState<{
+    repCount: number;
+    avgFormScore: number | null;
+    sessionTime: number;
+    exercise: string;
+    formScore: number | null;
   } | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => { useAuthStore.getState().hydrate(); }, []);
 
@@ -125,35 +123,14 @@ export default function SessionPage() {
 
   const handleStart = async () => {
     try {
-      // Ensure token is loaded
-      const currentToken = token || localStorage.getItem("nr_token");
-      if (!currentToken) {
-        alert("⚠️ Not Signed In\n\nPlease sign in first:\n\n📧 Email: demo@neurorestore.ai\n🔑 Password: Demo@1234\n\nClick OK to go to sign-in page.");
-        router.push("/auth");
-        return;
-      }
-      
       const res = await createSession("physical");
       setSessionId(res.data.id);
       setIsActive(true);
       setStartTime(Date.now());
       setRepCounts({});
       setPhysScores([]);
-    } catch (error: any) {
-      console.error("Session creation error:", error);
-      
-      // Check if it's a 401 error
-      if (error?.response?.status === 401) {
-        alert("🔐 Authentication Error\n\nYour session has expired or you're not signed in.\n\nPlease sign in again:\n\n📧 Email: demo@neurorestore.ai\n🔑 Password: Demo@1234\n\nClick OK to go to sign-in page.");
-        // Clear invalid token
-        localStorage.removeItem("nr_token");
-        localStorage.removeItem("nr_user");
-        router.push("/auth");
-        return;
-      }
-      
-      const errorMsg = error?.response?.data?.detail || error?.message || "Unknown error";
-      alert(`❌ Failed to start session\n\n${errorMsg}\n\nPlease check:\n✓ Backend is running (http://localhost:8000)\n✓ You are signed in\n✓ Check browser console for details`);
+    } catch {
+      alert("Failed to start session. Is the backend running?");
     }
   };
 
@@ -169,7 +146,7 @@ export default function SessionPage() {
     router.push("/dashboard");
   };
 
-  const handleRepComplete = useCallback((joint: string, angle: number, repCount: number) => {
+  const handleRepComplete = useCallback((joint: JointName, angle: number, repCount: number) => {
     setRepCounts((prev) => ({ ...prev, [joint]: repCount }));
     setPhysScores((prev) => [...prev.slice(-50), Math.min(100, (angle / 120) * 100)]);
   }, []);
@@ -177,69 +154,30 @@ export default function SessionPage() {
   const handleFeedback = useCallback((message: string, status: string) => {
     setFeedback({ message, status });
     setTimeout(() => setFeedback(null), 4000);
-  }, []);
-
-  const handleDetailedFeedback = useCallback((feedback: {
-    joint: string;
-    currentAngle: number;
-    targetAngle: number;
-    deviation: number;
-    correction: string;
-  }) => {
-    setDetailedFeedback(feedback);
-    // Clear after PhysioGuide processes it
-    setTimeout(() => setDetailedFeedback(null), 500);
-  }, []);
+    // Severity trigger: critical posture from AI → show referral
+    if (status === "critical" && !referral) {
+      setReferral({ trigger: "posture_critical" });
+    }
+  }, [referral]);
 
   const handlePainLog = async (joint: string, intensity: number) => {
     if (!sessionId) return;
     try { await logPainEvent(sessionId, joint, intensity); } catch {}
+    // Severity trigger: pain > 7 → show referral
+    if (shouldTriggerReferral(intensity)) {
+      setReferral({ trigger: "pain", intensity });
+    }
   };
 
   if (!token) {
     return (
-      <div style={{ minHeight: "100vh", background: "#02182b", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-        <div style={{ textAlign: "center", maxWidth: 480 }}>
-          <div style={{ fontSize: 48, marginBottom: 20 }}>🔐</div>
-          <h2 style={{ color: "#e8f4f0", fontSize: 24, fontWeight: 700, marginBottom: 12 }}>
-            Authentication Required
-          </h2>
-          <p style={{ color: "rgba(232,244,240,0.6)", marginBottom: 24, lineHeight: 1.6 }}>
-            Please sign in to start a rehabilitation session.
-          </p>
-          
-          <div style={{ 
-            background: "rgba(15,255,197,0.05)", 
-            border: "1px solid rgba(15,255,197,0.15)",
-            borderRadius: 12,
-            padding: 20,
-            marginBottom: 24,
-            textAlign: "left"
-          }}>
-            <p style={{ color: "#0fffc5", fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
-              Demo Credentials:
-            </p>
-            <div style={{ fontSize: 13, color: "rgba(232,244,240,0.7)", lineHeight: 1.8 }}>
-              <div>📧 Email: <code style={{ background: "rgba(0,0,0,0.3)", padding: "2px 8px", borderRadius: 4 }}>demo@neurorestore.ai</code></div>
-              <div>🔑 Password: <code style={{ background: "rgba(0,0,0,0.3)", padding: "2px 8px", borderRadius: 4 }}>Demo@1234</code></div>
-            </div>
-          </div>
-
+      <div style={{ minHeight: "100vh", background: "#02182b", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ textAlign: "center" }}>
+          <p style={{ color: "rgba(232,244,240,0.6)", marginBottom: 16 }}>Please sign in to start a session.</p>
           <button onClick={() => router.push("/auth")} style={{
-            padding: "14px 32px", borderRadius: 12, background: "#0fffc5",
+            padding: "10px 24px", borderRadius: 10, background: "#0fffc5",
             color: "#02182b", fontWeight: 700, border: "none", cursor: "pointer",
-            fontSize: 15, boxShadow: "0 0 24px rgba(15,255,197,0.3)",
-            transition: "all .2s",
-          }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 40px rgba(15,255,197,0.5)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 24px rgba(15,255,197,0.3)"; }}
-          >
-            Go to Sign In →
-          </button>
-          
-          <p style={{ color: "rgba(232,244,240,0.4)", fontSize: 12, marginTop: 20 }}>
-            Tip: Click "Patient demo" button on the sign-in page for quick access
-          </p>
+          }}>Sign In</button>
         </div>
       </div>
     );
@@ -250,6 +188,15 @@ export default function SessionPage() {
   return (
     <div style={{ minHeight: "100vh", background: "#02182b", color: "#e8f4f0", paddingTop: 64 }}>
       {showPain && <PainModal onLog={handlePainLog} onClose={() => setShowPain(false)} />}
+
+      {referral && (
+        <ReferralCard
+          trigger={referral.trigger}
+          painIntensity={referral.intensity}
+          postureStatus={referral.trigger === "posture_critical" ? "critical" : undefined}
+          onDismiss={() => setReferral(null)}
+        />
+      )}
 
       <div className="W" style={{ paddingTop: 20, paddingBottom: 40 }}>
         {/* Back + session status bar */}
@@ -298,8 +245,41 @@ export default function SessionPage() {
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 200px 300px", gap: 16, alignItems: "start" }} className="session-grid">
 
-          {/* Camera */}
+          {/* Camera + Analysis Overlay */}
           <div>
+            {/* Action buttons - above camera */}
+            {isActive && (
+              <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+                <button
+                  onClick={() => setShowPain(true)}
+                  style={{
+                    flex: 1, background: "rgba(139,0,0,0.75)", backdropFilter: "blur(8px)",
+                    border: "1px solid rgba(239,68,68,0.3)", borderRadius: 12,
+                    padding: "12px 16px", color: "#ff6b6b", fontSize: 14, fontWeight: 600,
+                    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  }}
+                >
+                  🚨 Pain
+                </button>
+                <button
+                  onClick={handleEnd}
+                  disabled={ending}
+                  style={{
+                    flex: 2, background: ending ? "rgba(100,100,100,0.5)" : "rgba(139,0,0,0.75)",
+                    backdropFilter: "blur(8px)",
+                    border: "1px solid rgba(239,68,68,0.3)", borderRadius: 12,
+                    padding: "12px 16px", color: ending ? "rgba(255,107,107,0.5)" : "#ff6b6b",
+                    fontSize: 14, fontWeight: 600,
+                    cursor: ending ? "not-allowed" : "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  }}
+                >
+                  ⏹ {ending ? "Ending..." : "End Session"}
+                </button>
+              </div>
+            )}
+
+            {/* Camera */}
             {isActive && sessionId && token ? (
               <PoseCamera
                 sessionId={sessionId}
@@ -309,7 +289,7 @@ export default function SessionPage() {
                 onRepComplete={handleRepComplete}
                 onFeedback={handleFeedback}
                 onFormScore={(score) => setPhysScores(prev => [...prev.slice(-50), score])}
-                onDetailedFeedback={handleDetailedFeedback}
+                onSessionData={setSessionData}
               />
             ) : (
               <div style={{
@@ -321,6 +301,38 @@ export default function SessionPage() {
                 <div style={{ fontSize: 48, opacity: .4 }}>📷</div>
                 <p style={{ color: "rgba(232,244,240,0.4)", fontSize: 14 }}>Camera starts when session begins</p>
                 <p style={{ color: "rgba(232,244,240,0.25)", fontSize: 12 }}>Selected: {preset.icon} {preset.label}</p>
+              </div>
+            )}
+
+            {/* Skeleton Guide - below camera */}
+            {isActive && (
+              <div style={{
+                marginTop: 16,
+                background: "rgba(2,24,43,0.85)", backdropFilter: "blur(8px)",
+                borderRadius: 12, padding: "16px 20px",
+                border: "1px solid rgba(15,255,197,0.15)",
+              }}>
+                <div style={{ fontSize: 14, color: "rgba(232,244,240,0.6)", marginBottom: 12, fontWeight: 600 }}>
+                  Skeleton Guide
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#22c55e" }} />
+                    <span style={{ fontSize: 12, color: "rgba(232,244,240,0.7)" }}>Good form</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#eab308" }} />
+                    <span style={{ fontSize: 12, color: "rgba(232,244,240,0.7)" }}>Minor issue</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#ef4444" }} />
+                    <span style={{ fontSize: 12, color: "rgba(232,244,240,0.7)" }}>Correction needed</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#0fffc5" }} />
+                    <span style={{ fontSize: 12, color: "rgba(232,244,240,0.7)" }}>All keypoints</span>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -346,7 +358,6 @@ export default function SessionPage() {
             repCount={Object.values(repCounts).reduce((a, b) => a + (b ?? 0), 0)}
             feedback={feedback}
             formScore={physScores.length ? physScores[physScores.length - 1] : null}
-            detailedFeedback={detailedFeedback}
           />
 
           {/* Right panel */}
