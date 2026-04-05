@@ -30,6 +30,20 @@ npm run dev
 
 Open http://localhost:3000
 
+## 🎯 BlazePose Demo
+
+Try the live BlazePose 33 keypoint detection demo:
+```
+http://localhost:3000/demo-pose
+```
+
+Features:
+- Real-time skeleton tracking with 33 body landmarks
+- 3D coordinates with depth information (x, y, z)
+- Color-coded body parts: Yellow (face), Blue (arms), Pink (legs)
+- Live FPS counter and keypoint detection stats
+- Runs at 20-30 FPS with WebGL acceleration
+
 ## Demo Credentials
 - Patient: `demo@neurorestore.ai` / `Demo@1234`
 - Clinician: `doctor@neurorestore.ai` / `Doctor@1234`
