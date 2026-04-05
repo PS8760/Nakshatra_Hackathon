@@ -40,3 +40,7 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# Large ONNX model files (download separately — see README)
+backend/data/*.onnx
+backend/data/*.task
