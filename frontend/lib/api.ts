@@ -38,14 +38,6 @@ export const logPainEvent = (session_id: number, joint: string, intensity: numbe
 export const getDashboard = () => api.get("/analytics/dashboard");
 export const getRecoveryScores = () => api.get("/analytics/recovery-scores");
 export const getExerciseConfigs = () => api.get("/analytics/exercise-configs");
-export const getJointLiveStats = (joint = "knee_left", sessions = 10) =>
-  api.get(`/analytics/joint-live-stats?joint=${joint}&sessions=${sessions}`);
-
-// Exercise progression
-export const getExercisePlan = (joint: string) =>
-  api.get(`/exercises/plan/${joint}`);
-export const getExerciseLibrary = (joint: string) =>
-  api.get(`/exercises/library/${joint}`);
 
 // ── Cognitive Tests ──────────────────────────────────────────────────────────
 export const submitCognitiveSession = (tests: any[]) =>
@@ -66,9 +58,6 @@ export const getDashboardSummary = () => api.get("/ai/dashboard-summary");
 
 export const getReportInsights = (sessionIds?: number[], reportType = "overall") =>
   api.post("/ai/report-insights", { session_ids: sessionIds, report_type: reportType });
-
-export const getDoctorAnalysis = (graphData: Record<string, unknown>) =>
-  api.post("/ai/doctor-analysis", graphData);
 
 // ── Session CRUD ─────────────────────────────────────────────────────────────
 export const getSessionDetail = (id: number) =>

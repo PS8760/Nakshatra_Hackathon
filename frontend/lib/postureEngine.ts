@@ -99,7 +99,7 @@ export function weightedAngle(A: Keypoint3D, B: Keypoint3D, C: Keypoint3D): numb
   const minConf = Math.min(A.score, B.score, C.score);
   const hasDepth = Math.abs(A.z) > 0.001 || Math.abs(B.z) > 0.001 || Math.abs(C.z) > 0.001;
 
-  if (!hasDepth || minConf < 0.2) {
+  if (!hasDepth || minConf < 0.5) {
     // Low confidence or no depth — use 2D only
     return angle2D(A, B, C);
   }
@@ -139,7 +139,7 @@ function dist2D(A: Keypoint3D, B: Keypoint3D): number {
   return Math.sqrt((A.x - B.x) ** 2 + (A.y - B.y) ** 2);
 }
 
-function visible(kp: Keypoint3D, threshold = 0.2): boolean {
+function visible(kp: Keypoint3D, threshold = 0.4): boolean {
   return (kp?.score ?? 0) >= threshold;
 }
 

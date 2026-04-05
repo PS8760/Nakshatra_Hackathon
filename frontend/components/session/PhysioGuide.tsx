@@ -15,8 +15,6 @@ interface Props {
   repCount: number;
   feedback: { message: string; status: string } | null;
   formScore: number | null;
-  demoMode?: boolean;
-  onDemoComplete?: () => void;
   detailedFeedback?: {
     joint: string;
     currentAngle: number;
@@ -646,7 +644,7 @@ function Scene({ expression, gesture, exercise, headShake, autoRotate, speaking 
   );
 }
 
-export default function PhysioGuide({ exercise, isActive, repCount, feedback, formScore, detailedFeedback, demoMode = false, onDemoComplete }: Props) {
+export default function PhysioGuide({ exercise, isActive, repCount, feedback, formScore, detailedFeedback }: Props) {
   const [expression, setExpression] = useState<Expression>("happy");
   const [gesture, setGesture] = useState<Gesture>("idle");
   const [speechBubble, setSpeechBubble] = useState<string | null>(null);
@@ -707,42 +705,6 @@ export default function PhysioGuide({ exercise, isActive, repCount, feedback, fo
     setSpeaking(true);
     speak(text, emotion, () => setSpeaking(false));
   };
-
-  // ── Demo mode: robot demonstrates the exercise, then hands over to user ──
-  useEffect(() => {
-    if (!demoMode) return;
-
-    const exerciseName = exercise.replace(/_/g, " ");
-    setExpression("encouraging");
-    setGesture("wave");
-    setSpeechBubble("Watch me first! 👀");
-    say(`Hi! I will demonstrate ${exerciseName} for you. Watch carefully and then follow along.`, "encouraging");
-
-    const t1 = setTimeout(() => {
-      setGesture("pointLeft");
-      setSpeechBubble("Pay attention to my form 🎯");
-      say("Pay close attention to my movement, speed, and posture.", "neutral");
-    }, 4000);
-
-    const t2 = setTimeout(() => {
-      setGesture("exercise");
-      setExpression("happy");
-      setSpeechBubble(`Demonstrating: ${exerciseName} 🏃`);
-      say(`Now watch me perform ${exerciseName}. Notice the full range of motion and controlled speed.`, "encouraging");
-    }, 7500);
-
-    const t3 = setTimeout(() => {
-      setSpeechBubble("Your turn! Follow along 💪");
-      say("Great! Now it is your turn. Follow along with me and I will guide your form in real time.", "happy");
-    }, 13000);
-
-    const t4 = setTimeout(() => {
-      setSpeechBubble(null);
-      onDemoComplete?.();
-    }, 16000);
-
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
-  }, [demoMode, exercise]);
 
   // Intro sequence with detailed instructions
   useEffect(() => {
@@ -897,25 +859,6 @@ export default function PhysioGuide({ exercise, isActive, repCount, feedback, fo
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
-      {/* Demo mode banner */}
-      {demoMode && (
-        <div style={{
-          position: "absolute", top: 0, left: 0, right: 0, zIndex: 20,
-          background: "linear-gradient(135deg,rgba(245,158,11,0.95),rgba(239,68,68,0.9))",
-          padding: "8px 14px", display: "flex", alignItems: "center", gap: 8,
-        }}>
-          <span style={{ fontSize: 16 }}>🎬</span>
-          <div>
-            <p style={{ fontSize: 11, fontWeight: 800, color: "#fff", letterSpacing: ".06em" }}>
-              ROBOT DEMONSTRATION
-            </p>
-            <p style={{ fontSize: 10, color: "rgba(255,255,255,0.8)" }}>
-              Watch the robot, then follow along
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* Header */}
       <div style={{
         position: "absolute", top: 10, left: 0, right: 0, zIndex: 10,

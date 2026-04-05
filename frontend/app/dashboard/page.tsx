@@ -6,9 +6,7 @@ import dynamic from "next/dynamic";
 import { getDashboard, getDashboardSummary, getCognitiveLatestScores } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 
-const RecoveryChart    = dynamic(() => import("@/components/dashboard/RecoveryChart"),    { ssr: false });
-const JointAngleChart  = dynamic(() => import("@/components/dashboard/JointAngleChart"),  { ssr: false });
-const ExercisePlan     = dynamic(() => import("@/components/session/ExercisePlan"),       { ssr: false });
+const RecoveryChart = dynamic(() => import("@/components/dashboard/RecoveryChart"), { ssr: false });
 
 interface DashboardData {
   user: { id: number; name: string; role: string };
@@ -92,7 +90,6 @@ export default function DashboardPage() {
   const [aiSummary, setAiSummary] = useState<string>("");
   const [cogScores, setCogScores] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [lastSessionEnd, setLastSessionEnd] = useState(0);
 
   useEffect(() => {
     useAuthStore.getState().hydrate();
@@ -160,8 +157,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* AI Summary banner — only show if it's a real insight, not a config error */}
-        {aiSummary && !aiSummary.toLowerCase().includes("not configured") && !aiSummary.toLowerCase().includes("groq_api_key") && (
+        {/* AI Summary banner */}
+        {aiSummary && (
           <div style={{
             background: "rgba(0,191,165,0.05)", border: "1px solid rgba(0,191,165,0.15)",
             borderRadius: 14, padding: "16px 20px", marginBottom: 24,
@@ -220,14 +217,6 @@ export default function DashboardPage() {
                 <Link href="/history" style={{ fontSize: 12, color: "var(--text-muted)", textDecoration: "none" }}>View all →</Link>
               </div>
               <RecoveryChart data={data?.recovery_trend ?? []} />
-            </div>
-
-            {/* Joint angle live graph */}
-            <JointAngleChart onSessionEnd={lastSessionEnd} />
-
-            {/* Progressive exercise plan */}
-            <div style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "24px" }}>
-              <ExercisePlan />
             </div>
 
             {/* Cognitive scores */}
