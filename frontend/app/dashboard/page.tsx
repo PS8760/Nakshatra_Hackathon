@@ -8,6 +8,7 @@ import { useAuthStore } from "@/store/authStore";
 
 const RecoveryChart    = dynamic(() => import("@/components/dashboard/RecoveryChart"),    { ssr: false });
 const JointAngleChart  = dynamic(() => import("@/components/dashboard/JointAngleChart"),  { ssr: false });
+const ExercisePlan     = dynamic(() => import("@/components/session/ExercisePlan"),       { ssr: false });
 
 interface DashboardData {
   user: { id: number; name: string; role: string };
@@ -140,8 +141,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* AI Summary banner */}
-        {aiSummary && (
+        {/* AI Summary banner — only show if it's a real insight, not a config error */}
+        {aiSummary && !aiSummary.toLowerCase().includes("not configured") && !aiSummary.toLowerCase().includes("groq_api_key") && (
           <div style={{
             background: "rgba(15,255,197,0.05)", border: "1px solid rgba(15,255,197,0.15)",
             borderRadius: 14, padding: "16px 20px", marginBottom: 24,
@@ -204,6 +205,11 @@ export default function DashboardPage() {
 
             {/* Joint angle live graph */}
             <JointAngleChart onSessionEnd={lastSessionEnd} />
+
+            {/* Progressive exercise plan */}
+            <div style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "24px" }}>
+              <ExercisePlan />
+            </div>
 
             {/* Cognitive scores */}
             <div style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "24px" }}>

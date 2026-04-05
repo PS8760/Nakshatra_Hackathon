@@ -41,6 +41,12 @@ export const getExerciseConfigs = () => api.get("/analytics/exercise-configs");
 export const getJointLiveStats = (joint = "knee_left", sessions = 10) =>
   api.get(`/analytics/joint-live-stats?joint=${joint}&sessions=${sessions}`);
 
+// Exercise progression
+export const getExercisePlan = (joint: string) =>
+  api.get(`/exercises/plan/${joint}`);
+export const getExerciseLibrary = (joint: string) =>
+  api.get(`/exercises/library/${joint}`);
+
 // ── Cognitive Tests ──────────────────────────────────────────────────────────
 export const submitCognitiveSession = (tests: any[]) =>
   api.post("/cognitive/session", { tests });
