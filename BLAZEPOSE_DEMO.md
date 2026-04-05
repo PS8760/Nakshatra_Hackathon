@@ -21,7 +21,11 @@ http://localhost:3000/demo-pose
 - 33 body landmarks detected in real-time
 - Color-coded visualization:
   - 🟡 Yellow: Face landmarks (nose, eyes, ears)
-  - 🔵 Blue: Upper body (shoulders, elbows, wrists)
+  - 🔵 Blue: Upper body (shoulders, elbows, wrists)Include the attached image as the analysis part int he sessions taht to real-time.
+
+Work on black web camm of the user
+
+
   - 🩷 Pink: Lower body (hips, knees, ankles, feet)
 
 ### Live Stats

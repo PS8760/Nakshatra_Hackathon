@@ -41,6 +41,31 @@ const CONNECTIONS: [number, number][] = [
   [BP.RIGHT_ANKLE, BP.RIGHT_HEEL], [BP.RIGHT_HEEL, BP.RIGHT_FOOT],
 ];
 
+// Joint names for labeling
+const JOINT_NAMES: Record<number, string> = {
+  [BP.NOSE]: "Nose",
+  [BP.LEFT_EYE]: "L Eye",
+  [BP.RIGHT_EYE]: "R Eye",
+  [BP.LEFT_EAR]: "L Ear",
+  [BP.RIGHT_EAR]: "R Ear",
+  [BP.LEFT_SHOULDER]: "L Shoulder",
+  [BP.RIGHT_SHOULDER]: "R Shoulder",
+  [BP.LEFT_ELBOW]: "L Elbow",
+  [BP.RIGHT_ELBOW]: "R Elbow",
+  [BP.LEFT_WRIST]: "L Wrist",
+  [BP.RIGHT_WRIST]: "R Wrist",
+  [BP.LEFT_HIP]: "L Hip",
+  [BP.RIGHT_HIP]: "R Hip",
+  [BP.LEFT_KNEE]: "L Knee",
+  [BP.RIGHT_KNEE]: "R Knee",
+  [BP.LEFT_ANKLE]: "L Ankle",
+  [BP.RIGHT_ANKLE]: "R Ankle",
+  [BP.LEFT_HEEL]: "L Heel",
+  [BP.RIGHT_HEEL]: "R Heel",
+  [BP.LEFT_FOOT]: "L Foot",
+  [BP.RIGHT_FOOT]: "R Foot",
+};
+
 interface Keypoint {
   x: number;
   y: number;
@@ -62,35 +87,49 @@ export default function DemoPosePage() {
   const [error, setError] = useState<string | null>(null);
   const [fps, setFps] = useState(0);
   const [keypointCount, setKeypointCount] = useState(0);
+  const [showLabels, setShowLabels] = useState(true);
   
   const fpsRef = useRef({ frames: 0, lastTime: Date.now() });
 
   // Draw skeleton on canvas
-  const drawSkeleton = (keypoints: Keypoint[], ctx: CanvasRenderingContext2D, w: number, h: number) => {
-    ctx.clearRect(0, 0, w, h);
-
-    // Draw bones (connections)
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = "#0fffc5";
+  const drawSkeleton = (keypoints: Keypoint[], ctx: CanvasRenderingContext2D, w: number, h: number, showLabels: boolean) => {
+    // Don't clear - we want to draw over the video frame
+    
+    // Draw bones (connections) - thicker and more visible
+    ctx.lineWidth = 4;
     for (const [ai, bi] of CONNECTIONS) {
       const a = keypoints[ai];
       const b = keypoints[bi];
       if (!a || !b || (a.score ?? 0) < 0.3 || (b.score ?? 0) < 0.3) continue;
       
       ctx.beginPath();
+      ctx.strokeStyle = "#0fffc5";
+      ctx.shadowColor = "#0fffc5";
+      ctx.shadowBlur = 8;
       ctx.moveTo(a.x * w, a.y * h);
       ctx.lineTo(b.x * w, b.y * h);
       ctx.stroke();
+      ctx.shadowBlur = 0;
     }
 
-    // Draw keypoints (joints)
+    // Draw keypoints (joints) - larger and more visible
     for (let i = 0; i < keypoints.length; i++) {
       const kp = keypoints[i];
       if (!kp || (kp.score ?? 0) < 0.3) continue;
 
       const x = kp.x * w;
       const y = kp.y * h;
-      const radius = 6;
+      
+      // Larger radius for major joints
+      const isMajorJoint = [
+        BP.LEFT_SHOULDER, BP.RIGHT_SHOULDER,
+        BP.LEFT_ELBOW, BP.RIGHT_ELBOW,
+        BP.LEFT_WRIST, BP.RIGHT_WRIST,
+        BP.LEFT_HIP, BP.RIGHT_HIP,
+        BP.LEFT_KNEE, BP.RIGHT_KNEE,
+        BP.LEFT_ANKLE, BP.RIGHT_ANKLE,
+      ].includes(i);
+      const radius = isMajorJoint ? 10 : 6;
 
       // Color based on body part
       let color = "#ffffff";
@@ -98,13 +137,44 @@ export default function DemoPosePage() {
       else if (i >= BP.LEFT_HIP && i <= BP.RIGHT_FOOT) color = "#f472b6"; // Legs - pink
       else if (i <= BP.RIGHT_EAR) color = "#fbbf24"; // Face - yellow
 
+      // Draw outer glow
+      ctx.beginPath();
+      ctx.arc(x, y, radius + 3, 0, Math.PI * 2);
+      ctx.fillStyle = color + "40";
+      ctx.fill();
+
+      // Draw main circle
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fillStyle = color;
       ctx.fill();
-      ctx.strokeStyle = "rgba(0,0,0,0.5)";
+      ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 2;
       ctx.stroke();
+      
+      // Draw joint labels for major joints
+      if (showLabels && isMajorJoint && JOINT_NAMES[i]) {
+        ctx.font = "bold 11px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        
+        // Background for label
+        const label = JOINT_NAMES[i];
+        const metrics = ctx.measureText(label);
+        const labelWidth = metrics.width + 8;
+        const labelHeight = 16;
+        const labelX = x;
+        const labelY = y - radius - 12;
+        
+        ctx.fillStyle = "rgba(0,0,0,0.8)";
+        ctx.beginPath();
+        ctx.roundRect(labelX - labelWidth/2, labelY - labelHeight/2, labelWidth, labelHeight, 4);
+        ctx.fill();
+        
+        // Label text
+        ctx.fillStyle = color;
+        ctx.fillText(label, labelX, labelY);
+      }
     }
   };
 
@@ -128,16 +198,17 @@ export default function DemoPosePage() {
     canvas.height = h;
 
     try {
+      // Draw video frame first (this shows the webcam)
+      ctx.save();
+      ctx.clearRect(0, 0, w, h);
+      ctx.drawImage(video, 0, 0, w, h);
+      
       // Estimate poses
       const poses = await detectorRef.current.estimatePoses(video, {
         maxPoses: 1,
         flipHorizontal: false,
         scoreThreshold: 0.3,
       });
-
-      // Draw video frame
-      ctx.save();
-      ctx.drawImage(video, 0, 0, w, h);
 
       if (poses.length > 0) {
         // Get keypoints (BlazePose returns 33 keypoints)
@@ -155,7 +226,9 @@ export default function DemoPosePage() {
         }
 
         setKeypointCount(keypoints.filter(k => (k.score ?? 0) >= 0.3).length);
-        drawSkeleton(keypoints, ctx, w, h);
+        
+        // Draw skeleton overlay on top of video
+        drawSkeleton(keypoints, ctx, w, h, showLabels);
       } else {
         setKeypointCount(0);
       }
@@ -481,6 +554,31 @@ export default function DemoPosePage() {
               }}>
                 Keypoints Detected
               </p>
+            </div>
+
+            {/* Bottom-center: Toggle labels button */}
+            <div style={{
+              position: "absolute",
+              bottom: "16px",
+              left: "50%",
+              transform: "translateX(-50%)",
+            }}>
+              <button
+                onClick={() => setShowLabels(!showLabels)}
+                style={{
+                  background: showLabels ? "rgba(15,255,197,0.2)" : "rgba(0,0,0,0.75)",
+                  border: `2px solid ${showLabels ? "#0fffc5" : "rgba(255,255,255,0.3)"}`,
+                  color: showLabels ? "#0fffc5" : "rgba(232,244,240,0.6)",
+                  padding: "10px 20px",
+                  borderRadius: "10px",
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                }}
+              >
+                {showLabels ? "🏷️ Labels ON" : "🏷️ Labels OFF"}
+              </button>
             </div>
           </>
         )}

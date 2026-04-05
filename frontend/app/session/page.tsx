@@ -95,7 +95,17 @@ export default function SessionPage() {
   const [showPain,      setShowPain]      = useState(false);
   const [preset,        setPreset]        = useState(JOINT_PRESETS[0]);
   const [ending,        setEnding]        = useState(false);
+<<<<<<< Updated upstream
   const [referral,      setReferral]      = useState<{ trigger: "pain" | "posture_critical"; intensity?: number } | null>(null);
+=======
+  const [sessionData,   setSessionData]   = useState<{
+    repCount: number;
+    avgFormScore: number | null;
+    sessionTime: number;
+    exercise: string;
+    formScore: number | null;
+  } | null>(null);
+>>>>>>> Stashed changes
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => { useAuthStore.getState().hydrate(); }, []);
@@ -238,8 +248,41 @@ export default function SessionPage() {
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 200px 300px", gap: 16, alignItems: "start" }} className="session-grid">
 
-          {/* Camera */}
+          {/* Camera + Analysis Overlay */}
           <div>
+            {/* Action buttons - above camera */}
+            {isActive && (
+              <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+                <button
+                  onClick={() => setShowPain(true)}
+                  style={{
+                    flex: 1, background: "rgba(139,0,0,0.75)", backdropFilter: "blur(8px)",
+                    border: "1px solid rgba(239,68,68,0.3)", borderRadius: 12,
+                    padding: "12px 16px", color: "#ff6b6b", fontSize: 14, fontWeight: 600,
+                    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  }}
+                >
+                  🚨 Pain
+                </button>
+                <button
+                  onClick={handleEnd}
+                  disabled={ending}
+                  style={{
+                    flex: 2, background: ending ? "rgba(100,100,100,0.5)" : "rgba(139,0,0,0.75)",
+                    backdropFilter: "blur(8px)",
+                    border: "1px solid rgba(239,68,68,0.3)", borderRadius: 12,
+                    padding: "12px 16px", color: ending ? "rgba(255,107,107,0.5)" : "#ff6b6b",
+                    fontSize: 14, fontWeight: 600,
+                    cursor: ending ? "not-allowed" : "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  }}
+                >
+                  ⏹ {ending ? "Ending..." : "End Session"}
+                </button>
+              </div>
+            )}
+
+            {/* Camera */}
             {isActive && sessionId && token ? (
               <PoseCamera
                 sessionId={sessionId}
@@ -249,6 +292,7 @@ export default function SessionPage() {
                 onRepComplete={handleRepComplete}
                 onFeedback={handleFeedback}
                 onFormScore={(score) => setPhysScores(prev => [...prev.slice(-50), score])}
+                onSessionData={setSessionData}
               />
             ) : (
               <div style={{
@@ -260,6 +304,38 @@ export default function SessionPage() {
                 <div style={{ fontSize: 48, opacity: .4 }}>📷</div>
                 <p style={{ color: "rgba(232,244,240,0.4)", fontSize: 14 }}>Camera starts when session begins</p>
                 <p style={{ color: "rgba(232,244,240,0.25)", fontSize: 12 }}>Selected: {preset.icon} {preset.label}</p>
+              </div>
+            )}
+
+            {/* Skeleton Guide - below camera */}
+            {isActive && (
+              <div style={{
+                marginTop: 16,
+                background: "rgba(2,24,43,0.85)", backdropFilter: "blur(8px)",
+                borderRadius: 12, padding: "16px 20px",
+                border: "1px solid rgba(15,255,197,0.15)",
+              }}>
+                <div style={{ fontSize: 14, color: "rgba(232,244,240,0.6)", marginBottom: 12, fontWeight: 600 }}>
+                  Skeleton Guide
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#22c55e" }} />
+                    <span style={{ fontSize: 12, color: "rgba(232,244,240,0.7)" }}>Good form</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#eab308" }} />
+                    <span style={{ fontSize: 12, color: "rgba(232,244,240,0.7)" }}>Minor issue</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#ef4444" }} />
+                    <span style={{ fontSize: 12, color: "rgba(232,244,240,0.7)" }}>Correction needed</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#0fffc5" }} />
+                    <span style={{ fontSize: 12, color: "rgba(232,244,240,0.7)" }}>All keypoints</span>
+                  </div>
+                </div>
               </div>
             )}
 
