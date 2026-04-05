@@ -25,7 +25,7 @@ export const DEFAULT_TARGET_ROM: Record<JointName, number> = {
   hip_right: 90,
 };
 
-const VISIBILITY_THRESHOLD = 0.65;
+const VISIBILITY_THRESHOLD = 0.2;
 const REP_FLEX_THRESHOLD = 30;   // angle must drop below this to count as "flexed"
 const REP_EXTEND_THRESHOLD = 160; // angle must rise above this to count as "extended" (for knee)
 

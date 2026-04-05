@@ -6,7 +6,8 @@ import dynamic from "next/dynamic";
 import { getDashboard, getDashboardSummary, getCognitiveLatestScores } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 
-const RecoveryChart = dynamic(() => import("@/components/dashboard/RecoveryChart"), { ssr: false });
+const RecoveryChart    = dynamic(() => import("@/components/dashboard/RecoveryChart"),    { ssr: false });
+const JointAngleChart  = dynamic(() => import("@/components/dashboard/JointAngleChart"),  { ssr: false });
 
 interface DashboardData {
   user: { id: number; name: string; role: string };
@@ -71,6 +72,7 @@ export default function DashboardPage() {
   const [aiSummary, setAiSummary] = useState<string>("");
   const [cogScores, setCogScores] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [lastSessionEnd, setLastSessionEnd] = useState(0);
 
   useEffect(() => {
     useAuthStore.getState().hydrate();
@@ -199,6 +201,9 @@ export default function DashboardPage() {
               </div>
               <RecoveryChart data={data?.recovery_trend ?? []} />
             </div>
+
+            {/* Joint angle live graph */}
+            <JointAngleChart onSessionEnd={lastSessionEnd} />
 
             {/* Cognitive scores */}
             <div style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "24px" }}>

@@ -14,3 +14,4 @@ slowapi
 mediapipe
 numpy
 opencv-python-headless
+onnxruntime

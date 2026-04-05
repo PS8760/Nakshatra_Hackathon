@@ -38,6 +38,8 @@ export const logPainEvent = (session_id: number, joint: string, intensity: numbe
 export const getDashboard = () => api.get("/analytics/dashboard");
 export const getRecoveryScores = () => api.get("/analytics/recovery-scores");
 export const getExerciseConfigs = () => api.get("/analytics/exercise-configs");
+export const getJointLiveStats = (joint = "knee_left", sessions = 10) =>
+  api.get(`/analytics/joint-live-stats?joint=${joint}&sessions=${sessions}`);
 
 // ── Cognitive Tests ──────────────────────────────────────────────────────────
 export const submitCognitiveSession = (tests: any[]) =>

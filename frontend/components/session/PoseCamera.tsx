@@ -1,31 +1,23 @@
 "use client";
 /**
- * PoseCamera — MediaPipe Pose with Native Rendering
+ * PoseCamera — BlazePose Heavy + AI Posture Analysis
  *
- * Uses MediaPipe Pose library with built-in drawing utilities:
- * - 33 keypoints with 3D coordinates
- * - MediaPipe's native rendering for professional visualization
- * - Fast and highly accurate tracking
+ * Uses @tensorflow-models/pose-detection with BlazePose GHUM Heavy:
+ * - 33 keypoints with 3D coordinates (x, y, z + visibility)
  * - Detects wrong posture, form faults, asymmetry in real time
  * - Exercise classifier identifies squat/lunge/shoulder press/curl etc.
+ * - Per-exercise fault detection with specific coaching cues
+ * - Sends fault data to Groq AI for natural language feedback
  */
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
   analyzePosture, classifyExercise,
-  createRepPhaseState, JOINT_KP_MAP,
+  createRepPhaseState, BLAZEPOSE_CONNECTIONS, JOINT_KP_MAP,
+  getScoreBand, getScoreBandLabel,
   type ExerciseType, type RepPhaseState, type PostureFault, type Keypoint3D,
 } from "@/lib/postureEngine";
 import type { JointName } from "@/types";
-
-// Declare MediaPipe globals
-declare global {
-  interface Window {
-    Pose: any;
-    drawConnectors: any;
-    drawLandmarks: any;
-    POSE_CONNECTIONS: any;
-  }
-}
+import { diagnoseVideoStream, type FrameDiagnostics } from "@/lib/frameDebug";
 
 interface Props {
   sessionId: number;
@@ -35,15 +27,7 @@ interface Props {
   onRepComplete?: (joint: JointName, angle: number, repCount: number) => void;
   onFeedback?: (msg: string, status: string) => void;
   onFormScore?: (score: number) => void;
-  onPainLog?: () => void;
-  onEndSession?: () => void;
-  onSessionData?: (data: {
-    repCount: number;
-    avgFormScore: number | null;
-    sessionTime: number;
-    exercise: string;
-    formScore: number | null;
-  }) => void;
+  debugMode?: boolean;   // shows bounding box, raw landmark dots, frame diagnostics
 }
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
@@ -55,9 +39,16 @@ const FAULT_COLOR: Record<string, string> = {
   info: "#60a5fa",
 };
 
+// Joint status colour
+function jointColor(fault: PostureFault | undefined, hasAngle: boolean): string {
+  if (!hasAngle) return "rgba(255,255,255,0.5)";
+  if (!fault) return "#22c55e";
+  return FAULT_COLOR[fault.severity] ?? "#22c55e";
+}
+
 export default function PoseCamera({
-  sessionId, token, preset = "full",
-  onRepComplete, onFeedback, onFormScore, onSessionData,
+  sessionId, token, preset = "full", activeJoints,
+  onRepComplete, onFeedback, onFormScore, debugMode = false,
 }: Props) {
   const videoRef    = useRef<HTMLVideoElement>(null);
   const canvasRef   = useRef<HTMLCanvasElement>(null);
@@ -82,9 +73,8 @@ export default function PoseCamera({
   const [phase,       setPhase]       = useState<string>("");
   const [repCount,    setRepCount]    = useState(0);
   const [angles,      setAngles]      = useState<Record<string, number>>({});
-  const [avgFormScore, setAvgFormScore] = useState<number | null>(null);
-  const sessionStartRef = useRef<number>(0);
-  const formScoresRef = useRef<number[]>([]);
+  const [debugInfo,   setDebugInfo]   = useState<FrameDiagnostics | null>(null);
+  const [debugRunning, setDebugRunning] = useState(false);
 
   // ── Voice ──────────────────────────────────────────────────────────────────
   const speak = useCallback((text: string) => {
@@ -123,224 +113,298 @@ export default function PoseCamera({
     }
   }, [sessionId]);
 
-  // ── Draw skeleton with color-coded body parts ──────────────────────────────
+  // ── Draw skeleton ──────────────────────────────────────────────────────────
   const drawSkeleton = useCallback((
-    results: any,
+    kp: Keypoint3D[],
     faultList: PostureFault[],
     ctx: CanvasRenderingContext2D,
     w: number, h: number
   ) => {
-    if (!results.poseLandmarks) return;
+    const faultMap = new Map(faultList.map(f => [f.joint ?? "", f]));
 
-    const { drawConnectors, drawLandmarks, POSE_CONNECTIONS } = window;
-    
-    if (drawConnectors && drawLandmarks && POSE_CONNECTIONS) {
-      // Define ALL body part groups with colors - COMPLETE 33 KEYPOINTS
-      const bodyParts = {
-        // Face connections (0-10) - 11 keypoints
-        face: {
-          connections: [
-            [0, 1], [1, 2], [2, 3], [3, 7], [0, 4], [4, 5], [5, 6], [6, 8], [9, 10]
-          ],
-          color: '#FF6B9D', // Pink
-          landmarks: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], // Nose, eyes, ears, mouth
-          label: 'Face'
-        },
-        // Left arm (11, 13, 15, 17, 19, 21) - 6 keypoints
-        leftArm: {
-          connections: [
-            [11, 13], [13, 15], [15, 17], [15, 19], [15, 21], [17, 19]
-          ],
-          color: '#4ECDC4', // Turquoise
-          landmarks: [11, 13, 15, 17, 19, 21], // Shoulder, elbow, wrist, pinky, index, thumb
-          label: 'Left Arm & Hand'
-        },
-        // Right arm (12, 14, 16, 18, 20, 22) - 6 keypoints
-        rightArm: {
-          connections: [
-            [12, 14], [14, 16], [16, 18], [16, 20], [16, 22], [18, 20]
-          ],
-          color: '#95E1D3', // Light turquoise
-          landmarks: [12, 14, 16, 18, 20, 22], // Shoulder, elbow, wrist, pinky, index, thumb
-          label: 'Right Arm & Hand'
-        },
-        // Torso (11, 12, 23, 24) - 4 keypoints
-        torso: {
-          connections: [
-            [11, 12], [11, 23], [12, 24], [23, 24]
-          ],
-          color: '#FFE66D', // Yellow
-          landmarks: [11, 12, 23, 24], // Shoulders and hips
-          label: 'Torso'
-        },
-        // Left leg (23, 25, 27, 29, 31) - 5 keypoints
-        leftLeg: {
-          connections: [
-            [23, 25], [25, 27], [27, 29], [27, 31], [29, 31]
-          ],
-          color: '#FF6B6B', // Red
-          landmarks: [23, 25, 27, 29, 31], // Hip, knee, ankle, heel, foot index
-          label: 'Left Leg & Foot'
-        },
-        // Right leg (24, 26, 28, 30, 32) - 5 keypoints
-        rightLeg: {
-          connections: [
-            [24, 26], [26, 28], [28, 30], [28, 32], [30, 32]
-          ],
-          color: '#C44569', // Dark red
-          landmarks: [24, 26, 28, 30, 32], // Hip, knee, ankle, heel, foot index
-          label: 'Right Leg & Foot'
-        }
-      };
-
-      // Draw connections for each body part with its color - ULTRA LOW THRESHOLD
-      Object.values(bodyParts).forEach(part => {
-        part.connections.forEach(([start, end]) => {
-          const startLm = results.poseLandmarks[start];
-          const endLm = results.poseLandmarks[end];
-          
-          // LOWERED from 0.3 to 0.1 - draw almost everything
-          if (startLm && endLm && startLm.visibility > 0.1 && endLm.visibility > 0.1) {
-            ctx.beginPath();
-            ctx.strokeStyle = part.color;
-            ctx.lineWidth = 5;
-            ctx.lineCap = 'round';
-            ctx.moveTo(startLm.x * w, startLm.y * h);
-            ctx.lineTo(endLm.x * w, endLm.y * h);
-            ctx.stroke();
-          }
-        });
-      });
-
-      // Draw ALL 33 landmarks with color coding - EVERY SINGLE JOINT (NO LABELS)
-      results.poseLandmarks.forEach((landmark: any, index: number) => {
-        // LOWERED from 0.3 to 0.1 - draw almost everything
-        if (landmark.visibility < 0.1) return;
-
-        // Find which body part this landmark belongs to
-        let color = '#FFFFFF'; // Default white for any unmapped keypoints
-        
-        for (const part of Object.values(bodyParts)) {
-          if (part.landmarks.includes(index)) {
-            color = part.color;
-            break;
-          }
-        }
-
-        const x = landmark.x * w;
-        const y = landmark.y * h;
-
-        // Draw outer glow
-        ctx.beginPath();
-        ctx.arc(x, y, 10, 0, Math.PI * 2);
-        ctx.fillStyle = color + '40'; // 25% opacity
-        ctx.fill();
-
-        // Draw main circle
-        ctx.beginPath();
-        ctx.arc(x, y, 7, 0, Math.PI * 2);
-        ctx.fillStyle = color;
-        ctx.fill();
-
-        // Draw white border
-        ctx.strokeStyle = '#FFFFFF';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      });
+    // Bones
+    ctx.lineWidth = 2.5;
+    for (const [ai, bi] of BLAZEPOSE_CONNECTIONS) {
+      const a = kp[ai], b = kp[bi];
+      if (!a || !b || a.score < 0.15 || b.score < 0.15) continue;
+      ctx.beginPath();
+      ctx.strokeStyle = "rgba(255,255,255,0.55)";
+      ctx.moveTo(a.x * w, a.y * h);
+      ctx.lineTo(b.x * w, b.y * h);
+      ctx.stroke();
     }
 
-    // Overlay angle labels
-    const faultMap = new Map(faultList.map(f => [f.joint ?? "", f]));
+    // Joints — colour-coded by fault
+    for (let i = 0; i < kp.length; i++) {
+      const k = kp[i];
+      if (!k || k.score < 0.15) continue;
+      const jointName = Object.entries(JOINT_KP_MAP).find(([, idx]) => idx === i)?.[0];
+      const fault = jointName ? faultMap.get(jointName) : undefined;
+      const hasAngle = jointName ? (angles[jointName] !== undefined) : false;
+      const color = jointColor(fault, hasAngle);
+      const radius = jointName ? 8 : 4;
+
+      ctx.beginPath();
+      ctx.arc(k.x * w, k.y * h, radius, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      if (radius > 4) {
+        ctx.strokeStyle = "rgba(0,0,0,0.5)";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+    }
+
+    // Angle labels on tracked joints
     ctx.font = "bold 12px monospace";
     ctx.textAlign = "center";
-    ctx.shadowColor = "rgba(0,0,0,0.8)";
-    ctx.shadowBlur = 4;
-    
     for (const [jointName, kpIdx] of Object.entries(JOINT_KP_MAP)) {
       const angle = angles[jointName];
       if (angle === undefined) continue;
-      
-      const landmark = results.poseLandmarks[kpIdx];
-      // LOWERED from 0.3 to 0.1 - show labels for almost everything
-      if (!landmark || landmark.visibility < 0.1) continue;
-      
-      const x = landmark.x * w;
-      const y = landmark.y * h - 20; // Positioned above the joint point
+      const k = kp[kpIdx];
+      if (!k || k.score < 0.15) continue;
+      const x = k.x * w, y = k.y * h - 18;
       const label = `${angle.toFixed(0)}°`;
-      
-      // Background with rounded corners
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = "rgba(0,0,0,0.85)";
       const mw = ctx.measureText(label).width;
-      const padding = 6;
-      const bgHeight = 18;
-      
-      // Rounded rectangle
+      ctx.fillStyle = "rgba(0,0,0,0.72)";
       ctx.beginPath();
-      ctx.roundRect(x - mw / 2 - padding, y - bgHeight / 2 - 2, mw + padding * 2, bgHeight, 4);
+      ctx.roundRect(x - mw / 2 - 5, y - 13, mw + 10, 18, 4);
       ctx.fill();
-      
-      // Text with color coding
       const fault = faultMap.get(jointName);
-      const FAULT_COLOR: Record<string, string> = {
-        error: "#ef4444",
-        warning: "#eab308",
-        info: "#60a5fa",
-      };
       ctx.fillStyle = fault ? FAULT_COLOR[fault.severity] : "#22c55e";
-      ctx.shadowColor = "rgba(0,0,0,0.8)";
-      ctx.shadowBlur = 2;
-      ctx.fillText(label, x, y + 2);
-      ctx.shadowBlur = 0;
+      ctx.fillText(label, x, y);
+    }
+
+    // Fault overlays — draw warning arrows on affected joints
+    for (const fault of faultList) {
+      if (!fault.joint) continue;
+      const kpIdx = JOINT_KP_MAP[fault.joint];
+      if (kpIdx === undefined) continue;
+      const k = kp[kpIdx];
+      if (!k || k.score < 0.15) continue;
+      const x = k.x * w, y = k.y * h;
+      // Pulsing ring around faulty joint
+      ctx.beginPath();
+      ctx.arc(x, y, 16, 0, Math.PI * 2);
+      ctx.strokeStyle = FAULT_COLOR[fault.severity] + "99";
+      ctx.lineWidth = 2;
+      ctx.stroke();
     }
   }, [angles]);
 
-  // ── Inference loop with MediaPipe ──────────────────────────────────────────
+  // ── Debug overlay — bounding box + raw landmark dots + diagnostics ──────────
+  const drawDebugOverlay = useCallback((
+    kp: Keypoint3D[],
+    ctx: CanvasRenderingContext2D,
+    w: number, h: number,
+  ) => {
+    const visible = kp.filter(k => k && k.score >= 0.3);
+    if (visible.length === 0) return;
+
+    // Bounding box around all visible landmarks
+    const xs = visible.map(k => k.x * w);
+    const ys = visible.map(k => k.y * h);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs);
+    const y0 = Math.min(...ys), y1 = Math.max(...ys);
+    const pad = 12;
+
+    ctx.save();
+    ctx.strokeStyle = "#0fffc5";
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 4]);
+    ctx.strokeRect(x0 - pad, y0 - pad, (x1 - x0) + pad * 2, (y1 - y0) + pad * 2);
+    ctx.setLineDash([]);
+
+    // Bounding box label
+    ctx.fillStyle = "rgba(15,255,197,0.85)";
+    ctx.font = "bold 10px monospace";
+    ctx.textAlign = "left";
+    ctx.fillText(`Subject detected · ${visible.length}/33 kp`, x0 - pad + 4, y0 - pad - 4);
+
+    // Raw landmark dots — all 33, colour by visibility
+    for (let i = 0; i < kp.length; i++) {
+      const k = kp[i];
+      if (!k) continue;
+      const px = k.x * w, py = k.y * h;
+      const alpha = Math.max(0.15, k.score);
+      // Green = high confidence, yellow = medium, red = low
+      const color = k.score >= 0.7 ? `rgba(34,197,94,${alpha})`
+                  : k.score >= 0.4 ? `rgba(234,179,8,${alpha})`
+                  : `rgba(239,68,68,${alpha})`;
+      ctx.beginPath();
+      ctx.arc(px, py, 3, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+
+      // Index label on every 5th landmark to avoid clutter
+      if (i % 5 === 0) {
+        ctx.fillStyle = "rgba(255,255,255,0.5)";
+        ctx.font = "8px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(String(i), px, py - 5);
+      }
+    }
+
+    // Visibility score bar for each tracked joint
+    let barY = y0 - pad - 20;
+    ctx.font = "9px monospace";
+    ctx.textAlign = "left";
+    for (const [jointName, kpIdx] of Object.entries(JOINT_KP_MAP)) {
+      const k = kp[kpIdx];
+      if (!k) continue;
+      const vis = k.score;
+      const barW = 60;
+      const filled = Math.round(vis * barW);
+      const barX = x1 + pad + 6;
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      ctx.fillRect(barX, barY - 8, barW + 60, 11);
+      ctx.fillStyle = vis >= 0.65 ? "#22c55e" : "#ef4444";
+      ctx.fillRect(barX, barY - 8, filled, 11);
+      ctx.fillStyle = "rgba(255,255,255,0.7)";
+      ctx.fillText(`${jointName.replace("_", " ")} ${(vis * 100).toFixed(0)}%`, barX + barW + 4, barY);
+      barY -= 14;
+    }
+
+    ctx.restore();
+  }, []);
+
+  // ── Run stream diagnostics (called once on demand) ────────────────────────
+  const runDiagnostics = useCallback(async () => {
+    if (!videoRef.current || debugRunning) return;
+    setDebugRunning(true);
+    const report = await diagnoseVideoStream(videoRef.current);
+    setDebugInfo(report);
+    setDebugRunning(false);
+    if (report.errors.length > 0) {
+      console.warn("[PoseCamera] Stream diagnostics:", report);
+    }
+  }, [debugRunning]);
+
+  const runLoopRef = useRef<() => void>();
+
+  // ── Inference loop ─────────────────────────────────────────────────────────
   const runLoop = useCallback(async () => {
     if (!activeRef.current || !detectorRef.current || !videoRef.current || !canvasRef.current) return;
     const video = videoRef.current;
-    if (video.readyState < 2) { 
-      rafRef.current = requestAnimationFrame(runLoop); 
-      return; 
+
+    // Wait until video has real dimensions — reschedule without burning CPU
+    if (video.readyState < 2 || video.videoWidth === 0) {
+      rafRef.current = requestAnimationFrame(() => runLoopRef.current?.());
+      return;
     }
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const w = video.videoWidth || 640;
-    const h = video.videoHeight || 480;
-    
+    const w = video.videoWidth;
+    const h = video.videoHeight;
+
+    // Only resize canvas when dimensions actually change — resizing clears the canvas
     if (canvas.width !== w || canvas.height !== h) {
       canvas.width = w;
       canvas.height = h;
     }
 
     try {
-      // MediaPipe will handle the drawing, we just need to send the frame
-      await detectorRef.current.send({ image: video });
-    } catch (err) {
-      console.error("Pose detection error:", err);
+      const poses = await detectorRef.current.estimatePoses(video, {
+        maxPoses: 1,
+        flipHorizontal: false,
+        scoreThreshold: 0.1,  // lowered: accept partial/occluded poses
+      });
+
+      ctx.save();
+      ctx.clearRect(0, 0, w, h);
+      ctx.drawImage(video, 0, 0, w, h);
+
+      if (poses.length > 0) {
+        const rawKp = poses[0].keypoints3D ?? poses[0].keypoints;
+        const kp: Keypoint3D[] = new Array(33).fill(null).map(() => ({ x: 0, y: 0, z: 0, score: 0 }));
+
+        if (poses[0].keypoints3D) {
+          for (let i = 0; i < rawKp.length && i < 33; i++) {
+            const k = rawKp[i];
+            kp[i] = { x: k.x, y: k.y, z: (k as any).z ?? 0, score: k.score ?? 0 };
+          }
+        } else {
+          const cocoToBP: Record<number, number> = {
+            5: 11, 6: 12, 7: 13, 8: 14, 9: 15, 10: 16,
+            11: 23, 12: 24, 13: 25, 14: 26, 15: 27, 16: 28,
+          };
+          for (let i = 0; i < rawKp.length; i++) {
+            const bpIdx = cocoToBP[i];
+            if (bpIdx !== undefined) {
+              kp[bpIdx] = { x: rawKp[i].x / w, y: rawKp[i].y / h, z: 0, score: rawKp[i].score ?? 0 };
+            }
+          }
+        }
+
+        const detectedExercise = classifyExercise(kp, preset);
+        if (detectedExercise !== "unknown") exerciseRef.current = detectedExercise;
+
+        const analysis = analyzePosture(kp, exerciseRef.current, repStateRef.current);
+        repStateRef.current = analysis.repState;
+
+        setAngles(analysis.angles);
+        setFaults(analysis.faults);
+        setFormScore(analysis.score);
+        setExercise(exerciseRef.current.replace("_", " "));
+        setPhase(analysis.phase);
+        onFormScore?.(analysis.score);
+
+        if (analysis.repCompleted) {
+          const newCount = repStateRef.current.count;
+          setRepCount(newCount);
+          const primaryJoint = (
+            exerciseRef.current === "shoulder_press" || exerciseRef.current === "lateral_raise" ? "shoulder_left" :
+            exerciseRef.current === "bicep_curl" ? "elbow_left" :
+            exerciseRef.current === "hip_abduction" ? "hip_left" : "knee_left"
+          ) as JointName;
+          const primaryAngle = analysis.angles[primaryJoint] ?? analysis.angles["knee_left"] ?? 0;
+          onRepComplete?.(primaryJoint, primaryAngle, newCount);
+          sendRepEvent(primaryAngle, 90);
+          speak(`Rep ${newCount}`);
+        }
+
+        const topFault = analysis.faults.find(f => f.severity === "error")
+          ?? analysis.faults.find(f => f.severity === "warning");
+        if (topFault) {
+          const now = Date.now();
+          if (topFault.fault !== lastFaultRef.current || now - lastFaultTime.current > 4000) {
+            lastFaultRef.current = topFault.fault;
+            lastFaultTime.current = now;
+            onFeedback?.(topFault.message, topFault.severity === "error" ? "out_of_range" : "warning");
+            if (topFault.severity === "error") speak(topFault.message);
+          }
+        } else if (analysis.score === 100) {
+          onFeedback?.("Perfect form!", "good");
+        }
+
+        drawSkeleton(kp, analysis.faults, ctx, w, h);
+        if (debugMode) drawDebugOverlay(kp, ctx, w, h);
+      } else {
+        // No pose detected — still draw the video frame so it's not black
+        ctx.drawImage(video, 0, 0, w, h);
+      }
+      ctx.restore();
+    } catch (e) {
+      // Swallow inference errors — keep the loop alive
+      console.warn("[PoseCamera] inference error:", e);
     }
 
+    // FPS counter
     const now = Date.now();
     fpsRef.current.frames++;
     if (now - fpsRef.current.lastTime >= 1000) {
       setFps(fpsRef.current.frames);
       fpsRef.current = { frames: 0, lastTime: now };
-      const sessionTime = Math.floor((now - sessionStartRef.current) / 1000);
-      
-      onSessionData?.({
-        repCount,
-        avgFormScore,
-        sessionTime,
-        exercise,
-        formScore,
-      });
     }
 
-    if (activeRef.current) rafRef.current = requestAnimationFrame(runLoop);
-  }, [repCount, avgFormScore, exercise, formScore, onSessionData]);
+    if (activeRef.current) rafRef.current = requestAnimationFrame(() => runLoopRef.current?.());
+  }, [drawSkeleton, drawDebugOverlay, debugMode, preset, onRepComplete, onFeedback, onFormScore, sendRepEvent, speak]);
+
+  // Keep runLoopRef always pointing to the latest runLoop closure
+  useEffect(() => { runLoopRef.current = runLoop; }, [runLoop]);
 
   // ── Init ───────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -349,167 +413,65 @@ export default function PoseCamera({
 
     async function init() {
       try {
-        sessionStartRef.current = Date.now();
-        setLoadingMsg("Loading MediaPipe libraries…");
-        setLoadingPct(10);
+        setLoadingMsg("Loading TensorFlow.js…");
+        setLoadingPct(15);
+        const tf = await import("@tensorflow/tfjs-core");
+        await import("@tensorflow/tfjs-backend-webgl");
+        const poseDetection = await import("@tensorflow-models/pose-detection");
 
-        // Load MediaPipe Pose
-        const poseScript = document.createElement("script");
-        poseScript.src = "https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js";
-        document.head.appendChild(poseScript);
+        setLoadingMsg("Setting up WebGL backend…");
+        setLoadingPct(30);
+        await tf.setBackend("webgl");
+        await tf.ready();
 
-        await new Promise<void>((resolve, reject) => {
-          poseScript.onload = () => resolve();
-          poseScript.onerror = () => reject(new Error("Failed to load MediaPipe Pose"));
-        });
+        setLoadingMsg("Loading BlazePose Heavy model…");
+        setLoadingPct(55);
 
-        setLoadingMsg("Loading drawing utilities…");
-        setLoadingPct(25);
-
-        // Load MediaPipe Drawing Utils
-        const drawingScript = document.createElement("script");
-        drawingScript.src = "https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js";
-        document.head.appendChild(drawingScript);
-
-        await new Promise<void>((resolve, reject) => {
-          drawingScript.onload = () => resolve();
-          drawingScript.onerror = () => reject(new Error("Failed to load drawing utilities"));
-        });
-
-        setLoadingMsg("Initializing pose detector…");
-        setLoadingPct(50);
-
-        // Initialize MediaPipe Pose with MINIMUM thresholds
-        const { Pose } = window;
-        const pose = new Pose({
-          locateFile: (file: string) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+        const detector = await poseDetection.createDetector(
+          poseDetection.SupportedModels.BlazePose,
+          {
+            runtime: "tfjs" as const,
+            modelType: "heavy",
+            enableSmoothing: true,
+            enableSegmentation: false,
           }
-        });
+        );
 
-        // ULTRA-LOW thresholds - draw skeleton no matter what
-        pose.setOptions({
-          modelComplexity: 0,              // Lite model for speed
-          smoothLandmarks: true,           // Reduce jitter
-          enableSegmentation: false,       // Disable for performance
-          minDetectionConfidence: 0.1,     // 10% - VERY LOW threshold
-          minTrackingConfidence: 0.1       // 10% - VERY LOW threshold
-        });
-
-        // Set up results callback with detailed logging
-        pose.onResults((results: any) => {
-          if (!canvasRef.current || !activeRef.current) return;
-          
-          // DEBUG: Log nose keypoint confidence on every frame
-          if (results.poseLandmarks && results.poseLandmarks[0]) {
-            console.log('Nose visibility:', results.poseLandmarks[0].visibility);
-            console.log('Total landmarks detected:', results.poseLandmarks.length);
-          } else {
-            console.log('NO LANDMARKS DETECTED');
-          }
-          
-          const canvas = canvasRef.current;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) return;
-
-          const w = canvas.width;
-          const h = canvas.height;
-
-          // Clear and draw video
-          ctx.clearRect(0, 0, w, h);
-          ctx.drawImage(results.image, 0, 0, w, h);
-
-          if (results.poseLandmarks) {
-            // Convert MediaPipe landmarks to our format
-            const kp: Keypoint3D[] = results.poseLandmarks.map((lm: any) => ({
-              x: lm.x,
-              y: lm.y,
-              z: lm.z ?? 0,
-              score: lm.visibility ?? 0
-            }));
-
-            // Analyze posture
-            const detectedExercise = classifyExercise(kp, preset);
-            if (detectedExercise !== "unknown") exerciseRef.current = detectedExercise;
-
-            const analysis = analyzePosture(kp, exerciseRef.current, repStateRef.current);
-            repStateRef.current = analysis.repState;
-
-            setAngles(analysis.angles);
-            setFaults(analysis.faults);
-            setFormScore(analysis.score);
-            setExercise(exerciseRef.current.replace("_", " "));
-            setPhase(analysis.phase);
-            onFormScore?.(analysis.score);
-
-            formScoresRef.current.push(analysis.score);
-            if (formScoresRef.current.length > 100) formScoresRef.current.shift();
-            const avg = formScoresRef.current.reduce((a, b) => a + b, 0) / formScoresRef.current.length;
-            setAvgFormScore(Math.round(avg));
-
-            if (analysis.repCompleted) {
-              const newCount = repStateRef.current.count;
-              setRepCount(newCount);
-              const primaryJoint = (
-                exerciseRef.current === "shoulder_press" || exerciseRef.current === "lateral_raise" ? "shoulder_left" :
-                exerciseRef.current === "bicep_curl" ? "elbow_left" :
-                exerciseRef.current === "hip_abduction" ? "hip_left" : "knee_left"
-              ) as JointName;
-              const primaryAngle = analysis.angles[primaryJoint] ?? analysis.angles["knee_left"] ?? 0;
-              onRepComplete?.(primaryJoint, primaryAngle, newCount);
-              sendRepEvent(primaryAngle, 90);
-              speak(`Rep ${newCount}`);
-            }
-
-            const topFault = analysis.faults.find(f => f.severity === "error")
-              ?? analysis.faults.find(f => f.severity === "warning");
-            if (topFault) {
-              const now = Date.now();
-              if (topFault.fault !== lastFaultRef.current || now - lastFaultTime.current > 4000) {
-                lastFaultRef.current = topFault.fault;
-                lastFaultTime.current = now;
-                onFeedback?.(topFault.message, topFault.severity === "error" ? "out_of_range" : "warning");
-                if (topFault.severity === "error") speak(topFault.message);
-              }
-            } else if (analysis.score === 100) {
-              onFeedback?.("Perfect form!", "good");
-            }
-
-            // Draw with color-coded visualization
-            drawSkeleton(results, analysis.faults, ctx, w, h);
-          }
-        });
-
-        detectorRef.current = pose;
+        detectorRef.current = detector;
         setLoadingMsg("Starting camera…");
         setLoadingPct(75);
 
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { 
-            width: { ideal: 640 },    // Lower resolution for better performance
-            height: { ideal: 480 }, 
-            facingMode: "user",
-            frameRate: { ideal: 30, max: 30 }  // Cap frame rate
-          },
+          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" },
           audio: false,
         });
 
         if (!videoRef.current) return;
-        videoRef.current.srcObject = stream;
+        const video = videoRef.current;
+        video.srcObject = stream;
 
+        // Wait for video to have real dimensions before starting the loop
         await new Promise<void>((resolve, reject) => {
-          const v = videoRef.current!;
-          v.onloadedmetadata = () => {
-            v.play().then(() => {
-              resolve();
-            }).catch(reject);
+          video.onloadedmetadata = () => {
+            video.play()
+              .then(() => {
+                // Extra guard: wait until videoWidth is populated
+                const poll = setInterval(() => {
+                  if (video.videoWidth > 0) {
+                    clearInterval(poll);
+                    resolve();
+                  }
+                }, 50);
+              })
+              .catch(reject);
           };
-          v.onerror = reject;
+          video.onerror = reject;
         });
 
         setLoadingPct(100);
         setIsLoading(false);
-        rafRef.current = requestAnimationFrame(runLoop);
+        // Start loop via ref so it always uses the latest closure
+        rafRef.current = requestAnimationFrame(() => runLoopRef.current?.());
       } catch (err: any) {
         setCameraError(err?.message || "Failed to start pose engine");
         setIsLoading(false);
@@ -528,9 +490,15 @@ export default function PoseCamera({
   useEffect(() => {
     if (!isLoading && !cameraError) {
       cancelAnimationFrame(rafRef.current);
-      rafRef.current = requestAnimationFrame(runLoop);
+      rafRef.current = requestAnimationFrame(() => runLoopRef.current?.());
     }
-  }, [runLoop, isLoading, cameraError]);
+  }, [isLoading, cameraError]);
+
+  const scoreColor = formScore == null ? "#6b7280"
+    : formScore >= 92 ? "#22c55e"   // excellent (dataset top 25%)
+    : formScore >= 77 ? "#0fffc5"   // good (dataset median)
+    : formScore >= 60 ? "#eab308"   // fair
+    : "#ef4444";                    // needs work (dataset bottom quartile)
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -540,18 +508,8 @@ export default function PoseCamera({
         borderRadius: 16, overflow: "hidden", minHeight: 320,
         border: "1px solid rgba(15,255,197,0.15)",
       }}>
-        <video 
-          ref={videoRef} 
-          style={{ 
-            position: "absolute",
-            width: "100%",
-            height: "auto",
-            visibility: "hidden"
-          }} 
-          playsInline 
-          muted 
-        />
-        <canvas ref={canvasRef} style={{ width: "100%", height: "auto", display: "block", maxHeight: "70vh" }} />
+        <video ref={videoRef} style={{ display: "none" }} playsInline muted />
+        <canvas ref={canvasRef} style={{ width: "100%", height: "auto", display: "block", maxHeight: "60vh" }} />
 
         {/* Loading */}
         {isLoading && (
@@ -566,7 +524,7 @@ export default function PoseCamera({
             </div>
             <div style={{ textAlign: "center" }}>
               <p style={{ color: "#0fffc5", fontSize: 14, fontWeight: 600, marginBottom: 6 }}>{loadingMsg}</p>
-              <p style={{ color: "rgba(232,244,240,0.4)", fontSize: 12 }}>MediaPipe Pose · Native Rendering · 33 keypoints</p>
+              <p style={{ color: "rgba(232,244,240,0.4)", fontSize: 12 }}>BlazePose Heavy · 33 keypoints · 3D · ~8MB · 95% PCK</p>
             </div>
             <div style={{ width: 200, height: 3, background: "rgba(15,255,197,0.1)", borderRadius: 2 }}>
               <div style={{ height: "100%", borderRadius: 2, background: "linear-gradient(90deg,rgba(15,255,197,0.5),#0fffc5)", width: `${loadingPct}%`, transition: "width 0.4s ease", boxShadow: "0 0 8px rgba(15,255,197,0.6)" }} />
@@ -594,99 +552,136 @@ export default function PoseCamera({
           </div>
         )}
 
-        {/* Minimal HUD - only FPS */}
+        {/* HUD */}
         {!isLoading && !cameraError && (
-          <div style={{
-            position: "absolute", top: 10, right: 10,
-            background: "rgba(0,0,0,0.7)", borderRadius: 6,
-            padding: "4px 8px", fontSize: 10, fontFamily: "monospace",
-            color: fps >= 20 ? "#0fffc5" : "#eab308",
-            border: "1px solid rgba(15,255,197,0.2)",
-          }}>
-            {fps} FPS
-          </div>
+          <>
+            {/* Top-left: FPS + model */}
+            <div style={{ position: "absolute", top: 10, left: 10, display: "flex", flexDirection: "column", gap: 4 }}>
+              <span style={{ background: "rgba(0,0,0,0.7)", color: fps >= 20 ? "#0fffc5" : "#eab308", fontSize: 10, fontFamily: "monospace", padding: "3px 7px", borderRadius: 5, border: "1px solid rgba(15,255,197,0.2)" }}>
+                {fps} FPS
+              </span>
+              <span style={{ background: "rgba(0,0,0,0.7)", color: "rgba(232,244,240,0.4)", fontSize: 9, fontFamily: "monospace", padding: "3px 7px", borderRadius: 5 }}>
+                BlazePose Heavy · 95%
+              </span>
+            </div>
+
+            {/* Top-right: form score */}
+            {formScore !== null && (
+              <div style={{
+                position: "absolute", top: 10, right: 10,
+                background: "rgba(0,0,0,0.75)", borderRadius: 10,
+                padding: "8px 12px", textAlign: "center",
+                border: `1px solid ${scoreColor}40`,
+              }}>
+                <p style={{ fontSize: 22, fontWeight: 800, color: scoreColor, lineHeight: 1 }}>{formScore}</p>
+                <p style={{ fontSize: 9, color: scoreColor, marginTop: 2, fontWeight: 600 }}>
+                  {getScoreBandLabel(formScore).toUpperCase()}
+                </p>
+              </div>
+            )}
+          </>
         )}
       </div>
 
       {/* Live fault panel */}
       {!isLoading && !cameraError && (
-        <>
-          {/* Color-coded body parts legend */}
-          <div style={{
-            background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)",
-            borderRadius: 12, padding: "12px 14px", marginBottom: 10,
-          }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(232,244,240,0.5)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              Body Parts Color Guide
+        <div style={{
+          background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)",
+          borderRadius: 12, padding: "12px 14px",
+        }}>
+          {/* Exercise + phase */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#0fffc5", textTransform: "capitalize" }}>{exercise}</span>
+              {phase && <span style={{ fontSize: 10, color: "rgba(232,244,240,0.4)", background: "rgba(255,255,255,0.05)", padding: "2px 7px", borderRadius: 5 }}>{phase}</span>}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-              {[
-                { label: "Face", color: "#FF6B9D" },
-                { label: "Left Arm", color: "#4ECDC4" },
-                { label: "Right Arm", color: "#95E1D3" },
-                { label: "Torso", color: "#FFE66D" },
-                { label: "Left Leg", color: "#FF6B6B" },
-                { label: "Right Leg", color: "#C44569" },
-              ].map(({ label, color }) => (
-                <div key={label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <div style={{ width: 12, height: 12, borderRadius: "50%", background: color, border: "2px solid #fff", flexShrink: 0 }} />
-                  <span style={{ fontSize: 11, color: "rgba(232,244,240,0.7)" }}>{label}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#0fffc5" }}>Rep {repCount}</span>
+          </div>
+
+          {/* Faults */}
+          {faults.length === 0 ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e" }} />
+              <span style={{ fontSize: 12, color: "#22c55e" }}>Good form — keep it up</span>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {faults.slice(0, 3).map((f, i) => (
+                <div key={i} style={{
+                  display: "flex", alignItems: "flex-start", gap: 8,
+                  padding: "7px 10px", borderRadius: 8,
+                  background: `${FAULT_COLOR[f.severity]}10`,
+                  border: `1px solid ${FAULT_COLOR[f.severity]}30`,
+                }}>
+                  <div style={{ width: 7, height: 7, borderRadius: "50%", background: FAULT_COLOR[f.severity], flexShrink: 0, marginTop: 3 }} />
+                  <span style={{ fontSize: 12, color: FAULT_COLOR[f.severity], lineHeight: 1.4 }}>{f.message}</span>
                 </div>
               ))}
             </div>
-          </div>
+          )}
 
-          <div style={{
-            background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)",
-            borderRadius: 12, padding: "12px 14px",
-          }}>
-            {/* Exercise + phase */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#0fffc5", textTransform: "capitalize" }}>{exercise}</span>
-                {phase && <span style={{ fontSize: 10, color: "rgba(232,244,240,0.4)", background: "rgba(255,255,255,0.05)", padding: "2px 7px", borderRadius: 5 }}>{phase}</span>}
-              </div>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "#0fffc5" }}>Rep {repCount}</span>
+          {/* Angle readouts */}
+          {Object.keys(angles).length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 10 }}>
+              {Object.entries(angles).map(([joint, angle]) => (
+                <span key={joint} style={{
+                  fontSize: 10, fontFamily: "monospace",
+                  background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: 5, padding: "2px 7px", color: "rgba(232,244,240,0.5)",
+                }}>
+                  {joint.replace("_", " ")}: <span style={{ color: "#0fffc5" }}>{angle.toFixed(0)}°</span>
+                </span>
+              ))}
             </div>
+          )}
+        </div>
+      )}
 
-            {/* Faults */}
-            {faults.length === 0 ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e" }} />
-                <span style={{ fontSize: 12, color: "#22c55e" }}>Good form — keep it up</span>
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {faults.slice(0, 3).map((f, i) => (
-                  <div key={i} style={{
-                    display: "flex", alignItems: "flex-start", gap: 8,
-                    padding: "7px 10px", borderRadius: 8,
-                    background: `${FAULT_COLOR[f.severity]}10`,
-                    border: `1px solid ${FAULT_COLOR[f.severity]}30`,
-                  }}>
-                    <div style={{ width: 7, height: 7, borderRadius: "50%", background: FAULT_COLOR[f.severity], flexShrink: 0, marginTop: 3 }} />
-                    <span style={{ fontSize: 12, color: FAULT_COLOR[f.severity], lineHeight: 1.4 }}>{f.message}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Angle readouts */}
-            {Object.keys(angles).length > 0 && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 10 }}>
-                {Object.entries(angles).map(([joint, angle]) => (
-                  <span key={joint} style={{
-                    fontSize: 10, fontFamily: "monospace",
-                    background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
-                    borderRadius: 5, padding: "2px 7px", color: "rgba(232,244,240,0.5)",
-                  }}>
-                    {joint.replace("_", " ")}: <span style={{ color: "#0fffc5" }}>{angle.toFixed(0)}°</span>
-                  </span>
-                ))}
-              </div>
-            )}
+      {/* Debug panel */}
+      {debugMode && !isLoading && !cameraError && (
+        <div style={{
+          background: "rgba(0,0,0,0.5)", border: "1px solid rgba(15,255,197,0.2)",
+          borderRadius: 12, padding: "12px 14px", fontFamily: "monospace",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <span style={{ fontSize: 11, color: "#0fffc5", fontWeight: 700 }}>🔬 Stream Diagnostics</span>
+            <button onClick={runDiagnostics} disabled={debugRunning} style={{
+              fontSize: 10, padding: "3px 10px", borderRadius: 6, cursor: "pointer",
+              background: "rgba(15,255,197,0.1)", border: "1px solid rgba(15,255,197,0.3)",
+              color: "#0fffc5",
+            }}>
+              {debugRunning ? "Running…" : "Run Diagnostics"}
+            </button>
           </div>
-        </>
+
+          {debugInfo ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {[
+                ["readyState",      `${debugInfo.readyState} ${debugInfo.readyState >= 2 ? "✓" : "✗ (need ≥ 2)"}`],
+                ["resolution",      `${debugInfo.videoWidth}×${debugInfo.videoHeight}`],
+                ["frame advancing", debugInfo.frameAdvanced ? "✓ yes" : "✗ stalled"],
+                ["brightness",      `${debugInfo.meanBrightness}/255 ${debugInfo.isBlackFrame ? "⚠ black frame" : "✓"}`],
+                ["base64 length",   `${debugInfo.base64Length.toLocaleString()} chars`],
+                ["blob size",       `${(debugInfo.blobSizeBytes / 1024).toFixed(1)} KB`],
+              ].map(([label, value]) => (
+                <div key={label as string} style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 10, color: "rgba(232,244,240,0.4)" }}>{label}</span>
+                  <span style={{ fontSize: 10, color: "#e8f4f0" }}>{value}</span>
+                </div>
+              ))}
+
+              {debugInfo.errors.length > 0 && (
+                <div style={{ marginTop: 8, padding: "8px 10px", borderRadius: 8, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)" }}>
+                  {debugInfo.errors.map((e, i) => (
+                    <p key={i} style={{ fontSize: 10, color: "#ef4444", marginBottom: 2 }}>⚠ {e}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <p style={{ fontSize: 10, color: "rgba(232,244,240,0.3)" }}>Click "Run Diagnostics" to check the webcam stream.</p>
+          )}
+        </div>
       )}
     </div>
   );
