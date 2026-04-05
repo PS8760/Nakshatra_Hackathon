@@ -38,11 +38,11 @@ function Particles() {
       for (const p of pts) {
         p.x = (p.x + p.vx + W) % W; p.y = (p.y + p.vy + H) % H;
         ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,255,${p.a})`; ctx.fill();
+        ctx.fillStyle = `rgba(15,255,197,${p.a})`; ctx.fill();
       }
       for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
         const dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y, d = Math.sqrt(dx * dx + dy * dy);
-        if (d < 100) { ctx.beginPath(); ctx.moveTo(pts[i].x, pts[i].y); ctx.lineTo(pts[j].x, pts[j].y); ctx.strokeStyle = `rgba(255,255,255,${(1 - d / 100) * .055})`; ctx.lineWidth = .5; ctx.stroke(); }
+        if (d < 100) { ctx.beginPath(); ctx.moveTo(pts[i].x, pts[i].y); ctx.lineTo(pts[j].x, pts[j].y); ctx.strokeStyle = `rgba(15,255,197,${(1 - d / 100) * .055})`; ctx.lineWidth = .5; ctx.stroke(); }
       }
       raf = requestAnimationFrame(draw);
     };
@@ -52,279 +52,75 @@ function Particles() {
   return <canvas ref={ref} style={{ position: "absolute", inset: 0, pointerEvents: "none" }} />;
 }
 
-/* ── 3D Human Model ────────────────────────────────────────────────────────── */
-function HumanModel3D() {
+/* ── Floating skeleton SVG ────────────────────────────────────────────────── */
+function SkeletonViz() {
   return (
-    <div className="a-floatY" style={{ 
-      position: "relative", 
-      width: 320, 
-      height: 400,
-      perspective: "1000px",
-    }}>
+      <div className="a-floatY" style={{ position: "relative", width: 280, height: 340 }}>
       {/* Glow behind */}
       <div style={{
-        position: "absolute", 
-        inset: -60, 
-        borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(255,255,255,.15) 0%, transparent 70%)",
-        filter: "blur(30px)",
-        animation: "glowPulse 4s ease-in-out infinite",
+        position: "absolute", inset: -40, borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(15,255,197,.12) 0%, transparent 70%)",
+        filter: "blur(20px)",
       }} />
+      <svg width="280" height="340" viewBox="0 0 280 340" fill="none" style={{ position: "relative", zIndex: 1 }}>
+        {/* Body skeleton */}
+        <circle cx="140" cy="40" r="22" stroke="#0fffc5" strokeWidth="1.5" opacity=".7" style={{ filter: "drop-shadow(0 0 6px #0fffc5)" }} />
+        {/* Spine */}
+        <line x1="140" y1="62" x2="140" y2="160" stroke="#0fffc5" strokeWidth="1.5" opacity=".5" />
+        {/* Shoulders */}
+        <line x1="80" y1="90" x2="200" y2="90" stroke="#0fffc5" strokeWidth="1.5" opacity=".6" />
+        {/* Left arm */}
+        <line x1="80" y1="90" x2="55" y2="155" stroke="#0fffc5" strokeWidth="1.5" opacity=".5" />
+        <line x1="55" y1="155" x2="40" y2="210" stroke="#0fffc5" strokeWidth="1.5" opacity=".4" />
+        {/* Right arm */}
+        <line x1="200" y1="90" x2="225" y2="155" stroke="#0fffc5" strokeWidth="1.5" opacity=".5" />
+        <line x1="225" y1="155" x2="240" y2="210" stroke="#0fffc5" strokeWidth="1.5" opacity=".4" />
+        {/* Hips */}
+        <line x1="100" y1="160" x2="180" y2="160" stroke="#0fffc5" strokeWidth="1.5" opacity=".6" />
+        {/* Left leg */}
+        <line x1="110" y1="160" x2="100" y2="245" stroke="#0fffc5" strokeWidth="1.5" opacity=".5" />
+        <line x1="100" y1="245" x2="95" y2="320" stroke="#0fffc5" strokeWidth="1.5" opacity=".4" />
+        {/* Right leg */}
+        <line x1="170" y1="160" x2="180" y2="245" stroke="#0fffc5" strokeWidth="1.5" opacity=".5" />
+        <line x1="180" y1="245" x2="185" y2="320" stroke="#0fffc5" strokeWidth="1.5" opacity=".4" />
 
-      {/* 3D Human Figure */}
+        {/* Joint dots */}
+        {[
+          [140, 40], [80, 90], [200, 90], [55, 155], [225, 155],
+          [40, 210], [240, 210], [140, 160], [100, 245], [180, 245],
+          [95, 320], [185, 320],
+        ].map(([cx, cy], i) => (
+          <circle key={i} cx={cx} cy={cy} r={i === 0 ? 0 : 5} fill="#0fffc5" opacity={.8}
+            style={{ filter: "drop-shadow(0 0 4px #0fffc5)" }} />
+        ))}
+
+        {/* Angle arc on knee */}
+        <path d="M 100 245 A 30 30 0 0 1 130 230" stroke="#0fffc5" strokeWidth="1.5" fill="none" opacity=".6" strokeDasharray="4 2" />
+        <text x="115" y="222" fill="#0fffc5" fontSize="11" fontFamily="monospace" opacity=".8">124°</text>
+
+        {/* Status indicator */}
+        <circle cx="100" cy="245" r="8" fill="none" stroke="#0fffc5" strokeWidth="2" opacity=".9" style={{ filter: "drop-shadow(0 0 6px #0fffc5)" }} />
+      </svg>
+
+      {/* Floating data chips */}
       <div style={{
-        position: "relative",
-        width: "100%",
-        height: "100%",
-        transformStyle: "preserve-3d",
-        animation: "rotate3D 20s linear infinite",
-      }}>
-        {/* Head */}
-        <div style={{
-          position: "absolute",
-          left: "50%",
-          top: "15%",
-          transform: "translateX(-50%)",
-          width: 60,
-          height: 60,
-          borderRadius: "50%",
-          background: "linear-gradient(135deg, rgba(255,255,255,.15) 0%, rgba(255,255,255,.05) 100%)",
-          border: "2px solid rgba(255,255,255,.4)",
-          boxShadow: "0 0 30px rgba(255,255,255,.3), inset 0 0 20px rgba(255,255,255,.1)",
-          backdropFilter: "blur(10px)",
-        }}>
-          {/* Face details */}
-          <div style={{ position: "absolute", top: "35%", left: "30%", width: 6, height: 6, borderRadius: "50%", background: "rgba(255,255,255,.6)" }} />
-          <div style={{ position: "absolute", top: "35%", right: "30%", width: 6, height: 6, borderRadius: "50%", background: "rgba(255,255,255,.6)" }} />
-          <div style={{ position: "absolute", bottom: "25%", left: "50%", transform: "translateX(-50%)", width: 20, height: 2, borderRadius: 2, background: "rgba(255,255,255,.4)" }} />
-        </div>
-
-        {/* Torso */}
-        <div style={{
-          position: "absolute",
-          left: "50%",
-          top: "30%",
-          transform: "translateX(-50%)",
-          width: 80,
-          height: 120,
-          borderRadius: "20px 20px 10px 10px",
-          background: "linear-gradient(180deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.06) 100%)",
-          border: "2px solid rgba(255,255,255,.35)",
-          boxShadow: "0 0 25px rgba(255,255,255,.25), inset 0 0 15px rgba(255,255,255,.08)",
-          backdropFilter: "blur(10px)",
-        }}>
-          {/* Chest indicator */}
-          <div style={{
-            position: "absolute",
-            top: "20%",
-            left: "50%",
-            transform: "translateX(-50%)",
-            width: 30,
-            height: 30,
-            borderRadius: "50%",
-            border: "2px solid rgba(255,255,255,.3)",
-            animation: "pulseDot 2s ease-in-out infinite",
-          }} />
-        </div>
-
-        {/* Left Arm */}
-        <div style={{
-          position: "absolute",
-          left: "20%",
-          top: "35%",
-          width: 20,
-          height: 80,
-          borderRadius: 10,
-          background: "linear-gradient(180deg, rgba(255,255,255,.1) 0%, rgba(255,255,255,.05) 100%)",
-          border: "2px solid rgba(255,255,255,.3)",
-          boxShadow: "0 0 20px rgba(255,255,255,.2)",
-          transformOrigin: "top center",
-          animation: "swingArm 3s ease-in-out infinite",
-        }}>
-          {/* Elbow joint */}
-          <div style={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            width: 12,
-            height: 12,
-            borderRadius: "50%",
-            background: "rgba(255,255,255,.5)",
-            boxShadow: "0 0 10px rgba(255,255,255,.5)",
-          }} />
-        </div>
-
-        {/* Right Arm */}
-        <div style={{
-          position: "absolute",
-          right: "20%",
-          top: "35%",
-          width: 20,
-          height: 80,
-          borderRadius: 10,
-          background: "linear-gradient(180deg, rgba(255,255,255,.1) 0%, rgba(255,255,255,.05) 100%)",
-          border: "2px solid rgba(255,255,255,.3)",
-          boxShadow: "0 0 20px rgba(255,255,255,.2)",
-          transformOrigin: "top center",
-          animation: "swingArm 3s ease-in-out infinite reverse",
-        }}>
-          {/* Elbow joint */}
-          <div style={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            width: 12,
-            height: 12,
-            borderRadius: "50%",
-            background: "rgba(255,255,255,.5)",
-            boxShadow: "0 0 10px rgba(255,255,255,.5)",
-          }} />
-        </div>
-
-        {/* Left Leg */}
-        <div style={{
-          position: "absolute",
-          left: "35%",
-          top: "60%",
-          width: 22,
-          height: 100,
-          borderRadius: 11,
-          background: "linear-gradient(180deg, rgba(255,255,255,.1) 0%, rgba(255,255,255,.05) 100%)",
-          border: "2px solid rgba(255,255,255,.3)",
-          boxShadow: "0 0 20px rgba(255,255,255,.2)",
-          transformOrigin: "top center",
-          animation: "swingLeg 3s ease-in-out infinite",
-        }}>
-          {/* Knee joint with angle indicator */}
-          <div style={{
-            position: "absolute",
-            top: "55%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            width: 14,
-            height: 14,
-            borderRadius: "50%",
-            background: "rgba(255,255,255,.6)",
-            boxShadow: "0 0 15px rgba(255,255,255,.6)",
-            border: "2px solid rgba(255,255,255,.8)",
-          }} />
-          {/* Angle label */}
-          <div style={{
-            position: "absolute",
-            top: "50%",
-            left: "-40px",
-            background: "rgba(0,0,0,.85)",
-            border: "1px solid rgba(255,255,255,.3)",
-            borderRadius: 6,
-            padding: "4px 8px",
-            fontSize: 11,
-            fontFamily: "monospace",
-            color: "#ffffff",
-            fontWeight: 600,
-            boxShadow: "0 0 15px rgba(255,255,255,.2)",
-          }}>124°</div>
-        </div>
-
-        {/* Right Leg */}
-        <div style={{
-          position: "absolute",
-          right: "35%",
-          top: "60%",
-          width: 22,
-          height: 100,
-          borderRadius: 11,
-          background: "linear-gradient(180deg, rgba(255,255,255,.1) 0%, rgba(255,255,255,.05) 100%)",
-          border: "2px solid rgba(255,255,255,.3)",
-          boxShadow: "0 0 20px rgba(255,255,255,.2)",
-          transformOrigin: "top center",
-          animation: "swingLeg 3s ease-in-out infinite reverse",
-        }}>
-          {/* Knee joint */}
-          <div style={{
-            position: "absolute",
-            top: "55%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            width: 14,
-            height: 14,
-            borderRadius: "50%",
-            background: "rgba(255,255,255,.6)",
-            boxShadow: "0 0 15px rgba(255,255,255,.6)",
-            border: "2px solid rgba(255,255,255,.8)",
-          }} />
-        </div>
-
-        {/* Floating status indicators */}
-        <div style={{
-          position: "absolute",
-          top: "10%",
-          right: "-60px",
-          background: "rgba(0,0,0,.9)",
-          border: "1px solid rgba(255,255,255,.3)",
-          borderRadius: 10,
-          padding: "8px 12px",
-          fontSize: 12,
-          fontFamily: "monospace",
-          color: "#ffffff",
-          backdropFilter: "blur(10px)",
-          boxShadow: "0 0 20px rgba(255,255,255,.2)",
-          animation: "floatXY 4s ease-in-out infinite",
-        }}>
-          <div style={{ fontSize: 10, opacity: .6, marginBottom: 2 }}>POSTURE</div>
-          <div style={{ fontWeight: 700 }}>✓ Optimal</div>
-        </div>
-
-        <div style={{
-          position: "absolute",
-          bottom: "15%",
-          left: "-70px",
-          background: "rgba(0,0,0,.9)",
-          border: "1px solid rgba(255,255,255,.25)",
-          borderRadius: 10,
-          padding: "8px 12px",
-          fontSize: 12,
-          fontFamily: "monospace",
-          color: "#ffffff",
-          backdropFilter: "blur(10px)",
-          boxShadow: "0 0 20px rgba(255,255,255,.15)",
-          animation: "floatY 5s ease-in-out infinite",
-          animationDelay: "1s",
-        }}>
-          <div style={{ fontSize: 10, opacity: .6, marginBottom: 2 }}>TRACKING</div>
-          <div style={{ fontWeight: 700 }}>33 Points</div>
-        </div>
+        position: "absolute", top: 60, right: -20,
+        background: "rgba(2,24,43,.9)", border: "1px solid rgba(15,255,197,.3)",
+        borderRadius: 8, padding: "6px 10px", fontSize: 11, fontFamily: "monospace",
+        color: "#0fffc5", backdropFilter: "blur(8px)",
+        boxShadow: "0 0 16px rgba(15,255,197,.15)",
+      }} className="a-floatXY">
+        knee: 124°
       </div>
-
-      {/* Interaction hint */}
       <div style={{
-        position: "absolute",
-        bottom: -40,
-        left: "50%",
-        transform: "translateX(-50%)",
-        fontSize: 11,
-        color: "rgba(255,255,255,.4)",
-        textAlign: "center",
-        animation: "fadeIn 2s ease-in-out",
-      }}>
-        Real-time motion tracking
+        position: "absolute", bottom: 80, left: -30,
+        background: "rgba(2,24,43,.9)", border: "1px solid rgba(15,255,197,.2)",
+        borderRadius: 8, padding: "6px 10px", fontSize: 11, fontFamily: "monospace",
+        color: "#22c55e", backdropFilter: "blur(8px)",
+        animationDelay: "1s",
+      }} className="a-floatY">
+        ✓ on target
       </div>
-
-      <style>{`
-        @keyframes rotate3D {
-          0%, 100% { transform: rotateY(-8deg) rotateX(2deg); }
-          50% { transform: rotateY(8deg) rotateX(-2deg); }
-        }
-        @keyframes swingArm {
-          0%, 100% { transform: rotate(-5deg); }
-          50% { transform: rotate(5deg); }
-        }
-        @keyframes swingLeg {
-          0%, 100% { transform: rotate(-3deg); }
-          50% { transform: rotate(3deg); }
-        }
-      `}</style>
     </div>
   );
 }
@@ -342,7 +138,7 @@ export default function Hero() {
     <section style={{
       position: "relative", minHeight: "100vh",
       display: "flex", alignItems: "center",
-      overflow: "hidden", background: "#000000",
+      overflow: "hidden", background: "#02182b",
     }}>
       <div className="grid-bg" style={{ position: "absolute", inset: 0, opacity: .55 }} />
       <Particles />
@@ -350,7 +146,7 @@ export default function Hero() {
       {/* Spotlight */}
       <div style={{
         position: "absolute", inset: 0, pointerEvents: "none",
-        background: "radial-gradient(ellipse 70% 60% at 50% 38%, rgba(255,255,255,.07) 0%, transparent 65%)",
+        background: "radial-gradient(ellipse 70% 60% at 50% 38%, rgba(15,255,197,.07) 0%, transparent 65%)",
       }} />
 
       {/* Orbs */}
@@ -371,38 +167,37 @@ export default function Hero() {
         <div>
           {/* Eyebrow */}
           <div className="pill a-border" style={{ marginBottom: 32 }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#ffffff", flexShrink: 0 }} className="a-pulse" />
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#0fffc5", flexShrink: 0 }} className="a-pulse" />
             Nakshatra Hackathon 2026 · Healthcare Track
           </div>
 
           {/* Headline */}
           <h1 style={{
-            fontSize: "clamp(48px,8vw,96px)",
-            fontWeight: 900, letterSpacing: "-.04em", lineHeight: 1.05,
-            marginBottom: 32,
+            fontSize: "clamp(44px,7.5vw,88px)",
+            fontWeight: 900, letterSpacing: "-.04em", lineHeight: 1.0,
+            marginBottom: 28,
           }}>
-            <span style={{ color: "#ffffff", display: "block" }}>Rehab that</span>
+            <span style={{ color: "#e8f4f0", display: "block" }}>Rehab that</span>
             <span className="g-text" style={{ display: "block" }}>never sleeps.</span>
           </h1>
 
           <p style={{
-            fontSize: "clamp(16px,2vw,20px)", lineHeight: 1.7,
-            color: "rgba(255,255,255,.65)", maxWidth: 520, marginBottom: 48,
-            fontWeight: 400,
+            fontSize: "clamp(15px,1.8vw,18px)", lineHeight: 1.75,
+            color: "rgba(232,244,240,.5)", maxWidth: 480, marginBottom: 44,
           }}>
             AI-powered physical joint recovery and cognitive rehabilitation.
-            Real-time motion tracking. Any device. Zero hardware required.
+            Real-time. Any device. Zero hardware.
           </p>
 
           {/* CTAs */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginBottom: 68 }}>
-            <Link href="/auth" className="btn-solid" style={{ fontSize: 16, padding: "16px 36px", borderRadius: 12 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 64 }}>
+            <Link href="/auth" className="btn-solid" style={{ fontSize: 15, padding: "14px 32px" }}>
               Start for free
-              <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
-                <path d="M3 8h10M9 4l4 4-4 4" stroke="#000000" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M3 8h10M9 4l4 4-4 4" stroke="#02182b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </Link>
-            <Link href="/features" className="btn-outline" style={{ fontSize: 16, padding: "16px 36px", borderRadius: 12 }}>
+            <Link href="/features" className="btn-outline" style={{ fontSize: 15, padding: "14px 32px" }}>
               See features
             </Link>
           </div>
@@ -410,27 +205,27 @@ export default function Hero() {
           {/* Stats */}
           <div style={{
             display: "grid", gridTemplateColumns: "repeat(4,1fr)",
-            borderTop: "1px solid rgba(255,255,255,.12)",
-            paddingTop: 32,
-            gap: 24,
+            borderTop: "1px solid rgba(15,255,197,.08)",
+            paddingTop: 28,
           }} className="stats-row">
             {stats.map((s, i) => (
               <div key={s.label} style={{
-                paddingRight: i < 3 ? 24 : 0,
-                borderRight: i < 3 ? "1px solid rgba(255,255,255,.1)" : "none",
+                paddingRight: 20,
+                borderRight: i < 3 ? "1px solid rgba(15,255,197,.07)" : "none",
+                paddingLeft: i > 0 ? 20 : 0,
               }}>
-                <p className="g-text" style={{ fontSize: "clamp(26px,3.5vw,38px)", fontWeight: 800, lineHeight: 1, marginBottom: 8 }}>
+                <p className="g-text" style={{ fontSize: "clamp(22px,3vw,32px)", fontWeight: 800, lineHeight: 1, marginBottom: 5 }}>
                   <Counter to={s.to} suffix={s.suffix} />
                 </p>
-                <p style={{ fontSize: 13, color: "rgba(255,255,255,.5)", lineHeight: 1.5, fontWeight: 500 }}>{s.label}</p>
+                <p style={{ fontSize: 11, color: "rgba(232,244,240,.36)", lineHeight: 1.4 }}>{s.label}</p>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Right — 3D human model */}
+        {/* Right — skeleton viz */}
         <div className="hero-viz" style={{ flexShrink: 0 }}>
-          <HumanModel3D />
+          <SkeletonViz />
         </div>
       </div>
 
@@ -439,8 +234,8 @@ export default function Hero() {
         position: "absolute", bottom: 32, left: "50%", transform: "translateX(-50%)",
         display: "flex", flexDirection: "column", alignItems: "center", gap: 8, opacity: .45,
       }}>
-        <span style={{ fontSize: 9, letterSpacing: ".3em", textTransform: "uppercase", color: "#ffffff" }}>scroll</span>
-        <div style={{ width: 1, height: 32, background: "linear-gradient(to bottom, #ffffff, transparent)" }} />
+        <span style={{ fontSize: 9, letterSpacing: ".3em", textTransform: "uppercase", color: "#0fffc5" }}>scroll</span>
+        <div style={{ width: 1, height: 32, background: "linear-gradient(to bottom, #0fffc5, transparent)" }} />
       </div>
 
       <style>{`

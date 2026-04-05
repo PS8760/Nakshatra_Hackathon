@@ -39,27 +39,27 @@ function ScoreRing({ score, size = 110 }: { score: number | null | undefined; si
   );
 }
 
-function StatCard({ label, value, sub, icon, color = "#ffffff", onClick }: {
+function StatCard({ label, value, sub, icon, color = "#0fffc5", onClick }: {
   label: string; value: string | number; sub?: string; icon: string; color?: string; onClick?: () => void;
 }) {
   return (
     <div onClick={onClick} style={{
-      background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)",
-      borderRadius: 18, padding: "24px 22px 22px",
+      background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)",
+      borderRadius: 16, padding: "20px 20px 18px",
       cursor: onClick ? "pointer" : "default",
-      transition: "all .25s",
+      transition: "all .2s",
       position: "relative", overflow: "hidden",
     }}
-      onMouseEnter={(e) => { if (onClick) { const el = e.currentTarget as HTMLElement; el.style.borderColor = `${color}50`; el.style.background = "rgba(255,255,255,0.06)"; el.style.transform = "translateY(-2px)"; } }}
-      onMouseLeave={(e) => { if (onClick) { const el = e.currentTarget as HTMLElement; el.style.borderColor = "rgba(255,255,255,0.1)"; el.style.background = "rgba(255,255,255,0.03)"; el.style.transform = "translateY(0)"; } }}
+      onMouseEnter={(e) => { if (onClick) { const el = e.currentTarget as HTMLElement; el.style.borderColor = `${color}40`; el.style.background = "rgba(255,255,255,0.04)"; } }}
+      onMouseLeave={(e) => { if (onClick) { const el = e.currentTarget as HTMLElement; el.style.borderColor = "rgba(255,255,255,0.07)"; el.style.background = "rgba(255,255,255,0.025)"; } }}
     >
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg,transparent,${color}40,transparent)` }} />
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
-        <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 600 }}>{label}</p>
-        <span style={{ fontSize: 22 }}>{icon}</span>
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg,transparent,${color}30,transparent)` }} />
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
+        <p style={{ fontSize: 11, color: "rgba(232,244,240,0.4)", letterSpacing: ".08em", textTransform: "uppercase" }}>{label}</p>
+        <span style={{ fontSize: 18 }}>{icon}</span>
       </div>
-      <p style={{ fontSize: 36, fontWeight: 800, color, lineHeight: 1, marginBottom: 6 }}>{value}</p>
-      {sub && <p style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", fontWeight: 500 }}>{sub}</p>}
+      <p style={{ fontSize: 32, fontWeight: 800, color, lineHeight: 1, marginBottom: 4 }}>{value}</p>
+      {sub && <p style={{ fontSize: 12, color: "rgba(232,244,240,0.35)" }}>{sub}</p>}
     </div>
   );
 }
@@ -114,26 +114,26 @@ export default function DashboardPage() {
       <div className="W" style={{ paddingTop: 32, paddingBottom: 56 }}>
 
         {/* Welcome header */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 20, marginBottom: 36 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 16, marginBottom: 32 }}>
           <div>
-            <h1 style={{ fontSize: "clamp(26px,3.5vw,38px)", fontWeight: 800, letterSpacing: "-.025em", marginBottom: 8 }}>
+            <h1 style={{ fontSize: "clamp(22px,3vw,32px)", fontWeight: 800, letterSpacing: "-.025em", marginBottom: 6 }}>
               Welcome back, {firstName} 👋
             </h1>
-            <p style={{ fontSize: 16, color: "rgba(255,255,255,0.55)", fontWeight: 500 }}>
+            <p style={{ fontSize: 14, color: "rgba(232,244,240,0.45)" }}>
               {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
             </p>
           </div>
-          <div style={{ display: "flex", gap: 12 }}>
-            <Link href="/session" className="btn-solid" style={{ fontSize: 15, padding: "14px 28px", borderRadius: 12 }}>
+          <div style={{ display: "flex", gap: 10 }}>
+            <Link href="/session" className="btn-solid" style={{ fontSize: 13, padding: "10px 20px", borderRadius: 10 }}>
               ▶ Start Session
             </Link>
             <Link href="/cognitive-tests" style={{
-              fontSize: 15, padding: "14px 28px", borderRadius: 12, fontWeight: 600,
-              background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.2)",
-              color: "#ffffff", textDecoration: "none", transition: "all .2s",
+              fontSize: 13, padding: "10px 20px", borderRadius: 10, fontWeight: 600,
+              background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)",
+              color: "#818cf8", textDecoration: "none", transition: "all .2s",
             }}
-              onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(255,255,255,0.15)"; }}
-              onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(255,255,255,0.08)"; }}
+              onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(99,102,241,0.2)"; }}
+              onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(99,102,241,0.12)"; }}
             >🧠 Cognitive Test</Link>
           </div>
         </div>
@@ -141,14 +141,14 @@ export default function DashboardPage() {
         {/* AI Summary banner */}
         {aiSummary && (
           <div style={{
-            background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)",
-            borderRadius: 16, padding: "20px 24px", marginBottom: 28,
-            display: "flex", alignItems: "flex-start", gap: 16,
+            background: "rgba(15,255,197,0.05)", border: "1px solid rgba(15,255,197,0.15)",
+            borderRadius: 14, padding: "16px 20px", marginBottom: 24,
+            display: "flex", alignItems: "flex-start", gap: 12,
           }}>
-            <span style={{ fontSize: 28, flexShrink: 0 }}>🤖</span>
+            <span style={{ fontSize: 20, flexShrink: 0 }}>🤖</span>
             <div>
-              <p style={{ fontSize: 13, color: "#ffffff", fontWeight: 700, marginBottom: 6, letterSpacing: ".08em", textTransform: "uppercase" }}>AI Insight</p>
-              <p style={{ fontSize: 16, color: "rgba(255,255,255,0.75)", lineHeight: 1.65, fontWeight: 400 }}>{aiSummary}</p>
+              <p style={{ fontSize: 12, color: "#0fffc5", fontWeight: 600, marginBottom: 4, letterSpacing: ".06em", textTransform: "uppercase" }}>AI Insight</p>
+              <p style={{ fontSize: 14, color: "rgba(232,244,240,0.7)", lineHeight: 1.6 }}>{aiSummary}</p>
             </div>
           </div>
         )}
