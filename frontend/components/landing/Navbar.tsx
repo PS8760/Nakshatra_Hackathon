@@ -65,13 +65,13 @@ export default function Navbar() {
     <nav style={{
       position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
       height: 64,
-      background: scrolled ? "rgba(2,24,43,.96)" : "rgba(2,24,43,.6)",
+      background: scrolled ? "rgba(0,0,0,.96)" : "rgba(0,0,0,.6)",
       backdropFilter: "blur(20px)",
-      borderBottom: `1px solid ${scrolled ? "rgba(15,255,197,.1)" : "rgba(15,255,197,.05)"}`,
+      borderBottom: `1px solid ${scrolled ? "rgba(255,255,255,.1)" : "rgba(255,255,255,.05)"}`,
       transition: "background .3s, border-color .3s",
     }}>
       {/* Top accent line */}
-      <div style={{ height: 1, background: "linear-gradient(90deg,transparent,rgba(15,255,197,.35),transparent)" }} />
+      <div style={{ height: 1, background: "linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent)" }} />
 
       <div className="W" style={{ height: "calc(100% - 1px)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
 
