@@ -17,7 +17,7 @@ export default function SimplePoseTestPage() {
     <div
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)",
+        background: "#0B1F2E",
         padding: 32,
       }}
     >
@@ -45,7 +45,7 @@ export default function SimplePoseTestPage() {
         {/* Main Camera Component */}
         <div
           style={{
-            background: "#000",
+            background: "#0B1F2E",
             borderRadius: 16,
             padding: 24,
             boxShadow: "0 20px 60px rgba(0,0,0,0.4)",

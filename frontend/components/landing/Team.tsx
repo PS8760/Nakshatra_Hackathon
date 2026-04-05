@@ -50,11 +50,11 @@ export default function Team() {
                 width: 50, height: 50, borderRadius: 13, flexShrink: 0,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 background: "rgba(15,255,197,.08)", border: "1px solid rgba(15,255,197,.2)",
-                color: "#0fffc5", fontWeight: 700, fontSize: 14, letterSpacing: ".02em",
+                color: "#6B9EFF", fontWeight: 700, fontSize: 14, letterSpacing: ".02em",
               }}>{m.initials}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontWeight: 600, fontSize: 14, color: "#e8f4f0", marginBottom: 3 }}>{m.name}</p>
-                <p style={{ fontSize: 12, fontWeight: 600, color: "#0fffc5", marginBottom: 9 }}>{m.role}</p>
+                <p style={{ fontSize: 12, fontWeight: 600, color: "#6B9EFF", marginBottom: 9 }}>{m.role}</p>
                 <p style={{ fontSize: 12, lineHeight: 1.65, color: "rgba(232,244,240,.36)" }}>{m.focus}</p>
               </div>
             </div>
@@ -67,7 +67,7 @@ export default function Team() {
             padding: "12px 24px", borderRadius: 14,
             background: "rgba(15,255,197,.04)", border: "1px solid rgba(15,255,197,.1)",
           }}>
-            <div className="a-pulse" style={{ width: 7, height: 7, borderRadius: "50%", background: "#0fffc5" }} />
+            <div className="a-pulse" style={{ width: 7, height: 7, borderRadius: "50%", background: "#6B9EFF" }} />
             <span style={{ fontSize: 13, color: "rgba(232,244,240,.5)" }}>Built in 24 hours · Nakshatra Tech Hackathon 2026</span>
           </div>
         </div>

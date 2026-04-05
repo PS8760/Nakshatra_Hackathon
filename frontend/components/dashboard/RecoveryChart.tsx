@@ -28,10 +28,10 @@ export default function RecoveryChart({ data }: { data: DataPoint[] }) {
           labelStyle={{ color: "#f9fafb" }}
         />
         <Legend wrapperStyle={{ color: "#9ca3af", fontSize: 12 }} />
-        <ReferenceLine y={70} stroke="#22c55e" strokeDasharray="4 4" label={{ value: "70% — Level up", fill: "#22c55e", fontSize: 10 }} />
-        <Line type="monotone" dataKey="composite" stroke="#3b82f6" strokeWidth={2.5} dot={false} name="Recovery Score" />
-        <Line type="monotone" dataKey="physical" stroke="#22c55e" strokeWidth={1.5} dot={false} name="Physical" strokeDasharray="4 2" />
-        <Line type="monotone" dataKey="cognitive" stroke="#a855f7" strokeWidth={1.5} dot={false} name="Cognitive" strokeDasharray="4 2" />
+        <ReferenceLine y={70} stroke="#6B9EFF" strokeDasharray="4 4" label={{ value: "70% — Level up", fill: "#6B9EFF", fontSize: 10 }} />
+        <Line type="monotone" dataKey="composite" stroke="#6B9EFF" strokeWidth={2.5} dot={false} name="Recovery Score" />
+        <Line type="monotone" dataKey="physical" stroke="#6B9EFF" strokeWidth={1.5} dot={false} name="Physical" strokeDasharray="4 2" />
+        <Line type="monotone" dataKey="cognitive" stroke="#7BAAFF" strokeWidth={1.5} dot={false} name="Cognitive" strokeDasharray="4 2" />
       </LineChart>
     </ResponsiveContainer>
   );

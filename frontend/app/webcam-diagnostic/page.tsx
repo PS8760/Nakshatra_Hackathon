@@ -195,7 +195,7 @@ export default function WebcamDiagnosticPage() {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "#000",
+      background: "#0B1F2E",
       color: "#0F0",
       padding: 32,
       fontFamily: "monospace"

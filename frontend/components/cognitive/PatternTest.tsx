@@ -7,7 +7,7 @@ interface Props {
   onComplete: (score: number) => void;
 }
 
-const COLORS = ["#09ffd3", "#6366f1", "#f59e0b", "#ef4444"];
+const COLORS = ["#09ffd3", "#6B9EFF", "#6B9EFF", "#6B9EFF"];
 const MAX_ROUNDS = 7; // More rounds = better discrimination (was 5)
 
 // Scoring: each round completed = points, weighted by difficulty
@@ -97,18 +97,31 @@ export default function PatternTest({ onComplete }: Props) {
   }
 
   return (
-    <div className="flex flex-col items-center gap-5 text-center w-full">
-      <h2 className="text-2xl font-bold">🔷 Pattern Test</h2>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, textAlign: "center", width: "100%" }}>
+      <h2 style={{ fontSize: 28, fontWeight: 800, color: "#FFFFFF" }}>🔷 Pattern Test</h2>
 
       <AnimatePresence mode="wait">
         {phase === "intro" && (
           <motion.div key="intro" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-            className="flex flex-col items-center gap-4">
-            <p className="text-gray-400 text-sm max-w-xs">
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, maxWidth: 400 }}>
+            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 14, lineHeight: 1.6 }}>
               Watch the tiles light up in sequence, then repeat the exact order. Sequences get longer each round.
             </p>
             <button onClick={startGame}
-              className="px-8 py-3 rounded-xl bg-[#09ffd3] text-[#02182b] font-bold hover:brightness-110 transition">
+              style={{
+                padding: "14px 36px",
+                borderRadius: 8,
+                background: "#6B9EFF",
+                color: "#FFFFFF",
+                fontWeight: 700,
+                fontSize: 16,
+                border: "none",
+                cursor: "pointer",
+                transition: "all .2s",
+              }}
+              onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"}
+              onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.transform = "translateY(0)"}
+            >
               Start
             </button>
           </motion.div>
@@ -116,19 +129,21 @@ export default function PatternTest({ onComplete }: Props) {
 
         {(phase === "showing" || phase === "input" || phase === "feedback") && (
           <motion.div key="game" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="flex flex-col items-center gap-4">
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
             {/* Round indicator */}
-            <div className="flex gap-1.5">
+            <div style={{ display: "flex", gap: 6 }}>
               {Array.from({ length: MAX_ROUNDS }, (_, i) => (
-                <div key={i} className={`h-1.5 rounded-full transition-all ${
-                  i < round - 1 ? "w-4 bg-[#09ffd3]" :
-                  i === round - 1 ? "w-4 bg-[#09ffd3]/60 animate-pulse" :
-                  "w-2 bg-white/10"
-                }`} />
+                <div key={i} style={{
+                  height: 6,
+                  borderRadius: 3,
+                  transition: "all .3s",
+                  width: i < round - 1 ? 16 : i === round - 1 ? 16 : 8,
+                  background: i < round - 1 ? "#6B9EFF" : i === round - 1 ? "rgba(107,158,255,0.6)" : "rgba(255,255,255,0.1)",
+                }} />
               ))}
             </div>
 
-            <p className="text-gray-400 text-sm">
+            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>
               {phase === "showing" ? `Watch the sequence (${sequence.length} tiles)…` :
                phase === "feedback" && !failed ? "✓ Correct!" :
                phase === "feedback" && failed ? "✗ Wrong tile" :
@@ -136,7 +151,7 @@ export default function PatternTest({ onComplete }: Props) {
             </p>
 
             {/* 2×2 grid */}
-            <div className="grid grid-cols-2 gap-3">
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
               {[0, 1, 2, 3].map((idx) => (
                 <motion.button
                   key={idx}
@@ -148,17 +163,22 @@ export default function PatternTest({ onComplete }: Props) {
                     { scale: 1 }
                   }
                   transition={{ duration: 0.15 }}
-                  className="w-24 h-24 rounded-2xl border-2 transition-colors duration-100"
                   style={{
+                    width: 100,
+                    height: 100,
+                    borderRadius: 8,
+                    border: "3px solid",
+                    transition: "all .1s",
+                    cursor: phase === "input" ? "pointer" : "default",
                     backgroundColor: lit === idx
                       ? COLORS[idx]
                       : wrongIdx === idx
-                      ? "#ef444440"
+                      ? `${COLORS[idx]}40`
                       : `${COLORS[idx]}18`,
                     borderColor: lit === idx
                       ? COLORS[idx]
                       : wrongIdx === idx
-                      ? "#ef4444"
+                      ? COLORS[idx]
                       : `${COLORS[idx]}40`,
                     boxShadow: lit === idx ? `0 0 28px ${COLORS[idx]}90` : "none",
                   }}
@@ -170,13 +190,13 @@ export default function PatternTest({ onComplete }: Props) {
 
         {phase === "done" && (
           <motion.div key="done" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center gap-2">
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
             {failed ? (
-              <p className="text-yellow-400">Reached round {round} of {MAX_ROUNDS}</p>
+              <p style={{ color: "#6B9EFF", fontSize: 16 }}>Reached round {round} of {MAX_ROUNDS}</p>
             ) : (
-              <p className="text-[#09ffd3] font-semibold">All {MAX_ROUNDS} rounds complete! ✓</p>
+              <p style={{ color: "#6B9EFF", fontWeight: 600, fontSize: 16 }}>All {MAX_ROUNDS} rounds complete! ✓</p>
             )}
-            <p className="text-xs text-gray-500">Pattern test complete</p>
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>Pattern test complete</p>
           </motion.div>
         )}
       </AnimatePresence>

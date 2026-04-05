@@ -100,34 +100,43 @@ export default function MemoryTest({ onComplete }: Props) {
   }
 
   return (
-    <div className="flex flex-col items-center gap-5 text-center w-full">
-      <h2 className="text-2xl font-bold">🧩 Memory Test</h2>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, textAlign: "center", width: "100%" }}>
+      <h2 style={{ fontSize: 28, fontWeight: 800, color: "#FFFFFF" }}>🧩 Memory Test</h2>
 
       <AnimatePresence mode="wait">
         {phase === "memorize" && (
           <motion.div key="mem" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-            className="flex flex-col items-center gap-4">
-            <p className="text-gray-400 text-sm">
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>
               Memorize all words. You have{" "}
-              <span className="text-[#09ffd3] font-bold text-lg">{countdown}s</span>
+              <span style={{ color: "#6B9EFF", fontWeight: 700, fontSize: 18 }}>{countdown}s</span>
             </p>
-            <div className="flex flex-wrap justify-center gap-3">
+            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 12 }}>
               {words.map((w, i) => (
                 <motion.span key={w}
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: i * 0.1 }}
-                  className="px-4 py-2.5 rounded-xl bg-[#09ffd3]/10 border border-[#09ffd3]/30 text-[#09ffd3] text-lg font-semibold capitalize">
+                  style={{
+                    padding: "12px 20px",
+                    borderRadius: 8,
+                    background: "rgba(107,158,255,0.1)",
+                    border: "2px solid rgba(107,158,255,0.3)",
+                    color: "#6B9EFF",
+                    fontSize: 18,
+                    fontWeight: 600,
+                    textTransform: "capitalize",
+                  }}>
                   {w}
                 </motion.span>
               ))}
             </div>
             {/* Countdown ring */}
-            <svg width="60" height="60" className="-rotate-90">
-              <circle cx="30" cy="30" r="24" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="4" />
-              <circle cx="30" cy="30" r="24" fill="none" stroke="#09ffd3" strokeWidth="4"
-                strokeDasharray={2 * Math.PI * 24}
-                strokeDashoffset={2 * Math.PI * 24 * (1 - countdown / 8)}
+            <svg width="80" height="80" style={{ transform: "rotate(-90deg)" }}>
+              <circle cx="40" cy="40" r="32" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="5" />
+              <circle cx="40" cy="40" r="32" fill="none" stroke="#6B9EFF" strokeWidth="5"
+                strokeDasharray={2 * Math.PI * 32}
+                strokeDashoffset={2 * Math.PI * 32 * (1 - countdown / 8)}
                 strokeLinecap="round"
                 style={{ transition: "stroke-dashoffset 1s linear" }}
               />
@@ -137,19 +146,45 @@ export default function MemoryTest({ onComplete }: Props) {
 
         {phase === "distractor" && (
           <motion.div key="dist" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-            className="flex flex-col items-center gap-4">
-            <p className="text-gray-400 text-sm">Quick math — answer to continue</p>
-            <p className="text-xs text-gray-600">({distractorIdx + 1} of {DISTRACTOR_SUMS.length})</p>
-            <div className="text-3xl font-bold text-white">
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>Quick math — answer to continue</p>
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>({distractorIdx + 1} of {DISTRACTOR_SUMS.length})</p>
+            <div style={{ fontSize: 32, fontWeight: 800, color: "#FFFFFF" }}>
               {DISTRACTOR_SUMS[distractorIdx].a} + {DISTRACTOR_SUMS[distractorIdx].b} = ?
             </div>
             <input autoFocus type="number" value={distractorInput}
               onChange={(e) => setDistractorInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleDistractor()}
-              className="w-28 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-center text-xl focus:border-[#09ffd3] transition"
+              style={{
+                width: 140,
+                padding: "14px 16px",
+                borderRadius: 8,
+                background: "#1A3447",
+                border: "2px solid #243B4E",
+                color: "#FFFFFF",
+                textAlign: "center",
+                fontSize: 20,
+                fontWeight: 700,
+                outline: "none",
+              }}
+              onFocus={(e) => e.currentTarget.style.borderColor = "#6B9EFF"}
+              onBlur={(e) => e.currentTarget.style.borderColor = "#243B4E"}
             />
             <button onClick={handleDistractor}
-              className="px-6 py-2.5 rounded-xl bg-[#09ffd3] text-[#02182b] font-bold text-sm hover:brightness-110 transition">
+              style={{
+                padding: "12px 28px",
+                borderRadius: 8,
+                background: "#6B9EFF",
+                color: "#FFFFFF",
+                fontWeight: 700,
+                fontSize: 15,
+                border: "none",
+                cursor: "pointer",
+                transition: "all .2s",
+              }}
+              onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"}
+              onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.transform = "translateY(0)"}
+            >
               Next →
             </button>
           </motion.div>
@@ -157,17 +192,41 @@ export default function MemoryTest({ onComplete }: Props) {
 
         {phase === "recall1" && (
           <motion.div key="r1" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-            className="flex flex-col items-center gap-4">
-            <p className="text-[#09ffd3] font-semibold">Now recall the words</p>
-            <p className="text-gray-400 text-sm">Type all the words you memorized (space or comma separated)</p>
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, width: "100%", maxWidth: 480 }}>
+            <p style={{ color: "#6B9EFF", fontWeight: 600, fontSize: 16 }}>Now recall the words</p>
+            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>Type all the words you memorized (space or comma separated)</p>
             <input autoFocus value={input1}
               onChange={(e) => setInput1(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleRecall1()}
               placeholder="word1 word2 word3…"
-              className="w-full max-w-sm px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 focus:border-[#09ffd3] transition"
+              style={{
+                width: "100%",
+                padding: "14px 16px",
+                borderRadius: 8,
+                background: "#1A3447",
+                border: "2px solid #243B4E",
+                color: "#FFFFFF",
+                fontSize: 15,
+                outline: "none",
+              }}
+              onFocus={(e) => e.currentTarget.style.borderColor = "#6B9EFF"}
+              onBlur={(e) => e.currentTarget.style.borderColor = "#243B4E"}
             />
             <button onClick={handleRecall1}
-              className="px-8 py-3 rounded-xl bg-[#09ffd3] text-[#02182b] font-bold hover:brightness-110 transition">
+              style={{
+                padding: "14px 36px",
+                borderRadius: 8,
+                background: "#6B9EFF",
+                color: "#FFFFFF",
+                fontWeight: 700,
+                fontSize: 16,
+                border: "none",
+                cursor: "pointer",
+                transition: "all .2s",
+              }}
+              onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"}
+              onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.transform = "translateY(0)"}
+            >
               Submit
             </button>
           </motion.div>
@@ -175,25 +234,49 @@ export default function MemoryTest({ onComplete }: Props) {
 
         {phase === "recall2_intro" && (
           <motion.div key="r2i" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="flex flex-col items-center gap-3">
-            <div className="w-8 h-8 border-2 border-[#09ffd3] border-t-transparent rounded-full animate-spin" />
-            <p className="text-gray-400 text-sm">Preparing delayed recall test…</p>
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 36, height: 36, border: "3px solid #6B9EFF", borderTopColor: "transparent", borderRadius: "50%", animation: "spinCW 1s linear infinite" }} />
+            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>Preparing delayed recall test…</p>
           </motion.div>
         )}
 
         {phase === "recall2" && (
           <motion.div key="r2" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-            className="flex flex-col items-center gap-4">
-            <p className="text-[#09ffd3] font-semibold">Delayed recall</p>
-            <p className="text-gray-400 text-sm">Type the words again — without looking at your previous answer</p>
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, width: "100%", maxWidth: 480 }}>
+            <p style={{ color: "#6B9EFF", fontWeight: 600, fontSize: 16 }}>Delayed recall</p>
+            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>Type the words again — without looking at your previous answer</p>
             <input autoFocus value={input2}
               onChange={(e) => setInput2(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleRecall2()}
               placeholder="word1 word2 word3…"
-              className="w-full max-w-sm px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 focus:border-[#09ffd3] transition"
+              style={{
+                width: "100%",
+                padding: "14px 16px",
+                borderRadius: 8,
+                background: "#1A3447",
+                border: "2px solid #243B4E",
+                color: "#FFFFFF",
+                fontSize: 15,
+                outline: "none",
+              }}
+              onFocus={(e) => e.currentTarget.style.borderColor = "#6B9EFF"}
+              onBlur={(e) => e.currentTarget.style.borderColor = "#243B4E"}
             />
             <button onClick={handleRecall2}
-              className="px-8 py-3 rounded-xl bg-[#09ffd3] text-[#02182b] font-bold hover:brightness-110 transition">
+              style={{
+                padding: "14px 36px",
+                borderRadius: 8,
+                background: "#6B9EFF",
+                color: "#FFFFFF",
+                fontWeight: 700,
+                fontSize: 16,
+                border: "none",
+                cursor: "pointer",
+                transition: "all .2s",
+              }}
+              onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"}
+              onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.transform = "translateY(0)"}
+            >
               Submit
             </button>
           </motion.div>
@@ -201,7 +284,7 @@ export default function MemoryTest({ onComplete }: Props) {
 
         {phase === "done" && (
           <motion.div key="done" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <p className="text-[#09ffd3] font-semibold">Memory test complete ✓</p>
+            <p style={{ color: "#6B9EFF", fontWeight: 600, fontSize: 16 }}>Memory test complete ✓</p>
           </motion.div>
         )}
       </AnimatePresence>

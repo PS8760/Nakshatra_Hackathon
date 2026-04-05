@@ -28,14 +28,15 @@ interface Props {
 
 const SKIN  = "#E8B89A";
 const HAIR  = "#3D2314";
-const SHIRT = "#3B82F6";   // brighter blue — visible under lighting
+const SHIRT = "#7BAAFF";   // brighter blue — visible under lighting
 const PANTS = "#4B6FA8";   // medium blue — not black
 const SHOES = "#4A4A6A";   // dark purple-grey — visible
 
-// ── Enhanced Voice engine with debugging and voice loading ──────
+// ── Enhanced Voice engine with emotion-based voice selection ──────
 let speakTimer: ReturnType<typeof setTimeout> | null = null;
 let currentUtterance: SpeechSynthesisUtterance | null = null;
 let voicesLoaded = false;
+let cachedVoices: { friendly: SpeechSynthesisVoice | null; neutral: SpeechSynthesisVoice | null } = { friendly: null, neutral: null };
 
 function speak(text: string, emotion: "happy" | "warning" | "encouraging" | "neutral" = "neutral", onEnd?: () => void) {
   if (typeof window === "undefined" || !window.speechSynthesis) {
@@ -52,30 +53,30 @@ function speak(text: string, emotion: "happy" | "warning" | "encouraging" | "neu
     const u = new SpeechSynthesisUtterance(text);
     currentUtterance = u;
     
-    // AUDIO ENHANCEMENT: Better voice parameters for each emotion
+    // PHYSIOTHERAPIST VOICE: Warm, friendly, encouraging
     switch (emotion) {
       case "happy":
-        u.rate = 1.15;
-        u.pitch = 1.35;
+        u.rate = 1.2; // Enthusiastic
+        u.pitch = 1.4; // Higher, cheerful
         u.volume = 1.0;
         break;
       case "warning":
-        u.rate = 0.85;
-        u.pitch = 0.75;
+        u.rate = 0.9; // Slower, careful
+        u.pitch = 0.85; // Lower, serious
         u.volume = 1.0;
         break;
       case "encouraging":
-        u.rate = 1.1;
-        u.pitch = 1.25;
+        u.rate = 1.15; // Upbeat
+        u.pitch = 1.3; // Warm and positive
         u.volume = 1.0;
         break;
       default:
-        u.rate = 1.0;
-        u.pitch = 1.0;
+        u.rate = 1.05; // Natural pace
+        u.pitch = 1.15; // Friendly tone
         u.volume = 1.0;
     }
     
-    // Pick the best available voice
+    // Pick the best physiotherapist voice (warm, friendly female voices preferred)
     const voices = window.speechSynthesis.getVoices();
     
     // If no voices loaded yet, retry
@@ -85,28 +86,34 @@ function speak(text: string, emotion: "happy" | "warning" | "encouraging" | "neu
       return;
     }
     
-    const preferred = 
-      voices.find(v => v.name.includes("Samantha") && v.lang.startsWith("en")) || // Mac - natural female
-      voices.find(v => v.name.includes("Google") && v.lang.startsWith("en-US")) || // Chrome - Google voices
-      voices.find(v => v.name.includes("Microsoft Zira") && v.lang.startsWith("en")) || // Windows - Zira
-      voices.find(v => v.lang.startsWith("en-US") && v.name.includes("Female")) ||
-      voices.find(v => v.lang.startsWith("en-US")) ||
-      voices[0];
+    // Cache voice selection for performance
+    if (!cachedVoices.friendly || !cachedVoices.neutral) {
+      cachedVoices.friendly = 
+        voices.find(v => v.name.includes("Samantha") && v.lang.startsWith("en")) || // Mac - natural female
+        voices.find(v => v.name.includes("Google US English Female") && v.lang.startsWith("en")) || // Chrome - female
+        voices.find(v => v.name.includes("Microsoft Zira") && v.lang.startsWith("en")) || // Windows - Zira
+        voices.find(v => v.name.includes("Karen") && v.lang.startsWith("en")) || // Mac - Karen
+        voices.find(v => v.lang.startsWith("en-US") && v.name.includes("Female")) ||
+        voices.find(v => v.lang.startsWith("en-US")) ||
+        null;
+      
+      cachedVoices.neutral = cachedVoices.friendly; // Use same voice, emotion handled by pitch/rate
+    }
+    
+    const preferred = emotion === "warning" ? cachedVoices.neutral : cachedVoices.friendly;
     
     if (preferred) {
       u.voice = preferred;
-      console.log(`🔊 Speaking with voice: ${preferred.name}`);
+      console.log(`🏥 Physiotherapist speaking (${emotion}): ${preferred.name}`);
     } else {
       console.warn("⚠️ No preferred voice found, using default");
     }
     
     if (onEnd) u.onend = onEnd;
     u.onerror = (error: SpeechSynthesisErrorEvent) => {
-      // Common errors: "interrupted", "canceled", "audio-busy", "network"
       const errorType = error.error;
       
       if (errorType === "interrupted" || errorType === "canceled") {
-        // These are normal when speech is interrupted by new speech
         console.log(`ℹ️ Speech ${errorType}: "${text.substring(0, 30)}..."`);
       } else {
         console.error("❌ Speech synthesis error:", {
@@ -271,6 +278,9 @@ function Humanoid({
       if (gesture === "idle") {
         rootRef.current.rotation.y = Math.sin(time * 0.4) * 0.06;
         rootRef.current.position.x = Math.sin(time * 0.4) * 0.02;
+        // Reset position when idle
+        rootRef.current.position.y = lerp(rootRef.current.position.y, -0.8, 0.08);
+        rootRef.current.rotation.x = lerp(rootRef.current.rotation.x, 0, 0.08);
       }
     }
   });
@@ -282,49 +292,208 @@ function Humanoid({
     rL: THREE.Group | null, lL: THREE.Group | null,
     rS: THREE.Group | null, lS: THREE.Group | null
   ) {
-    // EXERCISE ANIMATION ENHANCEMENT: More realistic and smooth movements
-    const s = Math.sin(time * 1.8); // Slightly slower for realism
-    const phase = (s + 1) / 2; // 0 to 1
+    // EXERCISE ANIMATION ENHANCEMENT: Anatomically accurate movements
+    const s = Math.sin(time * 1.3); // Slower speed for better demonstration visibility
+    const phase = (s + 1) / 2; // 0 to 1 (smooth transition)
+    const smoothPhase = phase < 0.5 ? 2 * phase * phase : 1 - Math.pow(-2 * phase + 2, 2) / 2; // Ease in-out
+    
+    // Reset leg positions for non-squat exercises
+    if (ex !== "squat") {
+      if (rL) rL.position.z = lerp(rL.position.z, 0, 0.1);
+      if (lL) lL.position.z = lerp(lL.position.z, 0, 0.1);
+      if (rootRef.current) {
+        rootRef.current.position.y = lerp(rootRef.current.position.y, -0.8, 0.1);
+        rootRef.current.rotation.x = lerp(rootRef.current.rotation.x, 0, 0.1);
+      }
+    }
+    
+    // Reset body position for non-hip-abduction exercises
+    if (ex !== "hip_abduction" && !ex.includes("hip")) {
+      if (rootRef.current) {
+        rootRef.current.rotation.z = lerp(rootRef.current.rotation.z, 0, 0.1);
+        rootRef.current.position.x = lerp(rootRef.current.position.x, 0, 0.1);
+      }
+    }
+    
+    // Reset leg rotations for exercises that don't use them
+    if (ex !== "knee_left" && !ex.includes("knee") && ex !== "hip_abduction" && !ex.includes("hip")) {
+      if (rL && ex !== "squat") rL.rotation.z = lerp(rL.rotation.z || 0, 0, 0.1);
+      if (lL && ex !== "squat") lL.rotation.z = lerp(lL.rotation.z || 0, 0, 0.1);
+    }
     
     if (ex === "squat") {
-      // Realistic squat with hip hinge
-      const depth = 0.5 + phase * 0.5; // 0.5 to 1.0
-      if (rL) rL.rotation.x = lerp(rL.rotation.x, -0.7 * depth, 0.12);
-      if (lL) lL.rotation.x = lerp(lL.rotation.x, -0.7 * depth, 0.12);
-      if (rS) rS.rotation.x = lerp(rS.rotation.x, 0.9 * depth, 0.12);
-      if (lS) lS.rotation.x = lerp(lS.rotation.x, 0.9 * depth, 0.12);
-      // Arms forward for balance
-      if (rA) rA.rotation.x = lerp(rA.rotation.x, 0.6 * depth, 0.12);
-      if (lA) lA.rotation.x = lerp(lA.rotation.x, 0.6 * depth, 0.12);
+      // ANATOMICALLY ACCURATE SQUAT
+      // Proper squat: hips back, knees track over toes, chest up, arms forward
+      const depth = smoothPhase; // 0 = standing, 1 = bottom position
+      
+      // Hip flexion and posterior shift (hips move back and down)
+      if (rL) {
+        rL.rotation.x = lerp(rL.rotation.x, -1.3 * depth, 0.15); // Hip flexion
+        rL.position.z = lerp(rL.position.z, -0.18 * depth, 0.12); // Hips back
+      }
+      if (lL) {
+        lL.rotation.x = lerp(lL.rotation.x, -1.3 * depth, 0.15);
+        lL.position.z = lerp(lL.position.z, -0.18 * depth, 0.12);
+      }
+      
+      // Knee flexion (knees bend, shins angle forward)
+      if (rS) {
+        rS.rotation.x = lerp(rS.rotation.x, 1.5 * depth, 0.15); // Deep knee bend
+      }
+      if (lS) {
+        lS.rotation.x = lerp(lS.rotation.x, 1.5 * depth, 0.15);
+      }
+      
+      // Arms extend forward for counterbalance (chest stays up)
+      if (rA) {
+        rA.rotation.x = lerp(rA.rotation.x, 0.9 * depth, 0.12);
+        rA.rotation.z = lerp(rA.rotation.z, -0.2, 0.1);
+      }
+      if (lA) {
+        lA.rotation.x = lerp(lA.rotation.x, 0.9 * depth, 0.12);
+        lA.rotation.z = lerp(lA.rotation.z, 0.2, 0.1);
+      }
+      
+      // Slight torso lean (maintain neutral spine)
+      if (rootRef.current) {
+        rootRef.current.rotation.x = lerp(rootRef.current.rotation.x, 0.2 * depth, 0.12);
+        // Body descends (realistic squat depth)
+        rootRef.current.position.y = lerp(rootRef.current.position.y, -0.8 - (0.45 * depth), 0.12);
+      }
     } else if (ex === "knee_left" || ex.includes("knee")) {
-      // Knee raise with hip flexion
-      const lift = Math.max(0, s) * 0.8;
-      if (lL) lL.rotation.x = lerp(lL.rotation.x, lift, 0.12);
-      if (lS) lS.rotation.x = lerp(lS.rotation.x, lift * 1.3, 0.12);
-      // Opposite arm swing
-      if (rA) rA.rotation.x = lerp(rA.rotation.x, lift * 0.5, 0.12);
+      // ANATOMICALLY ACCURATE KNEE RAISE
+      // Standing knee lift: hip flexion, knee flexion, balance on one leg
+      const lift = smoothPhase; // 0 = standing, 1 = knee raised
+      
+      // Left leg: hip and knee flexion (raise knee to 90 degrees)
+      if (lL) {
+        lL.rotation.x = lerp(lL.rotation.x, 1.4 * lift, 0.15); // Hip flexion (thigh up)
+      }
+      if (lS) {
+        lS.rotation.x = lerp(lS.rotation.x, 1.2 * lift, 0.15); // Knee flexion (shin hangs)
+      }
+      
+      // Right leg: stays planted, slight knee bend for stability
+      if (rL) {
+        rL.rotation.x = lerp(rL.rotation.x, -0.1 * lift, 0.12);
+      }
+      if (rS) {
+        rS.rotation.x = lerp(rS.rotation.x, 0.15 * lift, 0.12);
+      }
+      
+      // Arms: opposite arm swing for balance (right arm forward)
+      if (rA) {
+        rA.rotation.x = lerp(rA.rotation.x, 0.6 * lift, 0.12);
+        rA.rotation.z = lerp(rA.rotation.z, -0.3, 0.1);
+      }
+      if (lA) {
+        lA.rotation.x = lerp(lA.rotation.x, -0.4 * lift, 0.12);
+        lA.rotation.z = lerp(lA.rotation.z, 0.3, 0.1);
+      }
+      
+      // Slight torso adjustment for balance
+      if (rootRef.current) {
+        rootRef.current.rotation.z = lerp(rootRef.current.rotation.z, -0.05 * lift, 0.1);
+      }
     } else if (ex === "shoulder_press" || ex.includes("shoulder")) {
-      // Shoulder press with full ROM
-      const press = Math.max(0, s);
-      if (lA) lA.rotation.z = lerp(lA.rotation.z, 0.4 + press * 1.3, 0.12);
-      if (rA) rA.rotation.z = lerp(rA.rotation.z, -0.4 - press * 1.3, 0.12);
-      if (lF) lF.rotation.x = lerp(lF.rotation.x, -press * 0.6, 0.12);
-      if (rF) rF.rotation.x = lerp(rF.rotation.x, -press * 0.6, 0.12);
+      // ANATOMICALLY ACCURATE SHOULDER PRESS
+      // Overhead press: shoulders abduct and flex, elbows extend
+      const press = smoothPhase; // 0 = starting position, 1 = overhead
+      
+      // Shoulders: abduction and flexion (arms go up and out)
+      if (rA) {
+        rA.rotation.z = lerp(rA.rotation.z, -0.5 - (press * 1.4), 0.15); // Arm raises
+        rA.rotation.x = lerp(rA.rotation.x, -0.3 + (press * 0.5), 0.12); // Slight forward angle
+      }
+      if (lA) {
+        lA.rotation.z = lerp(lA.rotation.z, 0.5 + (press * 1.4), 0.15);
+        lA.rotation.x = lerp(lA.rotation.x, -0.3 + (press * 0.5), 0.12);
+      }
+      
+      // Elbows: start bent, extend overhead
+      if (rF) {
+        rF.rotation.x = lerp(rF.rotation.x, 1.3 - (press * 1.5), 0.15); // Elbow extends
+      }
+      if (lF) {
+        lF.rotation.x = lerp(lF.rotation.x, 1.3 - (press * 1.5), 0.15);
+      }
+      
+      // Core stability: slight engagement
+      if (rootRef.current) {
+        rootRef.current.scale.y = 1 + (press * 0.02); // Chest up
+      }
+      
+      // Legs: stable stance
+      if (rL) rL.rotation.x = lerp(rL.rotation.x, 0, 0.1);
+      if (lL) lL.rotation.x = lerp(lL.rotation.x, 0, 0.1);
     } else if (ex === "bicep_curl" || ex.includes("elbow")) {
-      // Bicep curl with controlled motion
-      const curl = (Math.sin(time * 2) + 1) / 2; // 0 to 1
-      if (rA) rA.rotation.x = lerp(rA.rotation.x, -0.3, 0.12);
-      if (lA) lA.rotation.x = lerp(lA.rotation.x, -0.3, 0.12);
-      if (rF) rF.rotation.x = lerp(rF.rotation.x, curl * 2.2, 0.15);
-      if (lF) lF.rotation.x = lerp(lF.rotation.x, curl * 2.2, 0.15);
+      // ANATOMICALLY ACCURATE BICEP CURL
+      // Isolated elbow flexion: upper arm stable, forearm curls
+      const curl = smoothPhase; // 0 = extended, 1 = fully curled
+      
+      // Upper arms: stable at sides with slight forward angle
+      if (rA) {
+        rA.rotation.x = lerp(rA.rotation.x, -0.2, 0.12);
+        rA.rotation.z = lerp(rA.rotation.z, -0.15, 0.1);
+      }
+      if (lA) {
+        lA.rotation.x = lerp(lA.rotation.x, -0.2, 0.12);
+        lA.rotation.z = lerp(lA.rotation.z, 0.15, 0.1);
+      }
+      
+      // Forearms: controlled curl (elbow flexion only)
+      if (rF) {
+        rF.rotation.x = lerp(rF.rotation.x, curl * 2.4, 0.18); // Full curl range
+        rF.rotation.z = lerp(rF.rotation.z, curl * 0.1, 0.12); // Slight supination
+      }
+      if (lF) {
+        lF.rotation.x = lerp(lF.rotation.x, curl * 2.4, 0.18);
+        lF.rotation.z = lerp(lF.rotation.z, -curl * 0.1, 0.12);
+      }
+      
+      // Body: stable, no swinging
+      if (rootRef.current) {
+        rootRef.current.rotation.x = lerp(rootRef.current.rotation.x, 0, 0.1);
+      }
     } else if (ex === "hip_abduction" || ex.includes("hip")) {
-      // Hip abduction (leg raise to side)
-      const abduct = Math.max(0, s) * 0.7;
-      if (lL) lL.rotation.z = lerp(lL.rotation.z, abduct, 0.12);
-      // Balance shift
-      if (rA) rA.rotation.z = lerp(rA.rotation.z, -0.3 - abduct * 0.3, 0.12);
+      // ANATOMICALLY ACCURATE HIP ABDUCTION
+      // Lateral leg raise: hip abduction, maintain upright posture
+      const abduct = smoothPhase; // 0 = legs together, 1 = leg raised
+      
+      // Left leg: hip abduction (leg moves laterally)
+      if (lL) {
+        lL.rotation.z = lerp(lL.rotation.z, 0.8 * abduct, 0.15); // Lateral raise
+        lL.rotation.x = lerp(lL.rotation.x, -0.1 * abduct, 0.12); // Slight hip flexion
+      }
+      if (lS) {
+        lS.rotation.x = lerp(lS.rotation.x, 0.1 * abduct, 0.12); // Knee stays straight
+      }
+      
+      // Right leg: support leg, slight bend for stability
+      if (rL) {
+        rL.rotation.x = lerp(rL.rotation.x, -0.15 * abduct, 0.12);
+      }
+      if (rS) {
+        rS.rotation.x = lerp(rS.rotation.x, 0.2 * abduct, 0.12);
+      }
+      
+      // Arms: out for balance
+      if (rA) {
+        rA.rotation.z = lerp(rA.rotation.z, -0.4 - (abduct * 0.4), 0.12);
+        rA.rotation.x = lerp(rA.rotation.x, 0.2, 0.1);
+      }
+      if (lA) {
+        lA.rotation.z = lerp(lA.rotation.z, 0.4 + (abduct * 0.4), 0.12);
+        lA.rotation.x = lerp(lA.rotation.x, 0.2, 0.1);
+      }
+      
+      // Body: slight lean to support side for balance
+      if (rootRef.current) {
+        rootRef.current.rotation.z = lerp(rootRef.current.rotation.z, 0.1 * abduct, 0.12);
+        rootRef.current.position.x = lerp(rootRef.current.position.x, 0.08 * abduct, 0.12);
+      }
     } else if (ex === "lunge") {
-      // Lunge with alternating legs
+      // ANATOMICALLY ACCURATE LUNGE
       const forward = s > 0;
       if (forward) {
         if (rL) rL.rotation.x = lerp(rL.rotation.x, -0.8 * phase, 0.12);
@@ -334,12 +503,10 @@ function Humanoid({
         if (rL) rL.rotation.x = lerp(rL.rotation.x, 0.4 * (1 - phase), 0.12);
       }
     } else if (ex === "wrist_rotation" || ex.includes("wrist")) {
-      // Wrist rotation — forearms extend forward, hands rotate in circles
+      // Wrist rotation
       const rot = time * 2.5;
-      // Arms held out in front
       if (rA) rA.rotation.x = lerp(rA.rotation.x, 0.8, 0.12);
       if (lA) lA.rotation.x = lerp(lA.rotation.x, 0.8, 0.12);
-      // Forearms with circular wrist rotation
       if (rF) {
         rF.rotation.x = lerp(rF.rotation.x, 0.3 + Math.sin(rot) * 0.6, 0.15);
         rF.rotation.z = lerp(rF.rotation.z, Math.cos(rot) * 0.4, 0.15);
@@ -349,31 +516,26 @@ function Humanoid({
         lF.rotation.z = lerp(lF.rotation.z, Math.cos(rot + Math.PI) * 0.4, 0.15);
       }
     } else if (ex === "ankle_circles" || ex.includes("ankle")) {
-      // Ankle circles — one leg raised, foot rotates
+      // Ankle circles
       const rot = time * 2;
-      // Raise left leg
       if (lL) lL.rotation.x = lerp(lL.rotation.x, 0.5, 0.12);
       if (lS) {
         lS.rotation.x = lerp(lS.rotation.x, 0.7 + Math.sin(rot) * 0.3, 0.15);
         lS.rotation.z = lerp(lS.rotation.z, Math.cos(rot) * 0.25, 0.15);
       }
-      // Balance arms
       if (rA) rA.rotation.z = lerp(rA.rotation.z, -0.5, 0.12);
       if (lA) lA.rotation.z = lerp(lA.rotation.z, 0.5, 0.12);
     } else if (ex === "finger_flexion" || ex.includes("finger")) {
-      // Finger flexion — arms extend forward, forearms open/close (mimicking fingers)
-      const grip = (Math.sin(time * 2.2) + 1) / 2; // 0 to 1
-      // Arms held out
+      // Finger flexion
+      const grip = (Math.sin(time * 2.2) + 1) / 2;
       if (rA) rA.rotation.x = lerp(rA.rotation.x, 0.6, 0.12);
       if (lA) lA.rotation.x = lerp(lA.rotation.x, 0.6, 0.12);
-      // Forearms simulate finger opening/closing
       if (rF) rF.rotation.x = lerp(rF.rotation.x, grip * 1.8, 0.15);
       if (lF) lF.rotation.x = lerp(lF.rotation.x, grip * 1.8, 0.15);
-      // Slight arm rotation to show wrist engagement
       if (rA) rA.rotation.z = lerp(rA.rotation.z, -0.2 + Math.sin(time * 1.5) * 0.1, 0.12);
       if (lA) lA.rotation.z = lerp(lA.rotation.z, 0.2 - Math.sin(time * 1.5) * 0.1, 0.12);
     } else {
-      // Default: full body movement with arm swings
+      // Default: full body movement
       if (rA) rA.rotation.x = lerp(rA.rotation.x, s * 0.6, 0.12);
       if (lA) lA.rotation.x = lerp(lA.rotation.x, -s * 0.6, 0.12);
       if (rL) rL.rotation.x = lerp(rL.rotation.x, -s * 0.3, 0.12);
@@ -763,7 +925,7 @@ export default function PhysioGuide({ exercise, isActive, repCount, feedback, fo
           AI Physiotherapist
         </span>
         {exercise && (
-          <span style={{ background: "rgba(0,0,0,0.45)", color: "#0fffc5", borderRadius: 6, padding: "1px 10px", fontSize: 11, marginTop: 4 }}>
+          <span style={{ background: "rgba(0,0,0,0.45)", color: "#6B9EFF", borderRadius: 6, padding: "1px 10px", fontSize: 11, marginTop: 4 }}>
             {exercise.replace(/_/g, " ").toUpperCase()}
           </span>
         )}
@@ -782,7 +944,7 @@ export default function PhysioGuide({ exercise, isActive, repCount, feedback, fo
           <div style={{ display: "flex", gap: 2, alignItems: "flex-end" }}>
             {[0, 1, 2].map(i => (
               <div key={i} style={{
-                width: 3, borderRadius: 2, background: "#0fffc5",
+                width: 3, borderRadius: 2, background: "#6B9EFF",
                 height: 6 + i * 4,
                 animation: `speakBar 0.6s ease-in-out ${i * 0.1}s infinite alternate`,
               }} />
@@ -798,7 +960,7 @@ export default function PhysioGuide({ exercise, isActive, repCount, feedback, fo
           background: "rgba(255,255,255,0.97)", color: "#1a1a2e", borderRadius: 14,
           padding: "9px 18px", fontSize: 13, fontWeight: 600, zIndex: 10,
           boxShadow: "0 4px 20px rgba(0,0,0,0.25)", maxWidth: "85%", textAlign: "center",
-          border: "2px solid #3B82F6",
+          border: "2px solid #7BAAFF",
           animation: "fadeInUp 0.2s ease-out",
         }}>
           {speechBubble}
@@ -806,7 +968,7 @@ export default function PhysioGuide({ exercise, isActive, repCount, feedback, fo
             position: "absolute", bottom: -8, left: "50%", transform: "translateX(-50%)",
             width: 0, height: 0,
             borderLeft: "8px solid transparent", borderRight: "8px solid transparent",
-            borderTop: "8px solid #3B82F6",
+            borderTop: "8px solid #7BAAFF",
           }} />
         </div>
       )}
@@ -831,7 +993,7 @@ export default function PhysioGuide({ exercise, isActive, repCount, feedback, fo
         <directionalLight position={[3, 6, 4]} intensity={2.0} castShadow />
         <directionalLight position={[-3, 4, 2]} intensity={1.0} color="#b3d9ff" />
         <pointLight position={[0, 3, 3]} intensity={1.2} color="#ffffff" />
-        <pointLight position={[0, 0, 3]} intensity={0.8} color="#0fffc5" />
+        <pointLight position={[0, 0, 3]} intensity={0.8} color="#6B9EFF" />
         {/* Floor */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.22, 0]} receiveShadow>
           <circleGeometry args={[2, 32]} />

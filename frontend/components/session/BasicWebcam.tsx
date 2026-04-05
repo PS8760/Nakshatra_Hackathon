@@ -272,7 +272,7 @@ export default function BasicWebcam(props: Props) {
                   inset: 0,
                   borderRadius: "50%",
                   border: "2px solid transparent",
-                  borderTopColor: "#0fffc5",
+                  borderTopColor: "#6B9EFF",
                   animation: "spinCW 1s linear infinite",
                 }}
               />
@@ -302,7 +302,7 @@ export default function BasicWebcam(props: Props) {
             <div style={{ textAlign: "center" }}>
               <p
                 style={{
-                  color: "#0fffc5",
+                  color: "#6B9EFF",
                   fontSize: 14,
                   fontWeight: 600,
                   marginBottom: 6,
@@ -327,7 +327,7 @@ export default function BasicWebcam(props: Props) {
               background: "rgba(0, 0, 0, 0.7)",
               padding: "4px 8px",
               borderRadius: 6,
-              color: fps >= 20 ? "#0fffc5" : "#eab308",
+              color: fps >= 20 ? "#6B9EFF" : "#6B9EFF",
               fontFamily: "monospace",
               fontSize: 10,
               border: "1px solid rgba(15,255,197,0.2)",
@@ -361,10 +361,10 @@ export default function BasicWebcam(props: Props) {
                   width: 7,
                   height: 7,
                   borderRadius: "50%",
-                  background: "#22c55e",
+                  background: "#6B9EFF",
                 }}
               />
-              <span style={{ fontSize: 12, color: "#22c55e" }}>
+              <span style={{ fontSize: 12, color: "#6B9EFF" }}>
                 Webcam working - Test circles displayed
               </span>
             </div>

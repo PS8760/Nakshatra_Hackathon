@@ -36,8 +36,8 @@ export async function POST(req: NextRequest) {
       replyTo: email,
       subject: `Contact from ${name} — NeuroRestore AI`,
       html: `
-        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;background:#02182b;color:#e8f4f0;padding:32px;border-radius:12px;border:1px solid rgba(15,255,197,0.2)">
-          <h2 style="color:#0fffc5;margin-bottom:16px">New Contact Message</h2>
+        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;background:#0B1F2E;color:#e8f4f0;padding:32px;border-radius:12px;border:1px solid rgba(15,255,197,0.2)">
+          <h2 style="color:#6B9EFF;margin-bottom:16px">New Contact Message</h2>
           <p><strong>Name:</strong> ${name}</p>
           <p><strong>Email:</strong> ${email}</p>
           <hr style="border-color:rgba(15,255,197,0.15);margin:16px 0"/>

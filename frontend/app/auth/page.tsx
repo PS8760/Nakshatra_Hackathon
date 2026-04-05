@@ -42,7 +42,7 @@ function Field({ label, type = "text", value, onChange, required, autoComplete }
         position: "absolute", left: 16,
         top: active ? 8 : 16,
         fontSize: active ? 10 : 14,
-        color: focused ? "#0fffc5" : active ? "rgba(15,255,197,0.55)" : "rgba(232,244,240,0.3)",
+        color: focused ? "#6B9EFF" : active ? "rgba(15,255,197,0.55)" : "rgba(232,244,240,0.3)",
         pointerEvents: "none", transition: "all .18s",
         letterSpacing: active ? ".07em" : "0",
         textTransform: active ? "uppercase" : "none",
@@ -55,7 +55,7 @@ function Field({ label, type = "text", value, onChange, required, autoComplete }
           background: "none", border: "none", cursor: "pointer",
           color: "rgba(232,244,240,0.3)", padding: 4, transition: "color .2s",
         }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#0fffc5"; }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#6B9EFF"; }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(232,244,240,0.3)"; }}
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -72,7 +72,7 @@ function Field({ label, type = "text", value, onChange, required, autoComplete }
         position: "absolute", bottom: 0, left: "50%",
         transform: focused ? "translateX(-50%) scaleX(1)" : "translateX(-50%) scaleX(0)",
         width: "calc(100% - 24px)", height: 1,
-        background: "linear-gradient(90deg, transparent, #0fffc5, transparent)",
+        background: "linear-gradient(90deg, transparent, #6B9EFF, transparent)",
         transition: "transform .3s", borderRadius: 1,
       }} />
     </div>
@@ -142,7 +142,7 @@ export default function AuthPage() {
 
   return (
     <div style={{
-      minHeight: "100vh", background: "#02182b",
+      minHeight: "100vh", background: "#0B1F2E",
       display: "flex", alignItems: "center", justifyContent: "center",
       padding: "80px 16px 24px", position: "relative", overflow: "hidden",
     }}>
@@ -171,10 +171,10 @@ export default function AuthPage() {
             {/* Logo */}
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
               <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(15,255,197,0.1)", border: "1px solid rgba(15,255,197,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <div className="a-pulse" style={{ width: 12, height: 12, borderRadius: "50%", background: "#0fffc5" }} />
+                <div className="a-pulse" style={{ width: 12, height: 12, borderRadius: "50%", background: "#6B9EFF" }} />
               </div>
               <span style={{ fontWeight: 700, fontSize: 15, color: "#e8f4f0" }}>
-                Neuro<span style={{ color: "#0fffc5" }}>Restore</span> AI
+                Neuro<span style={{ color: "#6B9EFF" }}>Restore</span> AI
               </span>
             </div>
 
@@ -192,7 +192,7 @@ export default function AuthPage() {
                   flex: 1, padding: "9px 0", fontSize: 13, fontWeight: 600, borderRadius: 9,
                   border: "none", cursor: "pointer", transition: "all .2s",
                   background: mode === m ? "rgba(15,255,197,0.12)" : "transparent",
-                  color: mode === m ? "#0fffc5" : "rgba(232,244,240,0.35)",
+                  color: mode === m ? "#6B9EFF" : "rgba(232,244,240,0.35)",
                   outline: mode === m ? "1px solid rgba(15,255,197,0.2)" : "1px solid transparent",
                 }}>{m === "login" ? "Sign in" : "Sign up"}</button>
               ))}
@@ -248,7 +248,7 @@ export default function AuthPage() {
 
               <button type="submit" disabled={loading} style={{
                 width: "100%", padding: "14px 0", borderRadius: 12, fontSize: 14, fontWeight: 700,
-                background: "#0fffc5", color: "#02182b", border: "none",
+                background: "#6B9EFF", color: "#0B1F2E", border: "none",
                 cursor: loading ? "not-allowed" : "pointer",
                 opacity: loading ? .7 : 1,
                 boxShadow: "0 0 20px rgba(15,255,197,0.28)",
@@ -256,7 +256,7 @@ export default function AuthPage() {
               }}>
                 {loading ? (
                   <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                    <span style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(2,24,43,0.3)", borderTopColor: "#02182b", display: "inline-block", animation: "spinCW .8s linear infinite" }} />
+                    <span style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(2,24,43,0.3)", borderTopColor: "#0B1F2E", display: "inline-block", animation: "spinCW .8s linear infinite" }} />
                     {mode === "login" ? "Signing in…" : "Creating account…"}
                   </span>
                 ) : (mode === "login" ? "Sign in →" : "Create account →")}
@@ -273,7 +273,7 @@ export default function AuthPage() {
                     background: "rgba(15,255,197,0.04)", border: "1px solid rgba(15,255,197,0.1)",
                     color: "rgba(232,244,240,0.45)", cursor: "pointer", transition: "all .2s",
                   }}
-                    onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.color = "#0fffc5"; el.style.borderColor = "rgba(15,255,197,0.3)"; el.style.background = "rgba(15,255,197,0.07)"; }}
+                    onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.color = "#6B9EFF"; el.style.borderColor = "rgba(15,255,197,0.3)"; el.style.background = "rgba(15,255,197,0.07)"; }}
                     onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.color = "rgba(232,244,240,0.45)"; el.style.borderColor = "rgba(15,255,197,0.1)"; el.style.background = "rgba(15,255,197,0.04)"; }}
                   >{label}</button>
                 ))}

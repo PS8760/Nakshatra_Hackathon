@@ -106,19 +106,19 @@ export default function SessionReport({ metrics, token, onClose }: SessionReport
 
   const performanceColor =
     analysis.overallPerformance === "excellent"
-      ? "#22c55e"
+      ? "#6B9EFF"
       : analysis.overallPerformance === "good"
-      ? "#3b82f6"
+      ? "#7BAAFF"
       : analysis.overallPerformance === "fair"
-      ? "#eab308"
-      : "#ef4444";
+      ? "#6B9EFF"
+      : "#6B9EFF";
 
   const riskColor =
     analysis.riskLevel === "low"
-      ? "#22c55e"
+      ? "#6B9EFF"
       : analysis.riskLevel === "moderate"
-      ? "#eab308"
-      : "#ef4444";
+      ? "#6B9EFF"
+      : "#6B9EFF";
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 overflow-y-auto">

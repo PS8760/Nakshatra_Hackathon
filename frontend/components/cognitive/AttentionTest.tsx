@@ -153,27 +153,54 @@ export default function FacialTest({ onComplete }: Props) {
   const progressPct = ((RECORD_DURATION - countdown) / RECORD_DURATION) * 100;
 
   return (
-    <div className="flex flex-col items-center gap-4 text-center w-full">
-      <h2 className="text-2xl font-bold">👁️ Facial Attention Analysis</h2>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, textAlign: "center", width: "100%" }}>
+      <h2 style={{ fontSize: 28, fontWeight: 800, color: "#FFFFFF" }}>👁️ Attention Analysis</h2>
 
       {/* ── Video always in DOM, shown/hidden via CSS only ── */}
-      <div className={`relative rounded-2xl overflow-hidden border border-[#09ffd3]/40 w-full max-w-xs transition-all duration-500 ${showVideo ? "h-52 opacity-100" : "h-0 opacity-0 pointer-events-none"}`}>
+      <div style={{
+        position: "relative",
+        borderRadius: 8,
+        overflow: "hidden",
+        border: "2px solid rgba(107,158,255,0.4)",
+        width: "100%",
+        maxWidth: 400,
+        transition: "all .5s",
+        height: showVideo ? 240 : 0,
+        opacity: showVideo ? 1 : 0,
+        pointerEvents: showVideo ? "auto" : "none",
+      }}>
         {/* The actual camera feed */}
         <video
           ref={videoRef}
           muted
           playsInline
           autoPlay
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{ transform: "scaleX(-1)" }}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            transform: "scaleX(-1)",
+          }}
         />
-        <canvas ref={canvasRef} className="hidden" />
+        <canvas ref={canvasRef} style={{ display: "none" }} />
 
         {/* Calibrating overlay */}
         {phase === "calibrating" && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 gap-2">
-            <div className="w-6 h-6 border-2 border-[#09ffd3] border-t-transparent rounded-full animate-spin" />
-            <p className="text-[#09ffd3] text-xs font-semibold tracking-wide">Calibrating…</p>
+          <div style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 10,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(0,0,0,0.4)",
+            gap: 8,
+          }}>
+            <div style={{ width: 28, height: 28, border: "3px solid #6B9EFF", borderTopColor: "transparent", borderRadius: "50%", animation: "spinCW 1s linear infinite" }} />
+            <p style={{ color: "#6B9EFF", fontSize: 12, fontWeight: 600, letterSpacing: ".05em" }}>Calibrating…</p>
           </div>
         )}
 
@@ -217,28 +244,66 @@ export default function FacialTest({ onComplete }: Props) {
       <AnimatePresence mode="wait">
         {phase === "intro" && (
           <motion.div key="intro" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-            className="flex flex-col items-center gap-4 w-full">
-            <p className="text-gray-400 text-sm max-w-xs leading-relaxed">
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, width: "100%" }}>
+            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 14, maxWidth: 400, lineHeight: 1.6 }}>
               A 20-second webcam scan measures your{" "}
-              <span className="text-[#09ffd3]">blink rate</span> and{" "}
-              <span className="text-[#09ffd3]">gaze stability</span> — key indicators of cognitive attention.
+              <span style={{ color: "#6B9EFF" }}>blink rate</span> and{" "}
+              <span style={{ color: "#6B9EFF" }}>gaze stability</span> — key indicators of cognitive attention.
             </p>
-            <div className="grid grid-cols-3 gap-2 w-full max-w-xs text-xs">
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, width: "100%", maxWidth: 400, fontSize: 12 }}>
               {[["🔒", "Private", "No data stored"], ["⚡", "Fast", "20 seconds"], ["🧠", "Accurate", "Clinically inspired"]].map(([icon, title, desc]) => (
-                <div key={title} className="p-2 rounded-xl bg-white/5 border border-white/8 text-center">
-                  <div className="text-lg mb-1">{icon}</div>
-                  <div className="font-semibold text-white text-xs">{title}</div>
-                  <div className="text-gray-600 text-[10px]">{desc}</div>
+                <div key={title} style={{
+                  padding: "12px 8px",
+                  borderRadius: 8,
+                  background: "#1A3447",
+                  border: "2px solid #243B4E",
+                  textAlign: "center",
+                }}>
+                  <div style={{ fontSize: 20, marginBottom: 4 }}>{icon}</div>
+                  <div style={{ fontWeight: 600, color: "#FFFFFF", fontSize: 12, marginBottom: 2 }}>{title}</div>
+                  <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 10 }}>{desc}</div>
                 </div>
               ))}
             </div>
-            <div className="flex gap-3">
+            <div style={{ display: "flex", gap: 12 }}>
               <button onClick={requestCamera}
-                className="px-7 py-3 rounded-xl bg-[#09ffd3] text-[#02182b] font-bold text-sm hover:brightness-110 transition shadow-[0_0_16px_rgba(9,255,211,0.25)]">
+                style={{
+                  padding: "14px 28px",
+                  borderRadius: 8,
+                  background: "#6B9EFF",
+                  color: "#FFFFFF",
+                  fontWeight: 700,
+                  fontSize: 15,
+                  border: "none",
+                  cursor: "pointer",
+                  boxShadow: "0 0 16px rgba(107,158,255,0.25)",
+                  transition: "all .2s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"}
+                onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.transform = "translateY(0)"}
+              >
                 Enable Camera
               </button>
               <button onClick={skip}
-                className="px-5 py-3 rounded-xl border border-white/10 text-gray-400 text-sm hover:border-white/20 transition">
+                style={{
+                  padding: "14px 20px",
+                  borderRadius: 8,
+                  border: "2px solid #243B4E",
+                  background: "transparent",
+                  color: "rgba(255,255,255,0.6)",
+                  fontSize: 15,
+                  cursor: "pointer",
+                  transition: "all .2s",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.3)";
+                  (e.currentTarget as HTMLElement).style.color = "#FFFFFF";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.borderColor = "#243B4E";
+                  (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.6)";
+                }}
+              >
                 Skip
               </button>
             </div>
@@ -247,55 +312,65 @@ export default function FacialTest({ onComplete }: Props) {
 
         {phase === "permission" && (
           <motion.div key="perm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="flex items-center gap-3 py-2">
-            <div className="w-5 h-5 border-2 border-[#09ffd3] border-t-transparent rounded-full animate-spin" />
-            <p className="text-gray-400 text-sm">Requesting camera access…</p>
+            style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0" }}>
+            <div style={{ width: 24, height: 24, border: "3px solid #6B9EFF", borderTopColor: "transparent", borderRadius: "50%", animation: "spinCW 1s linear infinite" }} />
+            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>Requesting camera access…</p>
           </motion.div>
         )}
 
         {phase === "recording" && (
           <motion.div key="rec" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="flex flex-col gap-2 w-full max-w-xs">
+            style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", maxWidth: 400 }}>
             {/* Progress bar */}
-            <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-              <motion.div className="h-full bg-gradient-to-r from-[#09ffd3] to-[#09ffd3]/60 rounded-full"
+            <div style={{ height: 6, background: "rgba(255,255,255,0.1)", borderRadius: 3, overflow: "hidden" }}>
+              <motion.div style={{
+                height: "100%",
+                background: "linear-gradient(90deg, #6B9EFF, rgba(107,158,255,0.6))",
+                borderRadius: 3,
+              }}
                 animate={{ width: `${progressPct}%` }} transition={{ duration: 0.8 }} />
             </div>
             {/* Live metrics */}
-            <div className="flex flex-col gap-1.5 mt-1">
-              <MetricBar label="Blink Rate" value={liveMetrics.blink} color="#09ffd3" icon="👁️" />
-              <MetricBar label="Gaze Stability" value={liveMetrics.gaze} color="#6366f1" icon="🎯" />
-              <MetricBar label="Attention" value={liveMetrics.attention} color="#f59e0b" icon="🧠" />
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>
+              <MetricBar label="Blink Rate" value={liveMetrics.blink} color="#6B9EFF" icon="👁️" />
+              <MetricBar label="Gaze Stability" value={liveMetrics.gaze} color="#7BAAFF" icon="🎯" />
+              <MetricBar label="Attention" value={liveMetrics.attention} color="#5A8EEE" icon="🧠" />
             </div>
-            <p className="text-[10px] text-gray-600 text-center mt-1">Look naturally at the screen. Keep your face in the oval.</p>
+            <p style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textAlign: "center", marginTop: 4 }}>Look naturally at the screen. Keep your face in the oval.</p>
           </motion.div>
         )}
 
         {phase === "denied" && (
           <motion.div key="denied" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="flex flex-col items-center gap-1 py-2">
-            <p className="text-yellow-400 text-sm">Camera access denied.</p>
-            <p className="text-gray-500 text-xs">Score estimated from other domains.</p>
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "8px 0" }}>
+            <p style={{ color: "#6B9EFF", fontSize: 14 }}>Camera access denied.</p>
+            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>Score estimated from other domains.</p>
           </motion.div>
         )}
 
         {phase === "done" && finalMetrics && (
           <motion.div key="done" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center gap-3 w-full">
-            <p className="text-[#09ffd3] font-semibold">Facial analysis complete ✓</p>
-            <div className="grid grid-cols-2 gap-2 w-full max-w-xs">
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, width: "100%" }}>
+            <p style={{ color: "#6B9EFF", fontWeight: 600, fontSize: 16 }}>Attention analysis complete ✓</p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, width: "100%", maxWidth: 400 }}>
               {[
-                { label: "Blink Rate", value: `${finalMetrics.blinkRate}/min`, sub: "Normal: 12–25", color: "#09ffd3" },
-                { label: "Gaze Stability", value: `${finalMetrics.gazeStability}%`, sub: "Higher = better", color: "#6366f1" },
-                { label: "Attention Score", value: `${finalMetrics.attentionScore}/100`, sub: "Overall", color: "#f59e0b" },
-                { label: "Expression", value: `${finalMetrics.expressionVariance}%`, sub: "Variance", color: "#ec4899" },
+                { label: "Blink Rate", value: `${finalMetrics.blinkRate}/min`, sub: "Normal: 12–25", color: "#6B9EFF" },
+                { label: "Gaze Stability", value: `${finalMetrics.gazeStability}%`, sub: "Higher = better", color: "#7BAAFF" },
+                { label: "Attention Score", value: `${finalMetrics.attentionScore}/100`, sub: "Overall", color: "#5A8EEE" },
+                { label: "Expression", value: `${finalMetrics.expressionVariance}%`, sub: "Variance", color: "#6B9EFF" },
               ].map((m, i) => (
                 <motion.div key={m.label} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.08 }}
-                  className="p-3 rounded-xl bg-white/5 border border-white/8 text-left">
-                  <div className="text-[10px] text-gray-500 mb-0.5">{m.label}</div>
-                  <div className="font-bold text-sm" style={{ color: m.color }}>{m.value}</div>
-                  <div className="text-[10px] text-gray-600">{m.sub}</div>
+                  style={{
+                    padding: "14px 12px",
+                    borderRadius: 8,
+                    background: "#1A3447",
+                    border: "2px solid #243B4E",
+                    textAlign: "left",
+                  }}>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>{m.label}</div>
+                  <div style={{ fontWeight: 700, fontSize: 16, color: m.color }}>{m.value}</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>{m.sub}</div>
                 </motion.div>
               ))}
             </div>

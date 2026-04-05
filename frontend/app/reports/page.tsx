@@ -1,77 +1,145 @@
-﻿"use client";
+"use client";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { getDashboard, getReportInsights, getCognitiveLatestScores, getCognitiveReportData } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
-import {
-  getDashboard, getCognitiveLatestScores, getReportInsights,
-  getDoctorAnalysis, api,
-} from "@/lib/api";
+import { useRouter } from "next/navigation";
 
-const JOINTS = [
-  { id: "knee_left", label: "Knee (L)" }, { id: "knee_right", label: "Knee (R)" },
-  { id: "elbow_left", label: "Elbow (L)" }, { id: "elbow_right", label: "Elbow (R)" },
-  { id: "shoulder_left", label: "Shoulder (L)" }, { id: "shoulder_right", label: "Shoulder (R)" },
-  { id: "hip_left", label: "Hip (L)" }, { id: "hip_right", label: "Hip (R)" },
-];
-
-function strip(t: string) {
-  return t.replace(/\*\*/g, "").replace(/^[•\-\*]\s+/gm, "  - ");
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div style={{ marginBottom: 24 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-        <div style={{ flex: 1, height: 1, background: "rgba(15,255,197,0.2)" }} />
-        <p style={{ fontSize: 11, fontWeight: 700, color: "#0fffc5", letterSpacing: ".1em", textTransform: "uppercase", whiteSpace: "nowrap" }}>{title}</p>
-        <div style={{ flex: 1, height: 1, background: "rgba(15,255,197,0.2)" }} />
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function TextBlock({ text }: { text: string }) {
+/* ── Parse and render AI recommendations as styled bullet points ─────────── */
+function RecommendationRenderer({ text }: { text: string }) {
   if (!text) return null;
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-      {text.split("\n").map((l, i) => {
-        const t = l.trim();
-        if (!t) return null;
-        const hdr = t.match(/^\*\*(.+?)\*\*:?\s*$/);
-        if (hdr) return <p key={i} style={{ fontSize: 11, fontWeight: 700, color: "#0fffc5", textTransform: "uppercase", letterSpacing: ".07em", marginTop: 10 }}>{hdr[1]}</p>;
-        const num = t.match(/^(\d+)\.\s+(.+)/);
-        if (num) return (
-          <div key={i} style={{ display: "flex", gap: 8 }}>
-            <span style={{ minWidth: 18, height: 18, borderRadius: "50%", flexShrink: 0, background: "rgba(15,255,197,0.12)", border: "1px solid rgba(15,255,197,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#0fffc5" }}>{num[1]}</span>
-            <span style={{ fontSize: 12, color: "#e8f4f0", lineHeight: 1.5 }}>{num[2].replace(/\*\*/g, "")}</span>
+
+  // Split into lines, filter empty
+  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+
+  const elements: React.ReactNode[] = [];
+  let key = 0;
+
+  for (const line of lines) {
+    // Section header: **Overall Progress:** or **Key Strengths:**
+    const headerMatch = line.match(/^\*\*(.+?)\*\*:?\s*$/);
+    if (headerMatch) {
+      elements.push(
+        <div key={key++} style={{
+          fontSize: 11, fontWeight: 700, color: "#6B9EFF",
+          letterSpacing: ".08em", textTransform: "uppercase",
+          marginTop: elements.length > 0 ? 14 : 0, marginBottom: 6,
+          display: "flex", alignItems: "center", gap: 6,
+        }}>
+          <div style={{ width: 16, height: 1, background: "#6B9EFF", opacity: .5 }} />
+          {headerMatch[1]}
+        </div>
+      );
+      continue;
+    }
+
+    // Numbered point: "1. text" or "2. text"
+    const numberedMatch = line.match(/^(\d+)\.\s+(.+)/);
+    if (numberedMatch) {
+      elements.push(
+        <div key={key++} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 7 }}>
+          <span style={{
+            minWidth: 22, height: 22, borderRadius: "50%", flexShrink: 0,
+            background: "rgba(15,255,197,0.12)", border: "1px solid rgba(15,255,197,0.25)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 10, fontWeight: 700, color: "#6B9EFF",
+          }}>{numberedMatch[1]}</span>
+          <span style={{ fontSize: 13, lineHeight: 1.6, color: "#e8f4f0" }}>
+            {numberedMatch[2].replace(/\*\*/g, "")}
+          </span>
+        </div>
+      );
+      continue;
+    }
+
+    // Bullet point: "• text" or "- text" or "* text"
+    const bulletMatch = line.match(/^[•\-\*]\s+(.+)/);
+    if (bulletMatch) {
+      elements.push(
+        <div key={key++} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 7 }}>
+          <span style={{
+            width: 6, height: 6, borderRadius: "50%", flexShrink: 0, marginTop: 6,
+            background: "#6B9EFF", opacity: .7,
+          }} />
+          <span style={{ fontSize: 13, lineHeight: 1.6, color: "#e8f4f0" }}>
+            {bulletMatch[1].replace(/\*\*/g, "")}
+          </span>
+        </div>
+      );
+      continue;
+    }
+
+    // Inline bold+bullet combo: "**Section:** • point1 • point2"
+    // Split on • and render each as a bullet
+    if (line.includes("•")) {
+      const parts = line.split("•").map(p => p.trim()).filter(Boolean);
+      // First part might be a header
+      const firstPart = parts[0];
+      const isHeader = firstPart.startsWith("**") && firstPart.endsWith("**");
+      if (isHeader) {
+        elements.push(
+          <div key={key++} style={{
+            fontSize: 11, fontWeight: 700, color: "#6B9EFF",
+            letterSpacing: ".08em", textTransform: "uppercase",
+            marginTop: elements.length > 0 ? 14 : 0, marginBottom: 6,
+            display: "flex", alignItems: "center", gap: 6,
+          }}>
+            <div style={{ width: 16, height: 1, background: "#6B9EFF", opacity: .5 }} />
+            {firstPart.replace(/\*\*/g, "")}
           </div>
         );
-        const bul = t.match(/^[•\-\*]\s+(.+)/);
-        if (bul) return (
-          <div key={i} style={{ display: "flex", gap: 8 }}>
-            <span style={{ width: 5, height: 5, borderRadius: "50%", flexShrink: 0, marginTop: 6, background: "#0fffc5", opacity: .7 }} />
-            <span style={{ fontSize: 12, color: "#e8f4f0", lineHeight: 1.5 }}>{bul[1].replace(/\*\*/g, "")}</span>
-          </div>
-        );
-        return <p key={i} style={{ fontSize: 12, color: "rgba(232,244,240,0.7)", lineHeight: 1.5 }}>{t.replace(/\*\*/g, "")}</p>;
-      })}
-    </div>
-  );
+        for (const pt of parts.slice(1)) {
+          elements.push(
+            <div key={key++} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 7 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", flexShrink: 0, marginTop: 6, background: "#6B9EFF", opacity: .7 }} />
+              <span style={{ fontSize: 13, lineHeight: 1.6, color: "#e8f4f0" }}>{pt.replace(/\*\*/g, "")}</span>
+            </div>
+          );
+        }
+      } else {
+        for (const pt of parts) {
+          elements.push(
+            <div key={key++} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 7 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", flexShrink: 0, marginTop: 6, background: "#6B9EFF", opacity: .7 }} />
+              <span style={{ fontSize: 13, lineHeight: 1.6, color: "#e8f4f0" }}>{pt.replace(/\*\*/g, "")}</span>
+            </div>
+          );
+        }
+      }
+      continue;
+    }
+
+    // Plain text — strip any remaining markdown
+    const clean = line.replace(/\*\*/g, "");
+    if (clean) {
+      elements.push(
+        <p key={key++} style={{ fontSize: 13, lineHeight: 1.6, color: "rgba(232,244,240,0.7)", marginBottom: 6 }}>
+          {clean}
+        </p>
+      );
+    }
+  }
+
+  return <div style={{ display: "flex", flexDirection: "column" }}>{elements}</div>;
+}
+
+/* ── Strip markdown for PDF plain text ───────────────────────────────────── */
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/\*\*/g, "")
+    .replace(/^[•\-\*]\s+/gm, "  - ")
+    .replace(/^\d+\.\s+/gm, (m) => m);
 }
 
 export default function ReportsPage() {
   const router = useRouter();
   const { user, token } = useAuthStore();
-  const [dash,        setDash]        = useState<any>(null);
-  const [cogScores,   setCogScores]   = useState<any>(null);
-  const [jointData,   setJointData]   = useState<any>(null);
-  const [insights,    setInsights]    = useState("");
-  const [doctorNote,  setDoctorNote]  = useState("");
-  const [joint,       setJoint]       = useState("knee_left");
-  const [generating,  setGenerating]  = useState(false);
+  const [dashData, setDashData] = useState<any>(null);
+  const [cogScores, setCogScores] = useState<any>(null);
+  const [cogReportData, setCogReportData] = useState<any>(null);
+  const [insights, setInsights] = useState<string>("");
+  const [generating, setGenerating] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [step,        setStep]        = useState<"idle"|"insights"|"doctor"|"ready">("idle");
+  const [reportType, setReportType] = useState<"overall" | "session" | "cognitive">("overall");
 
   useEffect(() => {
     useAuthStore.getState().hydrate();
@@ -79,186 +147,504 @@ export default function ReportsPage() {
     Promise.all([
       getDashboard(),
       getCognitiveLatestScores().catch(() => ({ data: {} })),
-      api.get(`/analytics/joint-progress/${joint}?limit=20`).catch(() => ({ data: [] })),
-    ]).then(([d, c, j]) => {
-      setDash(d.data);
+      getCognitiveReportData().catch(() => ({ data: null })),
+    ]).then(([d, c, cr]) => {
+      setDashData(d.data);
       setCogScores(c.data);
-      setJointData(j.data);
+      setCogReportData(cr.data);
     });
-  }, [token, joint]);
+  }, [token]);
 
-  const generate = async () => {
+  const generateInsights = async () => {
     setGenerating(true);
-    setStep("insights");
     try {
-      const ins = await getReportInsights(undefined, "overall");
-      setInsights(ins.data.insights || "");
-      setStep("doctor");
-
-      if (jointData?.length) {
-        const maxAngles  = jointData.map((p: any) => p.max_angle);
-        const meanAngles = jointData.map((p: any) => p.avg_angle);
-        const targets    = jointData.map((p: any) => p.target);
-        const labels     = jointData.map((p: any, i: number) => `S${i+1}`);
-        const dr = await getDoctorAnalysis({
-          joint, sessions_count: jointData.length,
-          max_angles: maxAngles, mean_angles: meanAngles,
-          targets, labels,
-          today_best: maxAngles[maxAngles.length - 1] || null,
-          yesterday_best: maxAngles[maxAngles.length - 2] || null,
-          total_gain: maxAngles.length >= 2 ? maxAngles[maxAngles.length-1] - maxAngles[0] : null,
-          recovery_score: dash?.latest_recovery_score,
-          total_sessions: dash?.total_sessions,
-        });
-        setDoctorNote(dr.data.analysis || "");
-      }
-      setStep("ready");
-    } catch { setStep("idle"); }
-    finally { setGenerating(false); }
+      const res = await getReportInsights(undefined, reportType);
+      setInsights(res.data.insights);
+    } catch {
+      setInsights("Unable to generate AI insights at this time.");
+    } finally {
+      setGenerating(false);
+    }
   };
 
-  const downloadPDF = async () => {
+  const downloadCognitivePDF = async () => {
     setDownloading(true);
     try {
       const { jsPDF } = await import("jspdf");
       const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const W = 210; const M = 18; let y = M;
 
-      const addPage = () => { doc.addPage(); y = M; };
-      const checkY = (need = 12) => { if (y + need > 278) addPage(); };
+      const W = 210, margin = 20;
+      let y = margin;
 
-      const heading = (text: string, size = 13, color: [number,number,number] = [15,255,197]) => {
-        checkY(14);
-        doc.setFontSize(size); doc.setFont("helvetica","bold"); doc.setTextColor(...color);
-        doc.text(text, M, y); y += size * 0.5;
-        doc.setDrawColor(...color); doc.setLineWidth(0.3);
-        doc.line(M, y, W - M, y); y += 6;
-      };
+      // ── Header ──
+      doc.setFillColor(11, 31, 46); // #0B1F2E - Dark navy background
+      doc.rect(0, 0, W, 50, "F");
+      doc.setTextColor(107, 158, 255); // #6B9EFF - Primary blue
+      doc.setFontSize(22);
+      doc.setFont("helvetica", "bold");
+      doc.text("NeuroRestore AI", margin, y + 10);
+      doc.setFontSize(11);
+      doc.setTextColor(255, 255, 255); // #FFFFFF - White
+      doc.setFont("helvetica", "normal");
+      doc.text("Cognitive Assessment Report", margin, y + 20);
+      doc.text(`Generated: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`, margin, y + 28);
+      doc.text(`Patient: ${user?.full_name ?? "—"}`, margin, y + 36);
+      y = 60;
 
-      const body = (text: string, size = 10, color: [number,number,number] = [50,50,50]) => {
-        checkY(size + 2);
-        doc.setFontSize(size); doc.setFont("helvetica","normal"); doc.setTextColor(...color);
-        const lines = doc.splitTextToSize(strip(text), W - M * 2);
-        lines.forEach((l: string) => { checkY(size * 0.45); doc.text(l, M, y); y += size * 0.45; });
-        y += 3;
-      };
+      // ── Overall Cognitive Score ──
+      doc.setTextColor(107, 158, 255); // #6B9EFF - Primary blue
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Overall Cognitive Performance", margin, y);
+      y += 8;
+      doc.setDrawColor(107, 158, 255); // #6B9EFF - Primary blue
+      doc.setLineWidth(0.3);
+      doc.line(margin, y, W - margin, y);
+      y += 8;
 
-      const kv = (label: string, value: string) => {
-        checkY(8);
-        doc.setFontSize(10); doc.setFont("helvetica","bold"); doc.setTextColor(80,80,80);
-        doc.text(label + ":", M, y);
-        doc.setFont("helvetica","normal"); doc.setTextColor(30,30,30);
-        doc.text(value, M + 50, y); y += 6;
-      };
+      doc.setTextColor(50, 50, 50);
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      const overallScore = cogReportData?.overall_score;
+      doc.text(`Overall Score: ${overallScore != null ? overallScore.toFixed(0) + "/100" : "No data"}`, margin, y); y += 7;
+      doc.text(`Total Assessments: ${cogReportData?.total_sessions ?? 0}`, margin, y); y += 7;
+      doc.text(`Last Assessment: ${cogReportData?.last_test_date ? new Date(cogReportData.last_test_date).toLocaleDateString() : "None"}`, margin, y); y += 14;
 
-      // ── Cover ──────────────────────────────────────────────────────────────
-      doc.setFillColor(2, 24, 43);
-      doc.rect(0, 0, W, 55, "F");
-      doc.setFontSize(24); doc.setFont("helvetica","bold"); doc.setTextColor(15,255,197);
-      doc.text("NeuroRestore AI", M, 22);
-      doc.setFontSize(13); doc.setTextColor(200,230,220); doc.setFont("helvetica","normal");
-      doc.text("Rehabilitation Progress Report", M, 32);
-      doc.setFontSize(10); doc.setTextColor(150,200,190);
-      doc.text("Generated: " + new Date().toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"}), M, 41);
-      doc.text("Patient: " + (dash?.user?.name || user?.full_name || "—"), M, 48);
-      y = 65;
+      // ── Individual Test Scores ──
+      doc.setTextColor(107, 158, 255); // #6B9EFF - Primary blue
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Test Scores & Performance", margin, y); y += 8;
+      doc.setDrawColor(107, 158, 255); // #6B9EFF - Primary blue
+      doc.line(margin, y, W - margin, y); y += 8;
 
-      // ── 1. Patient Overview ────────────────────────────────────────────────
-      heading("1. Patient Overview");
-      kv("Name",            dash?.user?.name || user?.full_name || "—");
-      kv("Report Date",     new Date().toLocaleDateString());
-      kv("Total Sessions",  String(dash?.total_sessions ?? 0));
-      kv("Recovery Score",  dash?.latest_recovery_score != null ? dash.latest_recovery_score.toFixed(0) + "/100" : "No data");
-      kv("Last Session",    dash?.recent_sessions?.[0] ? new Date(dash.recent_sessions[0].started_at).toLocaleDateString() : "None");
-      y += 4;
-
-      // ── 2. Session Details ─────────────────────────────────────────────────
-      heading("2. Session Details");
-      if (dash?.recent_sessions?.length) {
-        doc.setFontSize(9); doc.setFont("helvetica","bold"); doc.setTextColor(80,80,80);
-        ["Date","Type","Duration","Score"].forEach((h,i) => doc.text(h, M + i*42, y));
-        y += 5; doc.setFont("helvetica","normal"); doc.setTextColor(30,30,30);
-        dash.recent_sessions.slice(0,8).forEach((s: any) => {
-          checkY(6);
-          doc.text(new Date(s.started_at).toLocaleDateString(), M, y);
-          doc.text(s.type || "physical", M+42, y);
-          doc.text(s.duration_s ? Math.floor(s.duration_s/60)+"m" : "—", M+84, y);
-          doc.text(s.recovery_score != null ? s.recovery_score.toFixed(0) : "—", M+126, y);
-          y += 5.5;
-        });
-      } else { body("No session data available."); }
-      y += 4;
-
-      // ── 3. Joint Angle Graph Description ──────────────────────────────────
-      heading("3. Joint Angle Progress — " + (JOINTS.find(j=>j.id===joint)?.label || joint));
-      if (jointData?.length) {
-        const maxA = jointData.map((p:any)=>p.max_angle);
-        const tgt  = jointData.map((p:any)=>p.target);
-        body(`Sessions analysed: ${jointData.length}`);
-        body(`Starting angle: ${maxA[0]?.toFixed(1)}°  |  Latest angle: ${maxA[maxA.length-1]?.toFixed(1)}°  |  Peak: ${Math.max(...maxA).toFixed(1)}°`);
-        body(`Target ROM: ${tgt[0]?.toFixed(1)}°  |  Accuracy (latest): ${tgt[0]>0?((maxA[maxA.length-1]/tgt[0])*100).toFixed(1):0}%`);
-        body(`Overall trend: ${maxA[maxA.length-1] > maxA[0] ? "Improving ↑" : maxA[maxA.length-1] < maxA[0] ? "Declining ↓" : "Stable →"}`);
-        body(`Total gain: ${(maxA[maxA.length-1]-maxA[0]).toFixed(1)}° over ${jointData.length} sessions`);
-        body("Note: The line graph on the dashboard shows achieved angle (teal) vs target ROM (red dashed). Gold star marks the personal best session.");
-      } else { body("No joint angle data available for the selected joint."); }
-      y += 4;
-
-      // ── 4. Cognitive Test Results ──────────────────────────────────────────
-      heading("4. Cognitive Test Results");
       const tests = [
-        { key:"memory",   label:"Memory Recall",       weight:"30%", desc:"Episodic memory — strongest MCI predictor" },
-        { key:"reaction", label:"Reaction Time",        weight:"25%", desc:"Processing speed" },
-        { key:"pattern",  label:"Pattern Recognition",  weight:"25%", desc:"Visuospatial ability" },
-        { key:"attention",label:"Attention & Focus",    weight:"20%", desc:"Executive function" },
+        { key: "memory", label: "Memory Recall", icon: "🧩", weight: "30%", desc: "Immediate + delayed word recall" },
+        { key: "reaction", label: "Reaction Time", icon: "⚡", weight: "25%", desc: "Visual stimulus response speed" },
+        { key: "pattern", label: "Pattern Recognition", icon: "🔷", weight: "25%", desc: "Sequence & visual memory" },
+        { key: "attention", label: "Attention & Focus", icon: "👁️", weight: "20%", desc: "Sustained focus & gaze stability" },
       ];
-      tests.forEach(t => {
-        const s = cogScores?.[t.key]?.score;
-        const band = s==null?"Not tested":s>=85?"Excellent":s>=70?"Good":s>=55?"Borderline":"Concern";
-        checkY(8);
-        doc.setFontSize(10); doc.setFont("helvetica","bold"); doc.setTextColor(50,50,50);
-        doc.text(t.label + " (" + t.weight + ")", M, y);
-        doc.setFont("helvetica","normal");
-        doc.text(s!=null?s.toFixed(0)+"/100":"—", M+80, y);
-        doc.text(band, M+100, y);
-        y += 5;
-        doc.setFontSize(9); doc.setTextColor(100,100,100);
-        doc.text(t.desc, M+4, y); y += 6;
-      });
-      y += 4;
 
-      // ── 5. AI Insights ─────────────────────────────────────────────────────
-      if (insights) {
-        heading("5. AI Rehabilitation Insights");
-        body(insights, 10);
+      doc.setTextColor(50, 50, 50);
+      doc.setFontSize(10);
+      for (const test of tests) {
+        const data = cogReportData?.latest_scores?.[test.key];
+        const score = data?.score;
+        const trend = cogReportData?.trends?.[test.key];
+        
+        doc.setFont("helvetica", "bold");
+        doc.text(`${test.icon} ${test.label} (${test.weight})`, margin, y); y += 6;
+        doc.setFont("helvetica", "normal");
+        doc.text(`Score: ${score != null ? score.toFixed(0) + "/100" : "Not tested"}`, margin + 5, y); y += 5;
+        doc.text(`Description: ${test.desc}`, margin + 5, y); y += 5;
+        
+        if (trend) {
+          const trendText = trend.direction === "improving" ? `↑ Improving (+${trend.change})` :
+                           trend.direction === "declining" ? `↓ Declining (${trend.change})` :
+                           `→ Stable (${trend.change})`;
+          doc.text(`Trend: ${trendText}`, margin + 5, y); y += 5;
+        }
+        
+        if (data?.date) {
+          doc.text(`Last tested: ${new Date(data.date).toLocaleDateString()}`, margin + 5, y); y += 5;
+        }
         y += 4;
       }
-
-      // ── 6. Doctor's Analysis ───────────────────────────────────────────────
-      if (doctorNote) {
-        heading("6. Clinical Doctor's Analysis");
-        body(doctorNote, 10);
-        y += 4;
-      }
-
-      // ── 7. Summary & Conclusion ────────────────────────────────────────────
-      heading("7. Summary & Conclusion");
-      const score = dash?.latest_recovery_score;
-      const status = score==null?"Insufficient data":score>=70?"Good progress — patient is on track for recovery":score>=50?"Moderate progress — continue current protocol":score>=30?"Below target — consider adjusting exercise intensity":"Insufficient data";
-      body(`Overall Recovery Status: ${status}`);
-      body(`Based on ${dash?.total_sessions ?? 0} completed sessions, the patient demonstrates ${score!=null?score.toFixed(0)+"/100":"no recorded"} composite recovery score. ${insights ? "AI analysis indicates structured progress with areas identified for improvement." : ""} ${doctorNote ? "Clinical assessment confirms the rehabilitation trajectory is within expected parameters." : ""}`);
-      body("This report is generated by NeuroRestore AI and is intended to supplement, not replace, professional medical advice. All findings should be reviewed by a qualified physiotherapist or physician.");
       y += 6;
 
-      // ── Footer ─────────────────────────────────────────────────────────────
-      const pages = doc.getNumberOfPages();
-      for (let i = 1; i <= pages; i++) {
-        doc.setPage(i);
-        doc.setFontSize(8); doc.setTextColor(150,150,150);
-        doc.text("NeuroRestore AI · Rehabilitation Report · Confidential", M, 290);
-        doc.text("Page " + i + " of " + pages, W - M - 18, 290);
+      // ── Clinical Thresholds ──
+      doc.setTextColor(107, 158, 255); // #6B9EFF - Primary blue
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Clinical Interpretation", margin, y); y += 8;
+      doc.setDrawColor(107, 158, 255); // #6B9EFF - Primary blue
+      doc.line(margin, y, W - margin, y); y += 8;
+
+      doc.setTextColor(50, 50, 50);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text("Score Ranges:", margin, y); y += 6;
+      doc.text("  • Excellent (≥85): Above normative range", margin, y); y += 5;
+      doc.text("  • Good (≥70): Within normal range", margin, y); y += 5;
+      doc.text("  • Borderline (≥55): Monitor closely", margin, y); y += 5;
+      doc.text("  • Concern (<55): Consult a clinician", margin, y); y += 10;
+
+      // ── Test History ──
+      if (cogReportData?.history && cogReportData.history.length > 0) {
+        if (y > 220) { doc.addPage(); y = margin; }
+        doc.setTextColor(107, 158, 255); // #6B9EFF - Primary blue
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text("Assessment History", margin, y); y += 8;
+        doc.setDrawColor(107, 158, 255); // #6B9EFF - Primary blue
+        doc.line(margin, y, W - margin, y); y += 8;
+
+        doc.setTextColor(50, 50, 50);
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.text("Date", margin, y);
+        doc.text("Overall", margin + 40, y);
+        doc.text("Memory", margin + 70, y);
+        doc.text("Reaction", margin + 100, y);
+        doc.text("Pattern", margin + 130, y);
+        doc.text("Attention", margin + 160, y);
+        y += 6;
+        doc.setFont("helvetica", "normal");
+
+        for (const session of cogReportData.history.slice(0, 10)) {
+          if (y > 270) { doc.addPage(); y = margin; }
+          doc.text(new Date(session.date).toLocaleDateString(), margin, y);
+          doc.text(session.overall_score != null ? session.overall_score.toFixed(0) : "—", margin + 40, y);
+          
+          const testScores: Record<string, string> = {};
+          for (const t of session.tests) {
+            testScores[t.type] = t.score != null ? t.score.toFixed(0) : "—";
+          }
+          
+          doc.text(testScores.memory || "—", margin + 70, y);
+          doc.text(testScores.reaction || "—", margin + 100, y);
+          doc.text(testScores.pattern || "—", margin + 130, y);
+          doc.text(testScores.attention || "—", margin + 160, y);
+          y += 5.5;
+        }
+        y += 8;
       }
 
-      doc.save("NeuroRestore_Report_" + new Date().toISOString().split("T")[0] + ".pdf");
-    } catch (e) { console.error(e); alert("PDF generation failed."); }
-    finally { setDownloading(false); }
+      // ── Clinical Notes ──
+      if (y > 240) { doc.addPage(); y = margin; }
+      doc.setTextColor(107, 158, 255); // #6B9EFF - Primary blue
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Clinical Notes", margin, y); y += 8;
+      doc.setDrawColor(107, 158, 255); // #6B9EFF - Primary blue
+      doc.line(margin, y, W - margin, y); y += 8;
+
+      doc.setTextColor(50, 50, 50);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      const notes = [
+        "• Thresholds based on MoCA/MMSE normative data and published cognitive screening benchmarks.",
+        "• Scores in Borderline or Concern range on two or more tests warrant clinical follow-up.",
+        "• Memory test: 30% weight - strongest predictor of MCI (Mild Cognitive Impairment).",
+        "• Reaction time: 25% weight - processing speed affected by neurological fatigue.",
+        "• Pattern recognition: 25% weight - visuospatial ability, parietal lobe function.",
+        "• Attention: 20% weight - executive function, affected by TBI, ADHD, post-stroke.",
+        "• This tool is not a diagnostic instrument. Consult healthcare provider for interpretation.",
+      ];
+      for (const note of notes) {
+        if (y > 275) { doc.addPage(); y = margin; }
+        const lines = doc.splitTextToSize(note, W - margin * 2);
+        for (const line of lines) {
+          doc.text(line, margin, y); y += 5;
+        }
+      }
+
+      // ── Footer ──
+      const pageCount = doc.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text("NeuroRestore AI · Cognitive Assessment · Not a substitute for professional medical advice", margin, 290);
+        doc.text(`Page ${i} of ${pageCount}`, W - margin - 20, 290);
+      }
+
+      doc.save(`NeuroRestore_Cognitive_Report_${new Date().toISOString().split("T")[0]}.pdf`);
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+      alert("PDF generation failed. Please try again.");
+    } finally {
+      setDownloading(false);
+    }
   };
+
+  const downloadPDF = async () => {
+    if (reportType === "cognitive") {
+      await downloadCognitivePDF();
+      return;
+    }
+
+    setDownloading(true);
+    try {
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+      const W = 210, margin = 20;
+      let y = margin;
+
+      // ── Header ──
+      doc.setFillColor(11, 31, 46); // #0B1F2E - Dark navy background
+      doc.rect(0, 0, W, 50, "F");
+      doc.setTextColor(107, 158, 255); // #6B9EFF - Primary blue
+      doc.setFontSize(22);
+      doc.setFont("helvetica", "bold");
+      doc.text("NeuroRestore AI", margin, y + 10);
+      doc.setFontSize(11);
+      doc.setTextColor(255, 255, 255); // #FFFFFF - White
+      doc.setFont("helvetica", "normal");
+      doc.text("AI-Powered Rehabilitation Report", margin, y + 20);
+      doc.text(`Generated: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`, margin, y + 28);
+      doc.text(`Patient: ${dashData?.user?.name ?? user?.full_name ?? "—"}`, margin, y + 36);
+      y = 60;
+
+      // ── Recovery Score ──
+      doc.setTextColor(107, 158, 255); // #6B9EFF - Primary blue
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Recovery Overview", margin, y);
+      y += 8;
+      doc.setDrawColor(107, 158, 255); // #6B9EFF - Primary blue
+      doc.setLineWidth(0.3);
+      doc.line(margin, y, W - margin, y);
+      y += 8;
+
+      doc.setTextColor(50, 50, 50);
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      const score = dashData?.latest_recovery_score;
+      doc.text(`Overall Recovery Score: ${score != null ? score.toFixed(0) + "/100" : "No data"}`, margin, y); y += 7;
+      doc.text(`Total Sessions Completed: ${dashData?.total_sessions ?? 0}`, margin, y); y += 7;
+      const lastSession = dashData?.recent_sessions?.[0];
+      doc.text(`Last Session: ${lastSession ? new Date(lastSession.started_at).toLocaleDateString() : "None"}`, margin, y); y += 14;
+
+      // ── Cognitive Scores ──
+      if (cogScores && Object.keys(cogScores).length > 0) {
+        doc.setTextColor(107, 158, 255); // #6B9EFF - Primary blue
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text("Cognitive Performance", margin, y); y += 8;
+        doc.setDrawColor(107, 158, 255); // #6B9EFF - Primary blue
+        doc.line(margin, y, W - margin, y); y += 8;
+
+        doc.setTextColor(50, 50, 50);
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "normal");
+        const tests = [
+          { key: "memory", label: "Memory Recall" },
+          { key: "reaction", label: "Reaction Time" },
+          { key: "pattern", label: "Pattern Recognition" },
+          { key: "attention", label: "Attention & Focus" },
+        ];
+        for (const t of tests) {
+          const s = cogScores[t.key]?.score;
+          doc.text(`${t.label}: ${s != null ? s.toFixed(0) + "/100" : "Not tested"}`, margin, y); y += 7;
+        }
+        y += 7;
+      }
+
+      // ── Recent Sessions ──
+      if (dashData?.recent_sessions?.length > 0) {
+        doc.setTextColor(107, 158, 255); // #6B9EFF - Primary blue
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text("Recent Sessions", margin, y); y += 8;
+        doc.setDrawColor(107, 158, 255); // #6B9EFF - Primary blue
+        doc.line(margin, y, W - margin, y); y += 8;
+
+        doc.setTextColor(50, 50, 50);
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.text("Date", margin, y);
+        doc.text("Type", margin + 40, y);
+        doc.text("Duration", margin + 80, y);
+        doc.text("Score", margin + 120, y);
+        y += 6;
+        doc.setFont("helvetica", "normal");
+
+        for (const s of dashData.recent_sessions.slice(0, 8)) {
+          if (y > 260) { doc.addPage(); y = margin; }
+          doc.text(new Date(s.started_at).toLocaleDateString(), margin, y);
+          doc.text(s.type ?? "physical", margin + 40, y);
+          doc.text(s.duration_s ? `${Math.floor(s.duration_s / 60)}m` : "—", margin + 80, y);
+          doc.text(s.recovery_score != null ? s.recovery_score.toFixed(0) : "—", margin + 120, y);
+          y += 6;
+        }
+        y += 8;
+      }
+
+      // ── AI Insights ──
+      if (insights) {
+        if (y > 220) { doc.addPage(); y = margin; }
+        doc.setTextColor(107, 158, 255); // #6B9EFF - Primary blue
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text("AI Recommendations", margin, y); y += 8;
+        doc.setDrawColor(107, 158, 255); // #6B9EFF - Primary blue
+        doc.line(margin, y, W - margin, y); y += 8;
+
+        doc.setTextColor(50, 50, 50);
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        const cleanInsights = stripMarkdown(insights);
+        const lines = doc.splitTextToSize(cleanInsights, W - margin * 2);
+        for (const line of lines) {
+          if (y > 270) { doc.addPage(); y = margin; }
+          doc.text(line, margin, y); y += 5.5;
+        }
+        y += 8;
+      }
+
+      // ── Footer ──
+      const pageCount = doc.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text("NeuroRestore AI · Not a substitute for professional medical advice", margin, 290);
+        doc.text(`Page ${i} of ${pageCount}`, W - margin - 20, 290);
+      }
+
+      doc.save(`NeuroRestore_Report_${new Date().toISOString().split("T")[0]}.pdf`);
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+      alert("PDF generation failed. Please try again.");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  if (!token) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#0B1F2E", display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 64 }}>
+        <div style={{ textAlign: "center" }}>
+          <p style={{ color: "rgba(232,244,240,0.6)", marginBottom: 16 }}>Please sign in to view reports.</p>
+          <button onClick={() => router.push("/auth")} className="btn-solid">Sign In</button>
+        </div>
+      </div>
+    );
+  }
+
+  const score = dashData?.latest_recovery_score;
+  const scoreColor = score == null ? "#6b7280" : score >= 70 ? "#6B9EFF" : score >= 50 ? "#6B9EFF" : "#6B9EFF";
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#0B1F2E", color: "#e8f4f0", paddingTop: 64 }}>
+      <div className="W" style={{ paddingTop: 32, paddingBottom: 56 }}>
+
+        {/* Header */}
+        <div style={{ marginBottom: 32 }}>
+          <div className="pill" style={{ marginBottom: 16 }}>📄 Reports</div>
+          <h1 style={{ fontSize: "clamp(24px,3.5vw,38px)", fontWeight: 800, letterSpacing: "-.025em", marginBottom: 8 }}>
+            Your Rehabilitation Report
+          </h1>
+          <p style={{ fontSize: 14, color: "rgba(232,244,240,0.45)" }}>
+            Download a comprehensive PDF report of your progress and AI recommendations.
+          </p>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 20, alignItems: "start" }} className="report-grid">
+
+          {/* Report preview */}
+          <div style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 20, overflow: "hidden" }}>
+            {/* Report header preview */}
+            <div style={{ background: "#0B1F2E", padding: "28px 28px 20px", borderBottom: "1px solid rgba(15,255,197,0.1)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 7, background: "rgba(15,255,197,0.1)", border: "1px solid rgba(15,255,197,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#6B9EFF" }} />
+                </div>
+                <span style={{ fontWeight: 700, fontSize: 14, color: "#e8f4f0" }}>NeuroRestore<span style={{ color: "#6B9EFF" }}> AI</span></span>
+              </div>
+              <h2 style={{ fontSize: 20, fontWeight: 800, color: "#e8f4f0", marginBottom: 4 }}>Rehabilitation Report</h2>
+              <p style={{ fontSize: 12, color: "rgba(232,244,240,0.4)" }}>
+                {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })} · {dashData?.user?.name ?? user?.full_name}
+              </p>
+            </div>
+
+            <div style={{ padding: "24px 28px" }}>
+              {/* Stats preview */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 24 }}>
+                {[
+                  { label: "Recovery Score", value: score != null ? `${score.toFixed(0)}/100` : "—", color: scoreColor },
+                  { label: "Total Sessions", value: dashData?.total_sessions ?? 0, color: "#6B9EFF" },
+                  { label: "Cognitive Tests", value: cogScores ? Object.values(cogScores).filter((v: any) => v.score !== null).length + "/4" : "0/4", color: "#7BAAFF" },
+                ].map((s) => (
+                  <div key={s.label} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "12px 14px" }}>
+                    <p style={{ fontSize: 10, color: "rgba(232,244,240,0.4)", marginBottom: 6, textTransform: "uppercase", letterSpacing: ".06em" }}>{s.label}</p>
+                    <p style={{ fontSize: 20, fontWeight: 800, color: s.color }}>{s.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* AI Insights preview */}
+              {insights ? (
+                <div style={{ background: "rgba(15,255,197,0.04)", border: "1px solid rgba(15,255,197,0.12)", borderRadius: 12, padding: "16px 18px" }}>
+                  <p style={{ fontSize: 11, color: "#6B9EFF", fontWeight: 700, marginBottom: 12, letterSpacing: ".08em", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 6 }}>
+                    <span>🤖</span> AI Recommendations
+                  </p>
+                  <RecommendationRenderer text={insights} />
+                </div>
+              ) : (
+                <div style={{ background: "rgba(255,255,255,0.02)", border: "1px dashed rgba(255,255,255,0.1)", borderRadius: 12, padding: "24px", textAlign: "center" }}>
+                  <p style={{ fontSize: 13, color: "rgba(232,244,240,0.35)" }}>Generate AI insights to include in your report</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Controls */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+            {/* Report type */}
+            <div style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "20px" }}>
+              <p style={{ fontSize: 13, fontWeight: 600, color: "#e8f4f0", marginBottom: 14 }}>Report Type</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {[
+                  { id: "overall", label: "Overall Analysis", desc: "All sessions + cognitive tests + AI insights" },
+                  { id: "session", label: "Recent Sessions", desc: "Last 10 sessions with detailed breakdown" },
+                  { id: "cognitive", label: "Cognitive Assessment", desc: "Detailed cognitive test results & trends" },
+                ].map((t) => (
+                  <button key={t.id} onClick={() => setReportType(t.id as any)} style={{
+                    padding: "12px 14px", borderRadius: 10, textAlign: "left", cursor: "pointer",
+                    background: reportType === t.id ? "rgba(15,255,197,0.08)" : "rgba(255,255,255,0.03)",
+                    border: `1px solid ${reportType === t.id ? "rgba(15,255,197,0.3)" : "rgba(255,255,255,0.07)"}`,
+                    transition: "all .2s",
+                  }}>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: reportType === t.id ? "#6B9EFF" : "#e8f4f0", marginBottom: 3 }}>{t.label}</p>
+                    <p style={{ fontSize: 11, color: "rgba(232,244,240,0.4)" }}>{t.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Generate AI insights */}
+            <button onClick={generateInsights} disabled={generating} style={{
+              padding: "14px", borderRadius: 12, fontSize: 14, fontWeight: 600,
+              background: generating ? "rgba(255,255,255,0.05)" : "rgba(245,158,11,0.1)",
+              border: `1px solid ${generating ? "rgba(255,255,255,0.1)" : "rgba(245,158,11,0.3)"}`,
+              color: generating ? "rgba(232,244,240,0.4)" : "#6B9EFF",
+              cursor: generating ? "not-allowed" : "pointer", transition: "all .2s",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            }}>
+              {generating ? (
+                <><div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(245,158,11,0.3)", borderTopColor: "#6B9EFF", animation: "spinCW .8s linear infinite" }} /> Generating…</>
+              ) : "🤖 Generate AI Insights"}
+            </button>
+
+            {/* Download PDF */}
+            <button onClick={downloadPDF} disabled={downloading} style={{
+              padding: "14px", borderRadius: 12, fontSize: 14, fontWeight: 700,
+              background: downloading ? "rgba(255,255,255,0.05)" : "#6B9EFF",
+              border: "none", color: downloading ? "rgba(232,244,240,0.4)" : "#0B1F2E",
+              cursor: downloading ? "not-allowed" : "pointer",
+              boxShadow: downloading ? "none" : "0 0 24px rgba(15,255,197,0.3)",
+              transition: "all .2s",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            }}>
+              {downloading ? (
+                <><div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(2,24,43,0.3)", borderTopColor: "#0B1F2E", animation: "spinCW .8s linear infinite" }} /> Generating PDF…</>
+              ) : "⬇ Download PDF Report"}
+            </button>
+
+            <p style={{ fontSize: 11, color: "rgba(232,244,240,0.3)", textAlign: "center" }}>
+              Professional PDF · Shareable with your doctor
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        @media (max-width: 900px) { .report-grid { grid-template-columns: 1fr !important; } }
+      `}</style>
+    </div>
+  );
+}

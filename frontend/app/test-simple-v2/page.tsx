@@ -15,7 +15,7 @@ export default function TestSimpleV2Page() {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "#000",
+      background: "#0B1F2E",
       padding: 32,
       color: "#FFF"
     }}>

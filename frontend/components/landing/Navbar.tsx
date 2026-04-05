@@ -42,6 +42,7 @@ export default function Navbar() {
   const navLinks = isLoggedIn ? [
     { label: t("nav.dashboard"),  href: "/dashboard" },
     { label: t("nav.sessions"),   href: "/session" },
+    { label: "Exercises",         href: "/exercises" },
     { label: t("nav.cognitive"),  href: "/cognitive-tests" },
     { label: t("nav.chatbot"),    href: "/chatbot" },
   ] : [
@@ -64,46 +65,67 @@ export default function Navbar() {
   return (
     <nav style={{
       position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
-      height: 64,
-      background: scrolled ? "rgba(2,24,43,.96)" : "rgba(2,24,43,.6)",
-      backdropFilter: "blur(20px)",
-      borderBottom: `1px solid ${scrolled ? "rgba(15,255,197,.1)" : "rgba(15,255,197,.05)"}`,
-      transition: "background .3s, border-color .3s",
+      height: 72,
+      background: scrolled ? "rgba(11,31,46,.98)" : "rgba(11,31,46,.92)",
+      backdropFilter: "blur(24px)",
+      borderBottom: `1px solid ${scrolled ? "#1A3447" : "rgba(26,52,71,.5)"}`,
+      transition: "all .3s cubic-bezier(.4,0,.2,1)",
+      boxShadow: scrolled ? "0 4px 20px rgba(0,0,0,.3)" : "none",
     }}>
       {/* Top accent line */}
-      <div style={{ height: 1, background: "linear-gradient(90deg,transparent,rgba(15,255,197,.35),transparent)" }} />
+      <div style={{ height: 2, background: "#6B9EFF", opacity: scrolled ? .6 : .4, transition: "opacity .3s" }} />
 
-      <div className="W" style={{ height: "calc(100% - 1px)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div className="W" style={{ height: "calc(100% - 2px)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
 
         {/* Logo */}
-        <Link href={isLoggedIn ? "/dashboard" : "/"} style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", flexShrink: 0 }}>
+        <Link href={isLoggedIn ? "/dashboard" : "/"} style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", flexShrink: 0 }}>
           <div style={{
-            width: 32, height: 32, borderRadius: 9,
-            background: "rgba(15,255,197,.1)", border: "1px solid rgba(15,255,197,.25)",
+            width: 40, height: 40, borderRadius: 12,
+            background: "#6B9EFF15",
+            border: "2px solid #6B9EFF40",
             display: "flex", alignItems: "center", justifyContent: "center",
-          }} className="a-border">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <circle cx="7" cy="7" r="2.5" fill="#0fffc5" style={{ filter: "drop-shadow(0 0 4px #0fffc5)" }} />
-              <path d="M7 1.5v2M7 10.5v2M1.5 7h2M10.5 7h2" stroke="#0fffc5" strokeWidth="1.2" strokeLinecap="round" opacity=".5"/>
+            transition: "all .3s",
+          }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(1.1) rotate(5deg)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(1) rotate(0deg)"; }}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="3" fill="#6B9EFF" style={{ filter: "drop-shadow(0 0 4px #6B9EFF)" }} />
+              <path d="M8 2v2M8 12v2M2 8h2M12 8h2" stroke="#6B9EFF" strokeWidth="1.5" strokeLinecap="round" opacity=".6"/>
             </svg>
           </div>
-          <span style={{ fontWeight: 700, fontSize: 15, color: "#e8f4f0", letterSpacing: "-.015em" }}>
-            Neuro<span style={{ color: "#0fffc5" }}>Restore</span>
+          <span style={{ fontWeight: 800, fontSize: 17, color: "#FFFFFF", letterSpacing: "-.02em" }}>
+            Neuro<span style={{ color: "#6B9EFF" }}>Restore</span>
           </span>
         </Link>
 
         {/* Desktop nav links */}
-        <div className="hidden md:flex" style={{ alignItems: "center", gap: 2 }}>
+        <div className="hidden md:flex" style={{ alignItems: "center", gap: 4 }}>
           {navLinks.map((l) => (
             <Link key={l.href} href={l.href} style={{
-              fontSize: 14, fontWeight: 500, padding: "6px 13px", borderRadius: 8,
+              fontSize: 15, fontWeight: 600, padding: "10px 18px", borderRadius: 10,
               textDecoration: "none",
-              color: isActive(l.href) ? "#0fffc5" : "rgba(232,244,240,.55)",
-              background: isActive(l.href) ? "rgba(15,255,197,.08)" : "transparent",
-              transition: "all .18s",
+              color: isActive(l.href) ? "#6B9EFF" : "rgba(255,255,255,0.7)",
+              background: isActive(l.href) ? "rgba(107,158,255,.1)" : "transparent",
+              transition: "all .3s cubic-bezier(.4,0,.2,1)",
+              position: "relative",
             }}
-              onMouseEnter={(e) => { if (!isActive(l.href)) { const el = e.currentTarget as HTMLElement; el.style.color = "rgba(232,244,240,.9)"; el.style.background = "rgba(255,255,255,.04)"; } }}
-              onMouseLeave={(e) => { if (!isActive(l.href)) { const el = e.currentTarget as HTMLElement; el.style.color = "rgba(232,244,240,.55)"; el.style.background = "transparent"; } }}
+              onMouseEnter={(e) => { 
+                if (!isActive(l.href)) { 
+                  const el = e.currentTarget as HTMLElement; 
+                  el.style.color = "#FFFFFF"; 
+                  el.style.background = "#1A3447"; 
+                  el.style.transform = "translateY(-2px)";
+                } 
+              }}
+              onMouseLeave={(e) => { 
+                if (!isActive(l.href)) { 
+                  const el = e.currentTarget as HTMLElement; 
+                  el.style.color = "rgba(255,255,255,0.7)"; 
+                  el.style.background = "transparent"; 
+                  el.style.transform = "translateY(0)";
+                } 
+              }}
             >{l.label}</Link>
           ))}
         </div>
@@ -117,24 +139,24 @@ export default function Navbar() {
               <button onClick={() => setDropOpen(!dropOpen)} style={{
                 display: "flex", alignItems: "center", gap: 8,
                 padding: "6px 12px 6px 6px", borderRadius: 10,
-                background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.1)",
+                background: "#1A3447", border: "1px solid #243B4E",
                 cursor: "pointer", transition: "all .2s",
               }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(15,255,197,.3)"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,.1)"; }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "#6B9EFF"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "#1A3447"; }}
               >
                 {/* Avatar */}
                 <div style={{
                   width: 28, height: 28, borderRadius: "50%",
-                  background: "rgba(15,255,197,.15)", border: "1.5px solid rgba(15,255,197,.4)",
+                  background: "#6B9EFF20", border: "1.5px solid #6B9EFF",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 11, fontWeight: 700, color: "#0fffc5",
+                  fontSize: 11, fontWeight: 700, color: "#6B9EFF",
                 }}>{initials}</div>
-                <span style={{ fontSize: 13, color: "rgba(232,244,240,.8)", maxWidth: 100, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <span style={{ fontSize: 13, color: "#FFFFFF", maxWidth: 100, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {user?.full_name?.split(" ")[0] ?? "User"}
                 </span>
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transition: "transform .2s", transform: dropOpen ? "rotate(180deg)" : "none" }}>
-                  <path d="M2 4l4 4 4-4" stroke="rgba(232,244,240,.5)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M2 4l4 4 4-4" stroke="rgba(255,255,255,0.7)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </button>
 
@@ -142,20 +164,21 @@ export default function Navbar() {
               {dropOpen && (
                 <div style={{
                   position: "absolute", right: 0, top: "calc(100% + 8px)",
-                  width: 200, background: "#031e35",
-                  border: "1px solid rgba(15,255,197,.15)", borderRadius: 14,
-                  boxShadow: "0 20px 60px rgba(0,0,0,.5)",
+                  width: 200, background: "#1A3447",
+                  border: "1px solid #243B4E", borderRadius: 14,
+                  boxShadow: "0 20px 60px rgba(0,0,0,.3)",
                   overflow: "hidden", zIndex: 200,
                 }}>
                   {/* User info */}
-                  <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid rgba(255,255,255,.06)" }}>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: "#e8f4f0" }}>{user?.full_name}</p>
-                    <p style={{ fontSize: 11, color: "rgba(232,244,240,.4)", marginTop: 2 }}>{user?.email}</p>
+                  <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #1A3447" }}>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: "#FFFFFF" }}>{user?.full_name}</p>
+                    <p style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>{user?.email}</p>
                   </div>
 
                   {[
                     { icon: "👤", label: "Profile",          href: "/profile" },
                     { icon: "📊", label: "Progress Tracking", href: "/dashboard" },
+                    { icon: "🏋️", label: "Exercises",        href: "/exercises" },
                     { icon: "📋", label: "History",           href: "/history" },
                     { icon: "📄", label: "Reports",           href: "/reports" },
                     { icon: "💬", label: "AI Chatbot",        href: "/chatbot" },
@@ -163,21 +186,21 @@ export default function Navbar() {
                     <Link key={item.href} href={item.href} onClick={() => setDropOpen(false)} style={{
                       display: "flex", alignItems: "center", gap: 10,
                       padding: "10px 16px", fontSize: 13,
-                      color: "rgba(232,244,240,.65)", textDecoration: "none",
+                      color: "rgba(255,255,255,0.7)", textDecoration: "none",
                       transition: "background .15s, color .15s",
                     }}
-                      onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(255,255,255,.05)"; el.style.color = "#e8f4f0"; }}
-                      onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = "transparent"; el.style.color = "rgba(232,244,240,.65)"; }}
+                      onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = "#1A3447"; el.style.color = "#FFFFFF"; }}
+                      onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = "transparent"; el.style.color = "rgba(255,255,255,0.7)"; }}
                     >
                       <span style={{ fontSize: 15 }}>{item.icon}</span>
                       {item.label}
                     </Link>
                   ))}
 
-                  <div style={{ height: 1, background: "rgba(255,255,255,.06)", margin: "4px 0" }} />
+                  <div style={{ height: 1, background: "#243B4E", margin: "4px 0" }} />
                   <button onClick={handleLogout} style={{
                     width: "100%", display: "flex", alignItems: "center", gap: 10,
-                    padding: "10px 16px", fontSize: 13, color: "#ef4444",
+                    padding: "10px 16px", fontSize: 13, color: "#6B9EFF",
                     background: "none", border: "none", cursor: "pointer",
                     transition: "background .15s",
                   }}
@@ -194,11 +217,11 @@ export default function Navbar() {
             <>
               <Link href="/auth" style={{
                 fontSize: 13, fontWeight: 500, padding: "7px 16px", borderRadius: 8,
-                color: "rgba(232,244,240,.6)", textDecoration: "none",
-                border: "1px solid rgba(15,255,197,.12)", transition: "all .18s",
+                color: "rgba(255,255,255,0.7)", textDecoration: "none",
+                border: "1px solid #1A3447", transition: "all .18s",
               }}
-                onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.color = "#0fffc5"; el.style.borderColor = "rgba(15,255,197,.35)"; el.style.background = "rgba(15,255,197,.04)"; }}
-                onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.color = "rgba(232,244,240,.6)"; el.style.borderColor = "rgba(15,255,197,.12)"; el.style.background = "transparent"; }}
+                onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.color = "#6B9EFF"; el.style.borderColor = "#6B9EFF"; el.style.background = "rgba(0,94,184,.04)"; }}
+                onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.color = "rgba(255,255,255,0.7)"; el.style.borderColor = "#1A3447"; el.style.background = "transparent"; }}
               >Sign in</Link>
               <Link href="/auth" className="btn-solid" style={{ padding: "8px 18px", fontSize: 13, borderRadius: 8 }}>
                 Get started
@@ -212,7 +235,7 @@ export default function Navbar() {
           <div style={{ width: 22, display: "flex", flexDirection: "column", gap: 5 }}>
             {[0, 1, 2].map((i) => (
               <span key={i} style={{
-                display: "block", height: 1.5, background: "#0fffc5", borderRadius: 1,
+                display: "block", height: 1.5, background: "#6B9EFF", borderRadius: 1,
                 transition: "all .25s",
                 transform: mobileOpen ? (i === 0 ? "rotate(45deg) translateY(6.5px)" : i === 2 ? "rotate(-45deg) translateY(-6.5px)" : "scaleX(0)") : "none",
                 opacity: mobileOpen && i === 1 ? 0 : 1,
@@ -224,27 +247,27 @@ export default function Navbar() {
 
       {/* Mobile menu */}
       {mobileOpen && (
-        <div style={{ background: "rgba(2,24,43,.98)", borderBottom: "1px solid rgba(15,255,197,.08)", padding: "8px 0 20px" }}>
+        <div style={{ background: "#1A3447", borderBottom: "1px solid #243B4E", padding: "8px 0 20px" }}>
           <div className="W" style={{ display: "flex", flexDirection: "column" }}>
             {navLinks.map((l) => (
               <Link key={l.href} href={l.href} onClick={() => setMobileOpen(false)} style={{
                 fontSize: 15, fontWeight: 500, padding: "12px 0",
-                color: isActive(l.href) ? "#0fffc5" : "rgba(232,244,240,.65)",
-                textDecoration: "none", borderBottom: "1px solid rgba(15,255,197,.05)",
+                color: isActive(l.href) ? "#6B9EFF" : "rgba(255,255,255,0.7)",
+                textDecoration: "none", borderBottom: "1px solid #243B4E",
               }}>{l.label}</Link>
             ))}
             {isLoggedIn ? (
               <>
                 {["/profile", "/history", "/reports"].map((href) => (
                   <Link key={href} href={href} onClick={() => setMobileOpen(false)} style={{
-                    fontSize: 14, padding: "10px 0", color: "rgba(232,244,240,.5)",
-                    textDecoration: "none", borderBottom: "1px solid rgba(15,255,197,.04)",
+                    fontSize: 14, padding: "10px 0", color: "rgba(255,255,255,0.7)",
+                    textDecoration: "none", borderBottom: "1px solid #243B4E",
                   }}>{href.replace("/", "").replace("-", " ")}</Link>
                 ))}
                 <button onClick={handleLogout} style={{
                   marginTop: 12, padding: "11px 0", borderRadius: 10, fontSize: 14,
                   background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.25)",
-                  color: "#ef4444", cursor: "pointer",
+                  color: "#6B9EFF", cursor: "pointer",
                 }}>Sign out</button>
               </>
             ) : (

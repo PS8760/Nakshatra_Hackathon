@@ -2,7 +2,7 @@ from fastapi import FastAPI, WebSocket, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import engine, Base
-from app.routers import auth, sessions, analytics, cognitive, ai as ai_router, referral as referral_router, progress, pose as pose_router, exercises as exercises_router
+from app.routers import auth, sessions, analytics, cognitive, ai as ai_router, referral as referral_router, progress, training
 from app.ws_handler import handle_session_ws
 from app import models
 
@@ -31,8 +31,7 @@ app.include_router(cognitive.router)
 app.include_router(ai_router.router)
 app.include_router(referral_router.router)
 app.include_router(progress.router)
-app.include_router(pose_router.router)
-app.include_router(exercises_router.router)
+app.include_router(training.router)
 
 
 @app.get("/health")

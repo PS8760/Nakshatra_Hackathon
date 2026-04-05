@@ -19,107 +19,129 @@ function Counter({ to, suffix = "" }: { to: number; suffix?: string }) {
   return <span ref={ref}>{n.toLocaleString()}{suffix}</span>;
 }
 
-/* ── Particle canvas ──────────────────────────────────────────────────────── */
-function Particles() {
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const c = ref.current; if (!c) return;
-    const ctx = c.getContext("2d")!;
-    let W = c.width = window.innerWidth, H = c.height = window.innerHeight;
-    window.addEventListener("resize", () => { W = c.width = window.innerWidth; H = c.height = window.innerHeight; }, { passive: true });
-    const pts = Array.from({ length: 45 }, () => ({
-      x: Math.random() * W, y: Math.random() * H,
-      vx: (Math.random() - .5) * .22, vy: (Math.random() - .5) * .22,
-      r: Math.random() * 1.2 + .3, a: Math.random() * .4 + .08,
-    }));
-    let raf: number;
-    const draw = () => {
-      ctx.clearRect(0, 0, W, H);
-      for (const p of pts) {
-        p.x = (p.x + p.vx + W) % W; p.y = (p.y + p.vy + H) % H;
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(15,255,197,${p.a})`; ctx.fill();
-      }
-      for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
-        const dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y, d = Math.sqrt(dx * dx + dy * dy);
-        if (d < 100) { ctx.beginPath(); ctx.moveTo(pts[i].x, pts[i].y); ctx.lineTo(pts[j].x, pts[j].y); ctx.strokeStyle = `rgba(15,255,197,${(1 - d / 100) * .055})`; ctx.lineWidth = .5; ctx.stroke(); }
-      }
-      raf = requestAnimationFrame(draw);
-    };
-    draw();
-    return () => cancelAnimationFrame(raf);
-  }, []);
-  return <canvas ref={ref} style={{ position: "absolute", inset: 0, pointerEvents: "none" }} />;
-}
 
-/* ── Floating skeleton SVG ────────────────────────────────────────────────── */
-function SkeletonViz() {
+
+/* ── Healthcare Image Component ───────────────────────────────────────────── */
+function HealthcareImage() {
   return (
-      <div className="a-floatY" style={{ position: "relative", width: 280, height: 340 }}>
-      {/* Glow behind */}
+    <div className="a-floatY" style={{ 
+      position: "relative", 
+      width: "100%",
+      maxWidth: 500,
+    }}>
+      {/* Colorful glow behind */}
       <div style={{
-        position: "absolute", inset: -40, borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(15,255,197,.12) 0%, transparent 70%)",
-        filter: "blur(20px)",
+        position: "absolute", 
+        inset: -30, 
+        borderRadius: "50%",
+        background: "rgba(74,127,255,.2)",
+        filter: "blur(40px)",
+        zIndex: 0,
       }} />
-      <svg width="280" height="340" viewBox="0 0 280 340" fill="none" style={{ position: "relative", zIndex: 1 }}>
-        {/* Body skeleton */}
-        <circle cx="140" cy="40" r="22" stroke="#0fffc5" strokeWidth="1.5" opacity=".7" style={{ filter: "drop-shadow(0 0 6px #0fffc5)" }} />
-        {/* Spine */}
-        <line x1="140" y1="62" x2="140" y2="160" stroke="#0fffc5" strokeWidth="1.5" opacity=".5" />
-        {/* Shoulders */}
-        <line x1="80" y1="90" x2="200" y2="90" stroke="#0fffc5" strokeWidth="1.5" opacity=".6" />
-        {/* Left arm */}
-        <line x1="80" y1="90" x2="55" y2="155" stroke="#0fffc5" strokeWidth="1.5" opacity=".5" />
-        <line x1="55" y1="155" x2="40" y2="210" stroke="#0fffc5" strokeWidth="1.5" opacity=".4" />
-        {/* Right arm */}
-        <line x1="200" y1="90" x2="225" y2="155" stroke="#0fffc5" strokeWidth="1.5" opacity=".5" />
-        <line x1="225" y1="155" x2="240" y2="210" stroke="#0fffc5" strokeWidth="1.5" opacity=".4" />
-        {/* Hips */}
-        <line x1="100" y1="160" x2="180" y2="160" stroke="#0fffc5" strokeWidth="1.5" opacity=".6" />
-        {/* Left leg */}
-        <line x1="110" y1="160" x2="100" y2="245" stroke="#0fffc5" strokeWidth="1.5" opacity=".5" />
-        <line x1="100" y1="245" x2="95" y2="320" stroke="#0fffc5" strokeWidth="1.5" opacity=".4" />
-        {/* Right leg */}
-        <line x1="170" y1="160" x2="180" y2="245" stroke="#0fffc5" strokeWidth="1.5" opacity=".5" />
-        <line x1="180" y1="245" x2="185" y2="320" stroke="#0fffc5" strokeWidth="1.5" opacity=".4" />
-
-        {/* Joint dots */}
-        {[
-          [140, 40], [80, 90], [200, 90], [55, 155], [225, 155],
-          [40, 210], [240, 210], [140, 160], [100, 245], [180, 245],
-          [95, 320], [185, 320],
-        ].map(([cx, cy], i) => (
-          <circle key={i} cx={cx} cy={cy} r={i === 0 ? 0 : 5} fill="#0fffc5" opacity={.8}
-            style={{ filter: "drop-shadow(0 0 4px #0fffc5)" }} />
-        ))}
-
-        {/* Angle arc on knee */}
-        <path d="M 100 245 A 30 30 0 0 1 130 230" stroke="#0fffc5" strokeWidth="1.5" fill="none" opacity=".6" strokeDasharray="4 2" />
-        <text x="115" y="222" fill="#0fffc5" fontSize="11" fontFamily="monospace" opacity=".8">124°</text>
-
-        {/* Status indicator */}
-        <circle cx="100" cy="245" r="8" fill="none" stroke="#0fffc5" strokeWidth="2" opacity=".9" style={{ filter: "drop-shadow(0 0 6px #0fffc5)" }} />
-      </svg>
-
-      {/* Floating data chips */}
+      
+      {/* Image container with colorful border */}
       <div style={{
-        position: "absolute", top: 60, right: -20,
-        background: "rgba(2,24,43,.9)", border: "1px solid rgba(15,255,197,.3)",
-        borderRadius: 8, padding: "6px 10px", fontSize: 11, fontFamily: "monospace",
-        color: "#0fffc5", backdropFilter: "blur(8px)",
-        boxShadow: "0 0 16px rgba(15,255,197,.15)",
+        width: "100%", 
+        aspectRatio: "4/3",
+        background: "rgba(74,127,255,0.08)",
+        border: "3px solid #6B9EFF",
+        borderRadius: 24, 
+        position: "relative", 
+        overflow: "hidden",
+        boxShadow: "0 20px 60px rgba(74,127,255,0.3)",
+        zIndex: 1,
+      }}>
+        {/* Healthcare/Rehabilitation image */}
+        <img 
+          src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&h=600&fit=crop&q=80"
+          alt="AI-Powered Rehabilitation"
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            display: "block",
+          }}
+          onError={(e) => {
+            // Fallback to a different rehabilitation image if the first one fails
+            (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=800&h=600&fit=crop&q=80";
+          }}
+        />
+
+        {/* Overlay */}
+        <div style={{
+          position: "absolute",
+          inset: 0,
+          background: "rgba(0,0,0,0.2)",
+          pointerEvents: "none",
+        }} />
+
+        {/* Animated corner accents */}
+        <div style={{
+          position: "absolute", top: 20, left: 20,
+          width: 40, height: 40,
+          border: "3px solid #6B9EFF",
+          borderRight: "none", borderBottom: "none",
+          borderRadius: "8px 0 0 0",
+          animation: "pulseDot 2s ease-in-out infinite",
+        }} />
+        <div style={{
+          position: "absolute", bottom: 20, right: 20,
+          width: 40, height: 40,
+          border: "3px solid #6B9EFF",
+          borderLeft: "none", borderTop: "none",
+          borderRadius: "0 0 8px 0",
+          animation: "pulseDot 2s ease-in-out infinite 1s",
+        }} />
+
+        {/* Floating badges */}
+        <div style={{
+          position: "absolute", top: 20, right: 20,
+          padding: "8px 14px", borderRadius: 12,
+          background: "#6B9EFF", backdropFilter: "blur(8px)",
+          boxShadow: "0 4px 20px rgba(74,127,255,0.5)",
+          animation: "floatY 3s ease-in-out infinite",
+        }}>
+          <p style={{ fontSize: 11, fontWeight: 700, color: "white", letterSpacing: ".05em" }}>
+            🎯 AI-POWERED
+          </p>
+        </div>
+
+        <div style={{
+          position: "absolute", bottom: 20, left: 20,
+          padding: "8px 14px", borderRadius: 12,
+          background: "#6B9EFF", backdropFilter: "blur(8px)",
+          boxShadow: "0 4px 20px rgba(74,255,184,0.5)",
+          animation: "floatY 3s ease-in-out infinite 1.5s",
+        }}>
+          <p style={{ fontSize: 11, fontWeight: 700, color: "#0B1F2E", letterSpacing: ".05em" }}>
+            📱 ZERO HARDWARE
+          </p>
+        </div>
+      </div>
+
+      {/* Floating colorful data chips */}
+      <div style={{
+        position: "absolute", top: -10, right: -25,
+        background: "#6B9EFF", 
+        border: "2px solid rgba(255,255,255,.8)",
+        borderRadius: 12, padding: "10px 16px", fontSize: 13, fontFamily: "monospace",
+        color: "#FFFFFF", backdropFilter: "blur(12px)", fontWeight: 700,
+        boxShadow: "0 4px 20px rgba(74,127,255,.4)",
+        zIndex: 2,
       }} className="a-floatXY">
-        knee: 124°
+        33 joints tracked
       </div>
       <div style={{
-        position: "absolute", bottom: 80, left: -30,
-        background: "rgba(2,24,43,.9)", border: "1px solid rgba(15,255,197,.2)",
-        borderRadius: 8, padding: "6px 10px", fontSize: 11, fontFamily: "monospace",
-        color: "#22c55e", backdropFilter: "blur(8px)",
+        position: "absolute", bottom: -10, left: -35,
+        background: "#6B9EFF", 
+        border: "2px solid rgba(255,255,255,.8)",
+        borderRadius: 12, padding: "10px 16px", fontSize: 13, fontFamily: "monospace",
+        color: "#0B1F2E", backdropFilter: "blur(12px)", fontWeight: 700,
         animationDelay: "1s",
+        boxShadow: "0 4px 20px rgba(255,184,74,.4)",
+        zIndex: 2,
       }} className="a-floatY">
-        ✓ on target
+        Real-time analysis
       </div>
     </div>
   );
@@ -128,76 +150,79 @@ function SkeletonViz() {
 /* ── Hero ─────────────────────────────────────────────────────────────────── */
 export default function Hero() {
   const stats = [
-    { to: 100, suffix: "M+",  label: "Joint surgeries yearly" },
-    { to: 30,  suffix: "%",   label: "Re-injury rate reduced" },
-    { to: 6,   suffix: "×",   label: "More coverage per week" },
-    { to: 0,   suffix: "",    label: "Hardware required" },
+    { to: 100, suffix: "M+",  label: "Joint surgeries yearly", color: "#6B9EFF" },
+    { to: 30,  suffix: "%",   label: "Re-injury rate reduced", color: "#6B9EFF" },
+    { to: 6,   suffix: "×",   label: "More coverage per week", color: "#6B9EFF" },
+    { to: 0,   suffix: "",    label: "Hardware required", color: "#6B9EFF" },
   ];
 
   return (
     <section style={{
       position: "relative", minHeight: "100vh",
       display: "flex", alignItems: "center",
-      overflow: "hidden", background: "#02182b",
+      overflow: "hidden", 
+      background: "#0B1F2E",
+      paddingTop: 100,
+      paddingBottom: 80,
     }}>
-      <div className="grid-bg" style={{ position: "absolute", inset: 0, opacity: .55 }} />
-      <Particles />
-
-      {/* Spotlight */}
-      <div style={{
-        position: "absolute", inset: 0, pointerEvents: "none",
-        background: "radial-gradient(ellipse 70% 60% at 50% 38%, rgba(15,255,197,.07) 0%, transparent 65%)",
-      }} />
-
-      {/* Orbs */}
-      <div className="orb orb-l a-floatXY" />
-      <div className="orb orb-r a-floatY" style={{ animationDelay: "2s" }} />
+      {/* No grid, no particles, no orbs - plain dark blue background */}
 
       <div className="W hero-grid" style={{
         position: "relative", zIndex: 10,
-        paddingTop: "clamp(110px,15vw,180px)",
-        paddingBottom: "clamp(80px,10vw,130px)",
+        paddingTop: "clamp(60px,10vw,100px)",
+        paddingBottom: "clamp(80px,12vw,120px)",
         display: "grid",
         gridTemplateColumns: "1fr auto",
-        gap: "clamp(40px,6vw,100px)",
+        gap: "clamp(60px,10vw,140px)",
         alignItems: "center",
       }}>
 
         {/* Left — text */}
         <div>
           {/* Eyebrow */}
-          <div className="pill a-border" style={{ marginBottom: 32 }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#0fffc5", flexShrink: 0 }} className="a-pulse" />
+          <div className="pill" style={{ 
+            marginBottom: 40, 
+            cursor: "default", 
+            animation: "fadeUp 0.8s cubic-bezier(0.22,1,0.36,1) 0.2s backwards",
+            fontSize: 12,
+            padding: "12px 24px",
+          }}>
+            <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#FFFFFF", flexShrink: 0 }} className="a-pulse" />
             Nakshatra Hackathon 2026 · Healthcare Track
           </div>
 
           {/* Headline */}
           <h1 style={{
-            fontSize: "clamp(44px,7.5vw,88px)",
-            fontWeight: 900, letterSpacing: "-.04em", lineHeight: 1.0,
-            marginBottom: 28,
+            fontSize: "clamp(56px,10vw,104px)",
+            fontWeight: 900, letterSpacing: "-.04em", lineHeight: 1.05,
+            marginBottom: 44,
           }}>
-            <span style={{ color: "#e8f4f0", display: "block" }}>Rehab that</span>
-            <span className="g-text" style={{ display: "block" }}>never sleeps.</span>
+            <span style={{ color: "#FFFFFF", display: "block", animation: "fadeUp 0.8s cubic-bezier(0.22,1,0.36,1) 0.3s backwards" }}>
+              Rehab that
+            </span>
+            <span className="g-text" style={{ display: "block", animation: "fadeUp 0.8s cubic-bezier(0.22,1,0.36,1) 0.4s backwards" }}>
+              never sleeps.
+            </span>
           </h1>
 
           <p style={{
-            fontSize: "clamp(15px,1.8vw,18px)", lineHeight: 1.75,
-            color: "rgba(232,244,240,.5)", maxWidth: 480, marginBottom: 44,
+            fontSize: "clamp(18px,2.4vw,24px)", lineHeight: 1.7,
+            color: "rgba(255,255,255,0.7)", maxWidth: 600, marginBottom: 60,
+            animation: "fadeUp 0.8s cubic-bezier(0.22,1,0.36,1) 0.5s backwards"
           }}>
             AI-powered physical joint recovery and cognitive rehabilitation.
-            Real-time. Any device. Zero hardware.
+            Real-time pose tracking. Any device. Zero hardware.
           </p>
 
           {/* CTAs */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 64 }}>
-            <Link href="/auth" className="btn-solid" style={{ fontSize: 15, padding: "14px 32px" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 20, marginBottom: 100, animation: "fadeUp 0.8s cubic-bezier(0.22,1,0.36,1) 0.6s backwards" }}>
+            <Link href="/auth" className="btn-solid" style={{ fontSize: 18, padding: "22px 48px" }}>
               Start for free
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M3 8h10M9 4l4 4-4 4" stroke="#02182b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M4 10h12M11 5l5 5-5 5" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </Link>
-            <Link href="/features" className="btn-outline" style={{ fontSize: 15, padding: "14px 32px" }}>
+            <Link href="/features" className="btn-outline" style={{ fontSize: 18, padding: "22px 48px" }}>
               See features
             </Link>
           </div>
@@ -205,45 +230,82 @@ export default function Hero() {
           {/* Stats */}
           <div style={{
             display: "grid", gridTemplateColumns: "repeat(4,1fr)",
-            borderTop: "1px solid rgba(15,255,197,.08)",
-            paddingTop: 28,
+            gap: 28,
+            animation: "fadeUp 0.8s cubic-bezier(0.22,1,0.36,1) 0.7s backwards"
           }} className="stats-row">
-            {stats.map((s, i) => (
+            {stats.map((s) => (
               <div key={s.label} style={{
-                paddingRight: 20,
-                borderRight: i < 3 ? "1px solid rgba(15,255,197,.07)" : "none",
-                paddingLeft: i > 0 ? 20 : 0,
-              }}>
-                <p className="g-text" style={{ fontSize: "clamp(22px,3vw,32px)", fontWeight: 800, lineHeight: 1, marginBottom: 5 }}>
+                padding: "36px 32px",
+                background: "#1A3447",
+                borderRadius: 16,
+                border: `2px solid ${s.color}`,
+                boxShadow: `0 6px 24px ${s.color}30`,
+                transition: "all .3s cubic-bezier(.4,0,.2,1)",
+                cursor: "default",
+                minHeight: 180,
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+              }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.transform = "translateY(-8px) scale(1.05)";
+                  (e.currentTarget as HTMLElement).style.boxShadow = `0 12px 40px ${s.color}50`;
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.transform = "translateY(0) scale(1)";
+                  (e.currentTarget as HTMLElement).style.boxShadow = `0 6px 24px ${s.color}30`;
+                }}
+              >
+                <p style={{ fontSize: "clamp(44px,6vw,60px)", fontWeight: 900, lineHeight: 1, marginBottom: 18, color: s.color }}>
                   <Counter to={s.to} suffix={s.suffix} />
                 </p>
-                <p style={{ fontSize: 11, color: "rgba(232,244,240,.36)", lineHeight: 1.4 }}>{s.label}</p>
+                <p style={{ fontSize: 15, color: "rgba(255,255,255,0.7)", lineHeight: 1.5, fontWeight: 600 }}>{s.label}</p>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Right — skeleton viz */}
-        <div className="hero-viz" style={{ flexShrink: 0 }}>
-          <SkeletonViz />
+        {/* Right — healthcare image */}
+        <div className="hero-viz" style={{ 
+          flexShrink: 0, 
+          animation: "scaleIn 0.8s cubic-bezier(0.22,1,0.36,1) 0.5s backwards",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}>
+          <HealthcareImage />
         </div>
       </div>
 
       {/* Scroll cue */}
       <div className="a-floatY" style={{
-        position: "absolute", bottom: 32, left: "50%", transform: "translateX(-50%)",
-        display: "flex", flexDirection: "column", alignItems: "center", gap: 8, opacity: .45,
+        position: "absolute", bottom: 50, left: "50%", transform: "translateX(-50%)",
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 14,
       }}>
-        <span style={{ fontSize: 9, letterSpacing: ".3em", textTransform: "uppercase", color: "#0fffc5" }}>scroll</span>
-        <div style={{ width: 1, height: 32, background: "linear-gradient(to bottom, #0fffc5, transparent)" }} />
+        <span style={{ fontSize: 11, letterSpacing: ".3em", textTransform: "uppercase", color: "#6B9EFF", fontWeight: 700 }}>scroll</span>
+        <div style={{ width: 3, height: 56, background: "#6B9EFF", borderRadius: 2 }} />
       </div>
 
       <style>{`
         @media (max-width: 768px) {
-          .hero-grid { grid-template-columns: 1fr !important; }
-          .hero-viz { display: none; }
-          .stats-row { grid-template-columns: repeat(2,1fr) !important; gap: 16px; }
-          .stats-row > div { border-right: none !important; padding-left: 0 !important; }
+          .hero-grid { 
+            grid-template-columns: 1fr !important; 
+            gap: 50px !important;
+            padding-top: 40px !important;
+            padding-bottom: 60px !important;
+          }
+          .hero-viz { 
+            width: 100%;
+            max-width: 100%;
+            padding: 0 20px;
+          }
+          .stats-row { 
+            grid-template-columns: repeat(2,1fr) !important; 
+            gap: 20px !important; 
+          }
+        }
+        @media (max-width: 480px) {
+          .stats-row { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </section>

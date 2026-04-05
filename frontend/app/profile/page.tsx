@@ -35,11 +35,11 @@ export default function ProfilePage() {
 
   const initials = user.full_name?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) ?? "U";
 
-  const trendColor = progress?.trend === "improving" ? "#22c55e" : progress?.trend === "declining" ? "#ef4444" : "#6b7280";
+  const trendColor = progress?.trend === "improving" ? "#6B9EFF" : progress?.trend === "declining" ? "#6B9EFF" : "#6b7280";
   const trendIcon = progress?.trend === "improving" ? "📈" : progress?.trend === "declining" ? "📉" : "➡️";
 
   return (
-    <div style={{ minHeight: "100vh", background: "#02182b", color: "#e8f4f0", paddingTop: 64 }}>
+    <div style={{ minHeight: "100vh", background: "#0B1F2E", color: "#e8f4f0", paddingTop: 64 }}>
       <div className="W" style={{ paddingTop: 40, paddingBottom: 56, maxWidth: 1000 }}>
 
         <div className="pill" style={{ marginBottom: 20 }}>👤 Profile</div>
@@ -56,7 +56,7 @@ export default function ProfilePage() {
             width: 80, height: 80, borderRadius: "50%",
             background: "rgba(15,255,197,0.12)", border: "2px solid rgba(15,255,197,0.35)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 28, fontWeight: 800, color: "#0fffc5",
+            fontSize: 28, fontWeight: 800, color: "#6B9EFF",
           }}>{initials}</div>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 800, color: "#e8f4f0", marginBottom: 4 }}>{user.full_name}</h1>
@@ -65,7 +65,7 @@ export default function ProfilePage() {
               fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 600,
               background: user.role === "clinician" ? "rgba(99,102,241,0.12)" : "rgba(15,255,197,0.08)",
               border: user.role === "clinician" ? "1px solid rgba(99,102,241,0.3)" : "1px solid rgba(15,255,197,0.2)",
-              color: user.role === "clinician" ? "#818cf8" : "#0fffc5",
+              color: user.role === "clinician" ? "#7BAAFF" : "#6B9EFF",
               textTransform: "capitalize",
             }}>{user.role}</span>
           </div>
@@ -73,7 +73,7 @@ export default function ProfilePage() {
 
         {loading ? (
           <div style={{ display: "flex", justifyContent: "center", padding: "60px 0" }}>
-            <div style={{ width: 36, height: 36, borderRadius: "50%", border: "3px solid rgba(15,255,197,0.2)", borderTopColor: "#0fffc5", animation: "spinCW 1s linear infinite" }} />
+            <div style={{ width: 36, height: 36, borderRadius: "50%", border: "3px solid rgba(15,255,197,0.2)", borderTopColor: "#6B9EFF", animation: "spinCW 1s linear infinite" }} />
           </div>
         ) : (
           <>
@@ -88,7 +88,7 @@ export default function ProfilePage() {
                     borderRadius: 14, padding: "18px 20px",
                   }}>
                     <p style={{ fontSize: 11, color: "rgba(232,244,240,0.4)", marginBottom: 6, textTransform: "uppercase", letterSpacing: ".06em" }}>Total Sessions</p>
-                    <p style={{ fontSize: 28, fontWeight: 800, color: "#0fffc5" }}>{progress.total_sessions}</p>
+                    <p style={{ fontSize: 28, fontWeight: 800, color: "#6B9EFF" }}>{progress.total_sessions}</p>
                   </div>
 
                   {/* Avg Score */}
@@ -98,7 +98,7 @@ export default function ProfilePage() {
                       borderRadius: 14, padding: "18px 20px",
                     }}>
                       <p style={{ fontSize: 11, color: "rgba(232,244,240,0.4)", marginBottom: 6, textTransform: "uppercase", letterSpacing: ".06em" }}>Avg Recovery Score</p>
-                      <p style={{ fontSize: 28, fontWeight: 800, color: "#0fffc5" }}>{progress.avg_recovery_score}<span style={{ fontSize: 14, color: "rgba(232,244,240,0.3)" }}>/100</span></p>
+                      <p style={{ fontSize: 28, fontWeight: 800, color: "#6B9EFF" }}>{progress.avg_recovery_score}<span style={{ fontSize: 14, color: "rgba(232,244,240,0.3)" }}>/100</span></p>
                     </div>
                   )}
 
@@ -126,7 +126,7 @@ export default function ProfilePage() {
                       <p style={{ fontSize: 11, color: "rgba(232,244,240,0.4)", marginBottom: 6, textTransform: "uppercase", letterSpacing: ".06em" }}>Current Streak</p>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <span style={{ fontSize: 24 }}>🔥</span>
-                        <span style={{ fontSize: 28, fontWeight: 800, color: "#eab308" }}>{progress.streak_days}</span>
+                        <span style={{ fontSize: 28, fontWeight: 800, color: "#6B9EFF" }}>{progress.streak_days}</span>
                         <span style={{ fontSize: 13, color: "rgba(232,244,240,0.4)" }}>days</span>
                       </div>
                     </div>
@@ -138,7 +138,7 @@ export default function ProfilePage() {
                     borderRadius: 14, padding: "18px 20px",
                   }}>
                     <p style={{ fontSize: 11, color: "rgba(232,244,240,0.4)", marginBottom: 6, textTransform: "uppercase", letterSpacing: ".06em" }}>Total Reps</p>
-                    <p style={{ fontSize: 28, fontWeight: 800, color: "#0fffc5" }}>{progress.total_reps.toLocaleString()}</p>
+                    <p style={{ fontSize: 28, fontWeight: 800, color: "#6B9EFF" }}>{progress.total_reps.toLocaleString()}</p>
                   </div>
 
                   {/* Most Improved */}
@@ -148,7 +148,7 @@ export default function ProfilePage() {
                       borderRadius: 14, padding: "18px 20px",
                     }}>
                       <p style={{ fontSize: 11, color: "rgba(232,244,240,0.4)", marginBottom: 6, textTransform: "uppercase", letterSpacing: ".06em" }}>Most Improved</p>
-                      <p style={{ fontSize: 14, fontWeight: 600, color: "#22c55e", textTransform: "capitalize" }}>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: "#6B9EFF", textTransform: "capitalize" }}>
                         {progress.most_improved_joint.joint.replace("_", " ")}
                       </p>
                       <p style={{ fontSize: 12, color: "rgba(232,244,240,0.4)", marginTop: 2 }}>
@@ -176,14 +176,14 @@ export default function ProfilePage() {
                         display: "flex", alignItems: "center", gap: 8,
                       }}>
                         <span style={{ fontSize: 20 }}>{m.icon}</span>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: "#0fffc5" }}>{m.title}</span>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "#6B9EFF" }}>{m.title}</span>
                       </div>
                     ))}
                   </div>
                   {milestones.best_recovery_score && (
                     <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.07)" }}>
                       <p style={{ fontSize: 12, color: "rgba(232,244,240,0.4)", marginBottom: 4 }}>Personal Best</p>
-                      <p style={{ fontSize: 20, fontWeight: 800, color: "#0fffc5" }}>
+                      <p style={{ fontSize: 20, fontWeight: 800, color: "#6B9EFF" }}>
                         {milestones.best_recovery_score.toFixed(0)}/100
                         <span style={{ fontSize: 12, color: "rgba(232,244,240,0.4)", fontWeight: 400, marginLeft: 8 }}>
                           {milestones.best_session_date && new Date(milestones.best_session_date).toLocaleDateString()}
@@ -200,11 +200,11 @@ export default function ProfilePage() {
         {/* Quick links */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {[
-            { icon: "📊", label: "Progress Tracking",  href: "/dashboard",        color: "#0fffc5" },
-            { icon: "📋", label: "Session History",     href: "/history",          color: "#60a5fa" },
-            { icon: "🧠", label: "Cognitive Tests",     href: "/cognitive-tests",  color: "#818cf8" },
-            { icon: "📄", label: "Download Reports",    href: "/reports",          color: "#34d399" },
-            { icon: "💬", label: "AI Chatbot",          href: "/chatbot",          color: "#f59e0b" },
+            { icon: "📊", label: "Progress Tracking",  href: "/dashboard",        color: "#6B9EFF" },
+            { icon: "📋", label: "Session History",     href: "/history",          color: "#6B9EFF" },
+            { icon: "🧠", label: "Cognitive Tests",     href: "/cognitive-tests",  color: "#7BAAFF" },
+            { icon: "📄", label: "Download Reports",    href: "/reports",          color: "#7BAAFF" },
+            { icon: "💬", label: "AI Chatbot",          href: "/chatbot",          color: "#6B9EFF" },
           ].map((item) => (
             <Link key={item.href} href={item.href} style={{
               display: "flex", alignItems: "center", gap: 14,
@@ -226,7 +226,7 @@ export default function ProfilePage() {
           <button onClick={() => { logout(); router.push("/"); }} style={{
             padding: "14px 18px", borderRadius: 14, fontSize: 14, fontWeight: 600,
             background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)",
-            color: "#ef4444", cursor: "pointer", transition: "all .2s", marginTop: 4,
+            color: "#6B9EFF", cursor: "pointer", transition: "all .2s", marginTop: 4,
             display: "flex", alignItems: "center", gap: 14,
           }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.14)"; }}

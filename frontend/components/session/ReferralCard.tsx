@@ -93,7 +93,7 @@ export default function ReferralCard({ trigger, painIntensity, postureStatus, on
         overflow: "hidden",
       }}>
         {/* Top accent line */}
-        <div style={{ height: 3, background: "linear-gradient(90deg,#ef4444,#f97316,#ef4444)" }} />
+        <div style={{ height: 3, background: "linear-gradient(90deg,#6B9EFF,#f97316,#6B9EFF)" }} />
 
         <div style={{ padding: "24px 24px 20px" }}>
           {/* Header */}
@@ -141,7 +141,7 @@ export default function ReferralCard({ trigger, painIntensity, postureStatus, on
               <div style={{
                 width: 36, height: 36, borderRadius: "50%", margin: "0 auto 12px",
                 border: "2px solid rgba(239,68,68,0.2)",
-                borderTopColor: "#ef4444",
+                borderTopColor: "#6B9EFF",
                 animation: "spinCW 0.8s linear infinite",
               }} />
               <p style={{ fontSize: 13, color: "rgba(232,244,240,0.4)" }}>Finding nearby physiotherapists…</p>
@@ -153,7 +153,7 @@ export default function ReferralCard({ trigger, painIntensity, postureStatus, on
               padding: "16px", borderRadius: 12, textAlign: "center",
               background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)",
             }}>
-              <p style={{ fontSize: 13, color: "#ef4444" }}>{error}</p>
+              <p style={{ fontSize: 13, color: "#6B9EFF" }}>{error}</p>
             </div>
           )}
 
@@ -176,7 +176,7 @@ export default function ReferralCard({ trigger, painIntensity, postureStatus, on
                     <span style={{
                       position: "absolute", top: 10, right: 10,
                       fontSize: 9, fontWeight: 700, letterSpacing: ".06em",
-                      background: "rgba(239,68,68,0.2)", color: "#ef4444",
+                      background: "rgba(239,68,68,0.2)", color: "#6B9EFF",
                       border: "1px solid rgba(239,68,68,0.3)",
                       borderRadius: 5, padding: "2px 7px",
                       textTransform: "uppercase",
@@ -201,7 +201,7 @@ export default function ReferralCard({ trigger, painIntensity, postureStatus, on
                         <span style={{
                           fontSize: 9, padding: "2px 6px", borderRadius: 4, flexShrink: 0,
                           background: p.available ? "rgba(34,197,94,0.12)" : "rgba(107,114,128,0.12)",
-                          color: p.available ? "#22c55e" : "#6b7280",
+                          color: p.available ? "#6B9EFF" : "#6b7280",
                           border: `1px solid ${p.available ? "rgba(34,197,94,0.25)" : "rgba(107,114,128,0.2)"}`,
                         }}>
                           {p.available ? "Available" : "Busy"}
@@ -218,11 +218,11 @@ export default function ReferralCard({ trigger, painIntensity, postureStatus, on
 
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <span style={{ fontSize: 11, color: "#eab308" }}>{stars(p.rating)}</span>
+                          <span style={{ fontSize: 11, color: "#6B9EFF" }}>{stars(p.rating)}</span>
                           <span style={{ fontSize: 11, color: "rgba(232,244,240,0.35)" }}>{p.rating}</span>
                           <span style={{
                             fontSize: 11, fontWeight: 700,
-                            color: p.distance_km < 2 ? "#22c55e" : p.distance_km < 5 ? "#eab308" : "#e8f4f0",
+                            color: p.distance_km < 2 ? "#6B9EFF" : p.distance_km < 5 ? "#6B9EFF" : "#e8f4f0",
                           }}>
                             📍 {p.distance_km} km
                           </span>
@@ -232,8 +232,8 @@ export default function ReferralCard({ trigger, painIntensity, postureStatus, on
                         <a href={`tel:${p.phone}`} style={{
                           display: "inline-flex", alignItems: "center", gap: 5,
                           padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 700,
-                          background: p.available ? "#0fffc5" : "rgba(255,255,255,0.06)",
-                          color: p.available ? "#02182b" : "rgba(232,244,240,0.4)",
+                          background: p.available ? "#6B9EFF" : "rgba(255,255,255,0.06)",
+                          color: p.available ? "#0B1F2E" : "rgba(232,244,240,0.4)",
                           border: p.available ? "none" : "1px solid rgba(255,255,255,0.08)",
                           textDecoration: "none",
                           cursor: p.available ? "pointer" : "default",

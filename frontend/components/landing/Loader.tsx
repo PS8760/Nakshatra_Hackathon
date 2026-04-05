@@ -41,7 +41,7 @@ export default function Loader({ onDone }: { onDone: () => void }) {
     <div
       className="fixed inset-0 z-[999] flex flex-col items-center justify-center"
       style={{
-        background: "#02182b",
+        background: "#0B1F2E",
         transition: "opacity 0.4s ease, transform 0.4s ease",
         opacity: exiting ? 0 : 1,
         transform: exiting ? "scale(1.02)" : "scale(1)",
@@ -61,7 +61,7 @@ export default function Loader({ onDone }: { onDone: () => void }) {
         <div className="absolute inset-0 rounded-full animate-spin-slow"
           style={{
             border: "1.5px solid transparent",
-            borderTopColor: "#0fffc5",
+            borderTopColor: "#6B9EFF",
             borderRightColor: "rgba(15,255,197,0.3)",
             filter: "drop-shadow(0 0 6px rgba(15,255,197,0.4))",
           }} />
@@ -88,8 +88,8 @@ export default function Loader({ onDone }: { onDone: () => void }) {
         <div className="absolute" style={{ inset: 0, animation: "orbit 9s linear infinite" }}>
           <div style={{
             width: 5, height: 5, borderRadius: "50%",
-            background: "#0fffc5",
-            boxShadow: "0 0 8px #0fffc5, 0 0 16px rgba(15,255,197,0.5)",
+            background: "#6B9EFF",
+            boxShadow: "0 0 8px #6B9EFF, 0 0 16px rgba(15,255,197,0.5)",
           }} />
         </div>
 
@@ -106,7 +106,7 @@ export default function Loader({ onDone }: { onDone: () => void }) {
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="relative">
             <div className="w-3 h-3 rounded-full animate-pulse-glow"
-              style={{ background: "#0fffc5" }} />
+              style={{ background: "#6B9EFF" }} />
             {/* Ripple */}
             <div className="absolute inset-0 rounded-full animate-ping"
               style={{ background: "rgba(15,255,197,0.3)", animationDuration: "1.5s" }} />
@@ -141,7 +141,7 @@ export default function Loader({ onDone }: { onDone: () => void }) {
             className="h-full rounded-full"
             style={{
               width: `${progress}%`,
-              background: "linear-gradient(90deg, rgba(15,255,197,0.4) 0%, #0fffc5 100%)",
+              background: "linear-gradient(90deg, rgba(15,255,197,0.4) 0%, #6B9EFF 100%)",
               boxShadow: "0 0 10px rgba(15,255,197,0.7)",
               transition: "width 0.05s linear",
             }}

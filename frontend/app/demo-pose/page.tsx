@@ -103,8 +103,8 @@ export default function DemoPosePage() {
       if (!a || !b || (a.score ?? 0) < 0.3 || (b.score ?? 0) < 0.3) continue;
       
       ctx.beginPath();
-      ctx.strokeStyle = "#0fffc5";
-      ctx.shadowColor = "#0fffc5";
+      ctx.strokeStyle = "#6B9EFF";
+      ctx.shadowColor = "#6B9EFF";
       ctx.shadowBlur = 8;
       ctx.moveTo(a.x * w, a.y * h);
       ctx.lineTo(b.x * w, b.y * h);
@@ -133,9 +133,9 @@ export default function DemoPosePage() {
 
       // Color based on body part
       let color = "#ffffff";
-      if (i >= BP.LEFT_SHOULDER && i <= BP.RIGHT_WRIST) color = "#60a5fa"; // Arms - blue
+      if (i >= BP.LEFT_SHOULDER && i <= BP.RIGHT_WRIST) color = "#6B9EFF"; // Arms - blue
       else if (i >= BP.LEFT_HIP && i <= BP.RIGHT_FOOT) color = "#f472b6"; // Legs - pink
-      else if (i <= BP.RIGHT_EAR) color = "#fbbf24"; // Face - yellow
+      else if (i <= BP.RIGHT_EAR) color = "#6B9EFF"; // Face - yellow
 
       // Draw outer glow
       ctx.beginPath();
@@ -330,7 +330,7 @@ export default function DemoPosePage() {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "linear-gradient(135deg, #02182b 0%, #0a3a5c 100%)",
+      background: "#0B1F2E",
       padding: "40px 20px",
       display: "flex",
       flexDirection: "column",
@@ -342,7 +342,7 @@ export default function DemoPosePage() {
         <h1 style={{
           fontSize: "42px",
           fontWeight: "800",
-          background: "linear-gradient(135deg, #0fffc5 0%, #60a5fa 100%)",
+          background: "linear-gradient(135deg, #6B9EFF 0%, #6B9EFF 100%)",
           WebkitBackgroundClip: "text",
           WebkitTextFillColor: "transparent",
           marginBottom: "12px",
@@ -360,10 +360,10 @@ export default function DemoPosePage() {
         position: "relative",
         width: "100%",
         maxWidth: "1000px",
-        background: "#000",
+        background: "#0B1F2E",
         borderRadius: "20px",
         overflow: "hidden",
-        border: "2px solid rgba(15,255,197,0.2)",
+        border: "2px solid rgba(107,158,255,0.2)",
         boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
       }}>
         <video 
@@ -400,7 +400,7 @@ export default function DemoPosePage() {
                 inset: 0,
                 borderRadius: "50%",
                 border: "3px solid transparent",
-                borderTopColor: "#0fffc5",
+                borderTopColor: "#6B9EFF",
                 animation: "spin 1s linear infinite",
               }} />
               <div style={{
@@ -423,7 +423,7 @@ export default function DemoPosePage() {
               </div>
             </div>
             <div style={{ textAlign: "center" }}>
-              <p style={{ color: "#0fffc5", fontSize: "16px", fontWeight: "600", marginBottom: "8px" }}>
+              <p style={{ color: "#6B9EFF", fontSize: "16px", fontWeight: "600", marginBottom: "8px" }}>
                 {loadingMsg}
               </p>
               <p style={{ color: "rgba(232,244,240,0.4)", fontSize: "13px" }}>
@@ -439,7 +439,7 @@ export default function DemoPosePage() {
               <div style={{
                 height: "100%",
                 borderRadius: "2px",
-                background: "linear-gradient(90deg, rgba(15,255,197,0.5), #0fffc5)",
+                background: "linear-gradient(90deg, rgba(15,255,197,0.5), #6B9EFF)",
                 width: `${loadingPct}%`,
                 transition: "width 0.4s ease",
                 boxShadow: "0 0 10px rgba(15,255,197,0.6)",
@@ -486,8 +486,8 @@ export default function DemoPosePage() {
                 borderRadius: "12px",
                 fontSize: "14px",
                 fontWeight: "600",
-                background: "#0fffc5",
-                color: "#02182b",
+                background: "#6B9EFF",
+                color: "#0B1F2E",
                 border: "none",
                 cursor: "pointer",
               }}
@@ -511,7 +511,7 @@ export default function DemoPosePage() {
               border: "1px solid rgba(15,255,197,0.3)",
             }}>
               <p style={{
-                color: fps >= 20 ? "#0fffc5" : "#eab308",
+                color: fps >= 20 ? "#6B9EFF" : "#6B9EFF",
                 fontSize: "24px",
                 fontWeight: "800",
                 fontFamily: "monospace",
@@ -539,7 +539,7 @@ export default function DemoPosePage() {
               border: "1px solid rgba(15,255,197,0.3)",
             }}>
               <p style={{
-                color: keypointCount >= 25 ? "#0fffc5" : keypointCount >= 15 ? "#eab308" : "#ef4444",
+                color: keypointCount >= 25 ? "#6B9EFF" : keypointCount >= 15 ? "#6B9EFF" : "#6B9EFF",
                 fontSize: "24px",
                 fontWeight: "800",
                 fontFamily: "monospace",
@@ -567,8 +567,8 @@ export default function DemoPosePage() {
                 onClick={() => setShowLabels(!showLabels)}
                 style={{
                   background: showLabels ? "rgba(15,255,197,0.2)" : "rgba(0,0,0,0.75)",
-                  border: `2px solid ${showLabels ? "#0fffc5" : "rgba(255,255,255,0.3)"}`,
-                  color: showLabels ? "#0fffc5" : "rgba(232,244,240,0.6)",
+                  border: `2px solid ${showLabels ? "#6B9EFF" : "rgba(255,255,255,0.3)"}`,
+                  color: showLabels ? "#6B9EFF" : "rgba(232,244,240,0.6)",
                   padding: "10px 20px",
                   borderRadius: "10px",
                   fontSize: "13px",
@@ -600,7 +600,7 @@ export default function DemoPosePage() {
             padding: "20px",
           }}>
             <div style={{ fontSize: "32px", marginBottom: "12px" }}>🎯</div>
-            <h3 style={{ color: "#0fffc5", fontSize: "16px", fontWeight: "700", marginBottom: "8px" }}>
+            <h3 style={{ color: "#6B9EFF", fontSize: "16px", fontWeight: "700", marginBottom: "8px" }}>
               33 Keypoints
             </h3>
             <p style={{ color: "rgba(232,244,240,0.6)", fontSize: "13px", lineHeight: "1.6" }}>
@@ -615,7 +615,7 @@ export default function DemoPosePage() {
             padding: "20px",
           }}>
             <div style={{ fontSize: "32px", marginBottom: "12px" }}>📐</div>
-            <h3 style={{ color: "#60a5fa", fontSize: "16px", fontWeight: "700", marginBottom: "8px" }}>
+            <h3 style={{ color: "#6B9EFF", fontSize: "16px", fontWeight: "700", marginBottom: "8px" }}>
               3D Coordinates
             </h3>
             <p style={{ color: "rgba(232,244,240,0.6)", fontSize: "13px", lineHeight: "1.6" }}>
