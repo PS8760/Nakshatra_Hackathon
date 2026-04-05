@@ -74,7 +74,7 @@ export function LangSwitcher() {
               width: "100%", display: "flex", alignItems: "center", gap: 8,
               padding: "9px 14px", fontSize: 13, fontWeight: 500,
               background: lang === l.code ? "rgba(15,255,197,0.1)" : "transparent",
-              color: lang === l.code ? "#0fffc5" : "rgba(232,244,240,0.65)",
+              color: lang === l.code ? "#6B9EFF" : "rgba(232,244,240,0.65)",
               border: "none", cursor: "pointer", transition: "background .15s",
               textAlign: "left",
             }}

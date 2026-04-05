@@ -16,7 +16,7 @@ export default function TestUltraSimplePage() {
     <div
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(135deg, #000 0%, #1a1a2e 100%)",
+        background: "#0B1F2E",
         padding: 32,
         color: "#FFF",
       }}

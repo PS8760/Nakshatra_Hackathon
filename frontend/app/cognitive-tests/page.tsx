@@ -10,10 +10,10 @@ import { submitCognitiveSession } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 
 const STEPS = [
-  { key: "memory",    label: "Memory",    icon: "🧩", desc: "Word recall & retention",   color: "#0fffc5" },
-  { key: "reaction",  label: "Reaction",  icon: "⚡", desc: "Response speed & timing",   color: "#6366f1" },
-  { key: "pattern",   label: "Pattern",   icon: "🔷", desc: "Sequence & visual memory",  color: "#f59e0b" },
-  { key: "attention", label: "Attention", icon: "👁️", desc: "Focus & gaze stability",    color: "#ec4899" },
+  { key: "memory",    label: "Memory",    icon: "🧩", desc: "Word recall & retention",   color: "#6B9EFF" },
+  { key: "reaction",  label: "Reaction",  icon: "⚡", desc: "Response speed & timing",   color: "#6B9EFF" },
+  { key: "pattern",   label: "Pattern",   icon: "🔷", desc: "Sequence & visual memory",  color: "#6B9EFF" },
+  { key: "attention", label: "Attention", icon: "👁️", desc: "Focus & gaze stability",    color: "#6B9EFF" },
 ];
 
 // ── Clinical thresholds (Point 4) ─────────────────────────────────────────────
@@ -38,10 +38,10 @@ function getBand(key: string, score: number): Band {
 }
 
 const BAND_META: Record<Band, { label: string; color: string; bg: string; desc: string }> = {
-  excellent:  { label: "Excellent",  color: "#22c55e", bg: "rgba(34,197,94,0.08)",   desc: "Above normative range" },
-  good:       { label: "Good",       color: "#0fffc5", bg: "rgba(15,255,197,0.08)",  desc: "Within normal range" },
-  borderline: { label: "Borderline", color: "#eab308", bg: "rgba(234,179,8,0.08)",   desc: "Monitor closely" },
-  concern:    { label: "Concern",    color: "#ef4444", bg: "rgba(239,68,68,0.08)",   desc: "Consult a clinician" },
+  excellent:  { label: "Excellent",  color: "#6B9EFF", bg: "rgba(34,197,94,0.08)",   desc: "Above normative range" },
+  good:       { label: "Good",       color: "#6B9EFF", bg: "rgba(15,255,197,0.08)",  desc: "Within normal range" },
+  borderline: { label: "Borderline", color: "#6B9EFF", bg: "rgba(234,179,8,0.08)",   desc: "Monitor closely" },
+  concern:    { label: "Concern",    color: "#6B9EFF", bg: "rgba(239,68,68,0.08)",   desc: "Consult a clinician" },
 };
 
 // ── Metric descriptions (Point 3) ─────────────────────────────────────────────
@@ -167,10 +167,10 @@ function CognitiveRadar({ scores }: { scores: Record<string, number> }) {
         const p = point(1, i);
         return <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="rgba(255,255,255,0.06)" strokeWidth={1} />;
       })}
-      <polygon points={dataPoints} fill="rgba(15,255,197,0.15)" stroke="#0fffc5" strokeWidth={1.5} />
+      <polygon points={dataPoints} fill="rgba(15,255,197,0.15)" stroke="#6B9EFF" strokeWidth={1.5} />
       {vals.map((v, i) => {
         const p = point(v, i);
-        return <circle key={i} cx={p.x} cy={p.y} r={3} fill="#0fffc5" />;
+        return <circle key={i} cx={p.x} cy={p.y} r={3} fill="#6B9EFF" />;
       })}
       {keys.map((k, i) => {
         const p = point(1.25, i);
@@ -214,7 +214,7 @@ export default function CognitiveTestsPage() {
 
   if (!token) {
     return (
-      <div style={{ minHeight: "100vh", background: "#02182b", display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 64 }}>
+      <div style={{ minHeight: "100vh", background: "#0B1F2E", display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 64 }}>
         <div style={{ textAlign: "center" }}>
           <p style={{ color: "rgba(232,244,240,0.6)", marginBottom: 16 }}>Please sign in to take cognitive tests.</p>
           <button onClick={() => router.push("/auth")} className="btn-solid">Sign In</button>
@@ -224,7 +224,7 @@ export default function CognitiveTestsPage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#02182b", color: "#e8f4f0", paddingTop: 64 }}>
+    <div style={{ minHeight: "100vh", background: "#0B1F2E", color: "#e8f4f0", paddingTop: 64 }}>
       <div style={{ position: "fixed", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
         <div className="a-floatXY" style={{ position: "absolute", top: "20%", left: "10%", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.05) 0%, transparent 70%)" }} />
         <div className="a-floatY" style={{ position: "absolute", bottom: "20%", right: "10%", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle, rgba(15,255,197,0.04) 0%, transparent 70%)", animationDelay: "2s" }} />
@@ -262,10 +262,10 @@ export default function CognitiveTestsPage() {
                     {/* Threshold legend */}
                     <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                       {[
-                        { label: `≥${t.excellent}`, color: "#22c55e", name: "Excellent" },
-                        { label: `≥${t.good}`, color: "#0fffc5", name: "Good" },
-                        { label: `≥${t.borderline}`, color: "#eab308", name: "Borderline" },
-                        { label: `<${t.borderline}`, color: "#ef4444", name: "Concern" },
+                        { label: `≥${t.excellent}`, color: "#6B9EFF", name: "Excellent" },
+                        { label: `≥${t.good}`, color: "#6B9EFF", name: "Good" },
+                        { label: `≥${t.borderline}`, color: "#6B9EFF", name: "Borderline" },
+                        { label: `<${t.borderline}`, color: "#6B9EFF", name: "Concern" },
                       ].map(th => (
                         <span key={th.name} style={{
                           fontSize: 9, padding: "2px 5px", borderRadius: 4,
@@ -300,7 +300,7 @@ export default function CognitiveTestsPage() {
                         fontSize: 16, fontWeight: 700,
                         background: i < step ? s.color : i === step ? `${s.color}20` : "rgba(255,255,255,0.05)",
                         border: i === step ? `2px solid ${s.color}` : "2px solid transparent",
-                        color: i < step ? "#02182b" : i === step ? s.color : "rgba(232,244,240,0.3)",
+                        color: i < step ? "#0B1F2E" : i === step ? s.color : "rgba(232,244,240,0.3)",
                         transition: "all .3s",
                       }}>
                       {i < step ? "✓" : s.icon}
@@ -310,7 +310,7 @@ export default function CognitiveTestsPage() {
                 ))}
               </div>
               <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" }}>
-                <motion.div style={{ height: "100%", background: `linear-gradient(90deg, #0fffc5, ${STEPS[step].color})`, borderRadius: 2 }}
+                <motion.div style={{ height: "100%", background: `linear-gradient(90deg, #6B9EFF, ${STEPS[step].color})`, borderRadius: 2 }}
                   animate={{ width: `${(step / STEPS.length) * 100 + 100 / STEPS.length}%` }} transition={{ duration: .6 }} />
               </div>
               <p style={{ textAlign: "right", fontSize: 11, color: "rgba(232,244,240,0.35)", marginTop: 6 }}>
@@ -348,7 +348,7 @@ export default function CognitiveTestsPage() {
               <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "2px solid rgba(15,255,197,0.2)", animation: "pulseDot 1.5s ease-in-out infinite" }} />
               <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36 }}>🧠</div>
             </div>
-            <p style={{ color: "#0fffc5", fontWeight: 600, fontSize: 16, marginBottom: 8 }}>Analyzing cognitive profile…</p>
+            <p style={{ color: "#6B9EFF", fontWeight: 600, fontSize: 16, marginBottom: 8 }}>Analyzing cognitive profile…</p>
             <p style={{ color: "rgba(232,244,240,0.4)", fontSize: 14 }}>Applying clinical thresholds</p>
           </motion.div>
         )}
@@ -381,7 +381,7 @@ export default function CognitiveTestsPage() {
                 <div style={{ position: "relative" }}>
                   <div style={{ height: 6, background: "rgba(255,255,255,0.06)", borderRadius: 3, overflow: "hidden" }}>
                     <motion.div initial={{ width: 0 }} animate={{ width: `${finalScore}%` }} transition={{ duration: 1.2 }}
-                      style={{ height: "100%", background: `linear-gradient(90deg, #ef4444, #eab308, #0fffc5, #22c55e)`, borderRadius: 3 }} />
+                      style={{ height: "100%", background: `linear-gradient(90deg, #6B9EFF, #6B9EFF, #6B9EFF, #6B9EFF)`, borderRadius: 3 }} />
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
                     {["Concern", "Borderline", "Good", "Excellent"].map((l, i) => (
@@ -418,7 +418,7 @@ export default function CognitiveTestsPage() {
               <button onClick={() => router.push("/chatbot")} style={{
                 padding: "13px 24px", borderRadius: 10, fontSize: 14, fontWeight: 600,
                 background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)",
-                color: "#f59e0b", cursor: "pointer",
+                color: "#6B9EFF", cursor: "pointer",
               }}>💬 Get AI Insights</button>
               <button onClick={() => { setStep(0); setScores({}); setPhase("intro"); setFinalScore(null); }} style={{
                 padding: "13px 24px", borderRadius: 10, fontSize: 14, fontWeight: 500,

@@ -306,12 +306,12 @@ export default function UltraSimplePoseCamera(props: Props) {
             gap: 20,
           }}>
             <div style={{ position: "relative", width: 72, height: 72 }}>
-              <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "2px solid transparent", borderTopColor: "#0fffc5", animation: "spinCW 1s linear infinite" }} />
+              <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "2px solid transparent", borderTopColor: "#6B9EFF", animation: "spinCW 1s linear infinite" }} />
               <div style={{ position: "absolute", inset: 8, borderRadius: "50%", border: "2px solid transparent", borderBottomColor: "rgba(15,255,197,0.5)", animation: "spinCW 1.5s linear infinite reverse" }} />
               <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>🦴</div>
             </div>
             <div style={{ textAlign: "center" }}>
-              <p style={{ color: "#0fffc5", fontSize: 14, fontWeight: 600, marginBottom: 6 }}>{status}</p>
+              <p style={{ color: "#6B9EFF", fontSize: 14, fontWeight: 600, marginBottom: 6 }}>{status}</p>
               <p style={{ color: "rgba(232,244,240,0.4)", fontSize: 12 }}>MoveNet Lightning · 17 keypoints</p>
             </div>
           </div>
@@ -326,7 +326,7 @@ export default function UltraSimplePoseCamera(props: Props) {
             background: "rgba(0, 0, 0, 0.7)",
             padding: "4px 8px",
             borderRadius: 6,
-            color: fps >= 20 ? "#0fffc5" : "#eab308",
+            color: fps >= 20 ? "#6B9EFF" : "#6B9EFF",
             fontFamily: "monospace",
             fontSize: 10,
             border: "1px solid rgba(15,255,197,0.2)",
@@ -346,8 +346,8 @@ export default function UltraSimplePoseCamera(props: Props) {
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 7, height: 7, borderRadius: "50%", background: jointCount > 0 ? "#22c55e" : "#888" }} />
-              <span style={{ fontSize: 12, color: jointCount > 0 ? "#22c55e" : "rgba(232,244,240,0.5)" }}>
+              <div style={{ width: 7, height: 7, borderRadius: "50%", background: jointCount > 0 ? "#6B9EFF" : "#888" }} />
+              <span style={{ fontSize: 12, color: jointCount > 0 ? "#6B9EFF" : "rgba(232,244,240,0.5)" }}>
                 {jointCount > 0 ? `${jointCount} joints detected` : "Move into frame"}
               </span>
             </div>

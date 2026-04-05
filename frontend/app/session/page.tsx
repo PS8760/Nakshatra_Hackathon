@@ -29,36 +29,36 @@ function PainModal({ onLog, onClose }: { onLog: (joint: string, intensity: numbe
   return (
     <div style={{
       position: "fixed", inset: 0, zIndex: 200,
-      background: "rgba(2,24,43,0.85)", backdropFilter: "blur(8px)",
+      background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)",
       display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
     }}>
       <div style={{
-        background: "#031e35", border: "1px solid rgba(15,255,197,0.2)",
+        background: "#FFFFFF", border: "1px solid var(--border)",
         borderRadius: 20, padding: "28px 28px", width: "100%", maxWidth: 360,
-        boxShadow: "0 24px 80px rgba(0,0,0,0.5)",
+        boxShadow: "0 24px 80px rgba(0,0,0,0.2)",
       }}>
         {/* Top glow */}
-        <div style={{ height: 1, background: "linear-gradient(90deg,transparent,rgba(15,255,197,.3),transparent)", marginBottom: 24 }} />
+        <div style={{ height: 1, background: "linear-gradient(90deg,transparent,rgba(239,68,68,.3),transparent)", marginBottom: 24 }} />
 
-        <h3 style={{ fontWeight: 700, fontSize: 17, color: "#e8f4f0", marginBottom: 20 }}>🚨 Log Pain Event</h3>
+        <h3 style={{ fontWeight: 700, fontSize: 17, color: "var(--text)", marginBottom: 20 }}>🚨 Log Pain Event</h3>
 
         <div style={{ marginBottom: 18 }}>
-          <label style={{ fontSize: 12, color: "rgba(232,244,240,0.5)", letterSpacing: ".06em", textTransform: "uppercase", display: "block", marginBottom: 8 }}>Joint</label>
+          <label style={{ fontSize: 12, color: "var(--text-muted)", letterSpacing: ".06em", textTransform: "uppercase", display: "block", marginBottom: 8 }}>Joint</label>
           <select value={joint} onChange={(e) => setJoint(e.target.value)} style={{
-            width: "100%", background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(15,255,197,0.15)", color: "#e8f4f0",
+            width: "100%", background: "var(--neutral)",
+            border: "1px solid var(--border)", color: "var(--text)",
             borderRadius: 10, padding: "10px 14px", fontSize: 14, outline: "none",
           }}>
-            {joints.map((j) => <option key={j} value={j} style={{ background: "#031e35" }}>{j.replace("_", " ")}</option>)}
+            {joints.map((j) => <option key={j} value={j} style={{ background: "#FFFFFF" }}>{j.replace("_", " ")}</option>)}
           </select>
         </div>
 
         <div style={{ marginBottom: 24 }}>
-          <label style={{ fontSize: 12, color: "rgba(232,244,240,0.5)", letterSpacing: ".06em", textTransform: "uppercase", display: "block", marginBottom: 8 }}>
-            Intensity: <span style={{ color: intensity >= 7 ? "#ef4444" : intensity >= 4 ? "#eab308" : "#22c55e" }}>{intensity}/10</span>
+          <label style={{ fontSize: 12, color: "var(--text-muted)", letterSpacing: ".06em", textTransform: "uppercase", display: "block", marginBottom: 8 }}>
+            Intensity: <span style={{ color: intensity >= 7 ? "#6B9EFF" : intensity >= 4 ? "#6B9EFF" : "#6B9EFF" }}>{intensity}/10</span>
           </label>
-          <input type="range" min={1} max={10} value={intensity} onChange={(e) => setIntensity(Number(e.target.value))} style={{ width: "100%", accentColor: "#0fffc5" }} />
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "rgba(232,244,240,0.3)", marginTop: 4 }}>
+          <input type="range" min={1} max={10} value={intensity} onChange={(e) => setIntensity(Number(e.target.value))} style={{ width: "100%", accentColor: "var(--primary)" }} />
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-muted)", marginTop: 4 }}>
             <span>Mild</span><span>Moderate</span><span>Severe</span>
           </div>
         </div>
@@ -66,12 +66,12 @@ function PainModal({ onLog, onClose }: { onLog: (joint: string, intensity: numbe
         <div style={{ display: "flex", gap: 10 }}>
           <button onClick={() => { onLog(joint, intensity); onClose(); }} style={{
             flex: 1, padding: "11px 0", borderRadius: 10, fontSize: 14, fontWeight: 700,
-            background: "#ef4444", color: "#fff", border: "none", cursor: "pointer",
+            background: "#6B9EFF", color: "#fff", border: "none", cursor: "pointer",
           }}>Log Pain</button>
           <button onClick={onClose} style={{
             flex: 1, padding: "11px 0", borderRadius: 10, fontSize: 14, fontWeight: 500,
-            background: "rgba(255,255,255,0.05)", color: "rgba(232,244,240,0.7)",
-            border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer",
+            background: "var(--neutral)", color: "var(--text-light)",
+            border: "1px solid var(--border)", cursor: "pointer",
           }}>Cancel</button>
         </div>
       </div>
@@ -171,22 +171,22 @@ export default function SessionPage() {
 
   if (!token) {
     return (
-      <div style={{ minHeight: "100vh", background: "#02182b", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ minHeight: "100vh", background: "#0B1F2E", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
         <div style={{ textAlign: "center" }}>
-          <p style={{ color: "rgba(232,244,240,0.6)", marginBottom: 16 }}>Please sign in to start a session.</p>
+          <p style={{ color: "rgba(255,255,255,0.7)", marginBottom: 16 }}>Please sign in to start a session.</p>
           <button onClick={() => router.push("/auth")} style={{
-            padding: "10px 24px", borderRadius: 10, background: "#0fffc5",
-            color: "#02182b", fontWeight: 700, border: "none", cursor: "pointer",
+            padding: "10px 24px", borderRadius: 10, background: "var(--primary)",
+            color: "#FFFFFF", fontWeight: 700, border: "none", cursor: "pointer",
           }}>Sign In</button>
         </div>
       </div>
     );
   }
 
-  const feedbackColor = feedback?.status === "good" ? "#22c55e" : feedback?.status === "warning" ? "#eab308" : feedback?.status === "out_of_range" ? "#ef4444" : "#0fffc5";
+  const feedbackColor = feedback?.status === "good" ? "#6B9EFF" : feedback?.status === "warning" ? "#6B9EFF" : feedback?.status === "out_of_range" ? "#6B9EFF" : "#6B9EFF";
 
   return (
-    <div style={{ minHeight: "100vh", background: "#02182b", color: "#e8f4f0", paddingTop: 64 }}>
+    <div style={{ minHeight: "100vh", background: "#0B1F2E", color: "#FFFFFF", paddingTop: 64 }}>
       {showPain && <PainModal onLog={handlePainLog} onClose={() => setShowPain(false)} />}
 
       {referral && (
@@ -200,41 +200,41 @@ export default function SessionPage() {
 
       <div className="W" style={{ paddingTop: 20, paddingBottom: 40 }}>
         {/* Back + session status bar */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <button onClick={() => router.push("/dashboard")} style={{
-              background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
-              color: "rgba(232,244,240,0.6)", borderRadius: 8, padding: "6px 12px",
+              background: "var(--neutral)", border: "1px solid var(--border)",
+              color: "var(--text-light)", borderRadius: 8, padding: "6px 12px",
               fontSize: 13, cursor: "pointer", transition: "all .2s",
             }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#e8f4f0"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(232,244,240,0.6)"; }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-light)"; }}
             >← Dashboard</button>
             <div>
-              <p style={{ fontWeight: 700, fontSize: 15, color: "#e8f4f0" }}>Physical Rehabilitation</p>
-              <p style={{ fontSize: 11, color: "rgba(232,244,240,0.4)" }}>Track A — Joint Recovery</p>
+              <p style={{ fontWeight: 700, fontSize: 15, color: "var(--text)" }}>Physical Rehabilitation</p>
+              <p style={{ fontSize: 11, color: "var(--text-muted)" }}>Track A — Joint Recovery</p>
             </div>
           </div>
           {isActive && (
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e", animation: "pulseDot 1.5s ease-in-out infinite" }} />
-              <span style={{ fontSize: 13, color: "#22c55e", fontWeight: 600 }}>LIVE</span>
-              <span style={{ fontSize: 20, fontFamily: "monospace", fontWeight: 700, color: "#e8f4f0", marginLeft: 4 }}>{fmt(elapsed)}</span>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#6B9EFF", animation: "pulseDot 1.5s ease-in-out infinite" }} />
+              <span style={{ fontSize: 13, color: "#6B9EFF", fontWeight: 600 }}>LIVE</span>
+              <span style={{ fontSize: 20, fontFamily: "monospace", fontWeight: 700, color: "var(--text)", marginLeft: 4 }}>{fmt(elapsed)}</span>
             </div>
           )}
         </div>
         {/* Preset selector — only before session starts */}
         {!isActive && (
           <div style={{ marginBottom: 20 }}>
-            <p style={{ fontSize: 12, color: "rgba(232,244,240,0.4)", marginBottom: 10, letterSpacing: ".06em", textTransform: "uppercase" }}>Select Exercise Focus</p>
+            <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10, letterSpacing: ".06em", textTransform: "uppercase" }}>Select Exercise Focus</p>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {JOINT_PRESETS.map((p) => (
                 <button key={p.id} onClick={() => setPreset(p)} style={{
                   padding: "8px 16px", borderRadius: 10, fontSize: 13, fontWeight: 500,
                   cursor: "pointer", transition: "all .2s",
-                  background: preset.id === p.id ? "rgba(15,255,197,0.12)" : "rgba(255,255,255,0.04)",
-                  border: `1px solid ${preset.id === p.id ? "rgba(15,255,197,0.4)" : "rgba(255,255,255,0.08)"}`,
-                  color: preset.id === p.id ? "#0fffc5" : "rgba(232,244,240,0.6)",
+                  background: preset.id === p.id ? "rgba(0,94,184,0.12)" : "var(--neutral)",
+                  border: `1px solid ${preset.id === p.id ? "var(--primary)" : "var(--border)"}`,
+                  color: preset.id === p.id ? "var(--primary)" : "var(--text-light)",
                 }}>
                   {p.icon} {p.label}
                 </button>
@@ -243,19 +243,19 @@ export default function SessionPage() {
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 200px 300px", gap: 16, alignItems: "start" }} className="session-grid">
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 280px 320px", gap: 24, alignItems: "start" }} className="session-grid">
 
           {/* Camera + Analysis Overlay */}
-          <div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             {/* Action buttons - above camera */}
             {isActive && (
-              <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                 <button
                   onClick={() => setShowPain(true)}
                   style={{
-                    flex: 1, background: "rgba(139,0,0,0.75)", backdropFilter: "blur(8px)",
-                    border: "1px solid rgba(239,68,68,0.3)", borderRadius: 12,
-                    padding: "12px 16px", color: "#ff6b6b", fontSize: 14, fontWeight: 600,
+                    flex: "1 1 auto", minWidth: 140, background: "rgba(107,158,255,0.1)", backdropFilter: "blur(8px)",
+                    border: "2px solid rgba(107,158,255,0.3)", borderRadius: 12,
+                    padding: "14px 20px", color: "#6B9EFF", fontSize: 15, fontWeight: 600,
                     cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                   }}
                 >
@@ -265,11 +265,11 @@ export default function SessionPage() {
                   onClick={handleEnd}
                   disabled={ending}
                   style={{
-                    flex: 2, background: ending ? "rgba(100,100,100,0.5)" : "rgba(139,0,0,0.75)",
+                    flex: "2 1 auto", minWidth: 180, background: ending ? "rgba(100,100,100,0.5)" : "rgba(107,158,255,0.1)",
                     backdropFilter: "blur(8px)",
-                    border: "1px solid rgba(239,68,68,0.3)", borderRadius: 12,
-                    padding: "12px 16px", color: ending ? "rgba(255,107,107,0.5)" : "#ff6b6b",
-                    fontSize: 14, fontWeight: 600,
+                    border: "2px solid rgba(107,158,255,0.3)", borderRadius: 12,
+                    padding: "14px 20px", color: ending ? "rgba(107,158,255,0.5)" : "#6B9EFF",
+                    fontSize: 15, fontWeight: 600,
                     cursor: ending ? "not-allowed" : "pointer",
                     display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                   }}
@@ -293,44 +293,43 @@ export default function SessionPage() {
               />
             ) : (
               <div style={{
-                aspectRatio: "16/9", background: "rgba(255,255,255,0.02)",
-                border: "1px solid rgba(15,255,197,0.1)", borderRadius: 16,
+                aspectRatio: "16/9", background: "var(--neutral)",
+                border: "1px solid var(--border)", borderRadius: 16,
                 display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                 gap: 16,
               }}>
                 <div style={{ fontSize: 48, opacity: .4 }}>📷</div>
-                <p style={{ color: "rgba(232,244,240,0.4)", fontSize: 14 }}>Camera starts when session begins</p>
-                <p style={{ color: "rgba(232,244,240,0.25)", fontSize: 12 }}>Selected: {preset.icon} {preset.label}</p>
+                <p style={{ color: "var(--text-muted)", fontSize: 14 }}>Camera starts when session begins</p>
+                <p style={{ color: "var(--text-muted)", fontSize: 12 }}>Selected: {preset.icon} {preset.label}</p>
               </div>
             )}
 
             {/* Skeleton Guide - below camera */}
             {isActive && (
               <div style={{
-                marginTop: 16,
-                background: "rgba(2,24,43,0.85)", backdropFilter: "blur(8px)",
-                borderRadius: 12, padding: "16px 20px",
-                border: "1px solid rgba(15,255,197,0.15)",
+                background: "#1A3447", backdropFilter: "blur(8px)",
+                borderRadius: 12, padding: "18px 22px",
+                border: "1px solid #243B4E",
               }}>
-                <div style={{ fontSize: 14, color: "rgba(232,244,240,0.6)", marginBottom: 12, fontWeight: 600 }}>
+                <div style={{ fontSize: 14, color: "#FFFFFF", marginBottom: 14, fontWeight: 600 }}>
                   Skeleton Guide
                 </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 20 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#22c55e" }} />
-                    <span style={{ fontSize: 12, color: "rgba(232,244,240,0.7)" }}>Good form</span>
+                    <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#6B9EFF" }} />
+                    <span style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>Good form</span>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#eab308" }} />
-                    <span style={{ fontSize: 12, color: "rgba(232,244,240,0.7)" }}>Minor issue</span>
+                    <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#6B9EFF" }} />
+                    <span style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>Minor issue</span>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#ef4444" }} />
-                    <span style={{ fontSize: 12, color: "rgba(232,244,240,0.7)" }}>Correction needed</span>
+                    <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#6B9EFF" }} />
+                    <span style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>Correction needed</span>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#0fffc5" }} />
-                    <span style={{ fontSize: 12, color: "rgba(232,244,240,0.7)" }}>All keypoints</span>
+                    <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#6B9EFF" }} />
+                    <span style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>All keypoints</span>
                   </div>
                 </div>
               </div>
@@ -339,51 +338,60 @@ export default function SessionPage() {
             {/* Feedback banner */}
             {feedback && isActive && (
               <div style={{
-                marginTop: 12, padding: "12px 16px", borderRadius: 12,
+                padding: "14px 18px", borderRadius: 12,
                 background: `${feedbackColor}15`,
-                border: `1px solid ${feedbackColor}40`,
-                display: "flex", alignItems: "center", gap: 10,
+                border: `2px solid ${feedbackColor}40`,
+                display: "flex", alignItems: "center", gap: 12,
                 transition: "all .3s",
               }}>
-                <div style={{ width: 8, height: 8, borderRadius: "50%", background: feedbackColor, flexShrink: 0 }} />
-                <p style={{ fontSize: 14, color: feedbackColor, fontWeight: 500 }}>{feedback.message}</p>
+                <div style={{ width: 10, height: 10, borderRadius: "50%", background: feedbackColor, flexShrink: 0 }} />
+                <p style={{ fontSize: 14, color: feedbackColor, fontWeight: 600 }}>{feedback.message}</p>
               </div>
             )}
           </div>
 
-          {/* Physio Guide — middle column */}
-          <PhysioGuide
-            exercise={preset.id === "full" ? "full" : preset.joints?.[0] ?? "full"}
-            isActive={isActive}
-            repCount={Object.values(repCounts).reduce((a, b) => a + (b ?? 0), 0)}
-            feedback={feedback}
-            formScore={physScores.length ? physScores[physScores.length - 1] : null}
-          />
+          {/* Physio Guide — middle column - FULL HEIGHT */}
+          <div style={{ 
+            position: "sticky", 
+            top: 84,
+            height: "calc(100vh - 104px)",
+            display: "flex",
+            flexDirection: "column",
+            minWidth: 280,
+          }}>
+            <PhysioGuide
+              exercise={preset.id === "full" ? "full" : preset.joints?.[0] ?? "full"}
+              isActive={isActive}
+              repCount={Object.values(repCounts).reduce((a, b) => a + (b ?? 0), 0)}
+              feedback={feedback}
+              formScore={physScores.length ? physScores[physScores.length - 1] : null}
+            />
+          </div>
 
           {/* Right panel */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16, position: "sticky", top: 84 }}>
 
             {/* Main control card */}
             <div style={{
-              background: "rgba(255,255,255,0.025)", border: "1px solid rgba(15,255,197,0.1)",
-              borderRadius: 16, padding: "20px", position: "relative", overflow: "hidden",
+              background: "#1A3447", border: "2px solid #243B4E",
+              borderRadius: 16, padding: "24px", position: "relative", overflow: "hidden",
             }}>
-              <div style={{ position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)", width: "60%", height: 1, background: "linear-gradient(90deg,transparent,rgba(15,255,197,.25),transparent)" }} />
+              <div style={{ position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)", width: "60%", height: 2, background: "linear-gradient(90deg,transparent,rgba(107,158,255,.4),transparent)" }} />
 
               {!isActive ? (
                 <div style={{ textAlign: "center" }}>
-                  <p style={{ fontSize: 13, color: "rgba(232,244,240,0.45)", marginBottom: 16 }}>
+                  <p style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", marginBottom: 20 }}>
                     Ready to start your {preset.label} session
                   </p>
                   <button onClick={handleStart} style={{
-                    width: "100%", padding: "14px 0", borderRadius: 12,
-                    background: "#0fffc5", color: "#02182b", fontWeight: 700,
-                    fontSize: 15, border: "none", cursor: "pointer",
-                    boxShadow: "0 0 24px rgba(15,255,197,0.3)",
+                    width: "100%", padding: "16px 0", borderRadius: 12,
+                    background: "#6B9EFF", color: "#FFFFFF", fontWeight: 700,
+                    fontSize: 16, border: "none", cursor: "pointer",
+                    boxShadow: "0 0 24px rgba(107,158,255,0.3)",
                     transition: "all .2s",
                   }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 40px rgba(15,255,197,0.5)"; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 24px rgba(15,255,197,0.3)"; }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 40px rgba(107,158,255,0.5)"; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 0 24px rgba(107,158,255,0.3)"; }}
                   >
                     ▶ Start Session
                   </button>
@@ -391,50 +399,50 @@ export default function SessionPage() {
               ) : (
                 <div>
                   {/* Timer */}
-                  <div style={{ textAlign: "center", marginBottom: 16 }}>
-                    <p style={{ fontSize: 36, fontFamily: "monospace", fontWeight: 800, color: "#e8f4f0", letterSpacing: ".05em" }}>{fmt(elapsed)}</p>
-                    <p style={{ fontSize: 11, color: "rgba(232,244,240,0.35)", marginTop: 2 }}>Session duration</p>
+                  <div style={{ textAlign: "center", marginBottom: 20 }}>
+                    <p style={{ fontSize: 40, fontFamily: "monospace", fontWeight: 800, color: "#FFFFFF", letterSpacing: ".05em" }}>{fmt(elapsed)}</p>
+                    <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>Session duration</p>
                   </div>
 
                   {/* Total reps */}
                   <div style={{
-                    background: "rgba(15,255,197,0.06)", border: "1px solid rgba(15,255,197,0.12)",
-                    borderRadius: 10, padding: "12px 16px", textAlign: "center", marginBottom: 14,
+                    background: "rgba(107,158,255,0.1)", border: "2px solid rgba(107,158,255,0.2)",
+                    borderRadius: 12, padding: "16px 20px", textAlign: "center", marginBottom: 16,
                   }}>
-                    <p style={{ fontSize: 28, fontWeight: 800, color: "#0fffc5" }}>{totalReps}</p>
-                    <p style={{ fontSize: 11, color: "rgba(232,244,240,0.4)" }}>Total reps completed</p>
+                    <p style={{ fontSize: 32, fontWeight: 800, color: "#6B9EFF" }}>{totalReps}</p>
+                    <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>Total reps completed</p>
                   </div>
 
                   {/* Per-joint reps */}
                   {Object.entries(repCounts).length > 0 && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
                       {Object.entries(repCounts).map(([joint, count]) => (
                         <div key={joint} style={{
                           display: "flex", justifyContent: "space-between", alignItems: "center",
-                          padding: "8px 12px", background: "rgba(255,255,255,0.03)",
-                          borderRadius: 8, border: "1px solid rgba(255,255,255,0.06)",
+                          padding: "10px 14px", background: "rgba(255,255,255,0.05)",
+                          borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)",
                         }}>
-                          <span style={{ fontSize: 12, color: "rgba(232,244,240,0.55)", textTransform: "capitalize" }}>
+                          <span style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", textTransform: "capitalize" }}>
                             {joint.replace("_", " ")}
                           </span>
-                          <span style={{ fontSize: 16, fontWeight: 700, color: "#0fffc5" }}>{count}</span>
+                          <span style={{ fontSize: 18, fontWeight: 700, color: "#6B9EFF" }}>{count}</span>
                         </div>
                       ))}
                     </div>
                   )}
 
                   {/* Action buttons */}
-                  <div style={{ display: "flex", gap: 8 }}>
+                  <div style={{ display: "flex", gap: 10 }}>
                     <button onClick={() => setShowPain(true)} style={{
-                      flex: 1, padding: "10px 0", borderRadius: 10, fontSize: 13, fontWeight: 600,
-                      background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)",
-                      color: "#ef4444", cursor: "pointer", transition: "all .2s",
+                      flex: 1, padding: "12px 0", borderRadius: 10, fontSize: 14, fontWeight: 600,
+                      background: "rgba(107,158,255,0.1)", border: "2px solid rgba(107,158,255,0.3)",
+                      color: "#6B9EFF", cursor: "pointer", transition: "all .2s",
                     }}>🚨 Pain</button>
                     <button onClick={handleEnd} disabled={ending} style={{
-                      flex: 2, padding: "10px 0", borderRadius: 10, fontSize: 13, fontWeight: 700,
-                      background: ending ? "rgba(255,255,255,0.05)" : "rgba(239,68,68,0.15)",
-                      border: "1px solid rgba(239,68,68,0.4)",
-                      color: ending ? "rgba(232,244,240,0.4)" : "#ef4444",
+                      flex: 2, padding: "12px 0", borderRadius: 10, fontSize: 14, fontWeight: 700,
+                      background: ending ? "rgba(255,255,255,0.05)" : "rgba(107,158,255,0.15)",
+                      border: "2px solid rgba(107,158,255,0.4)",
+                      color: ending ? "rgba(255,255,255,0.4)" : "#6B9EFF",
                       cursor: ending ? "not-allowed" : "pointer",
                     }}>
                       {ending ? "Saving…" : "■ End Session"}
@@ -447,10 +455,10 @@ export default function SessionPage() {
             {/* Instructions card */}
             {!isActive && (
               <div style={{
-                background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)",
-                borderRadius: 16, padding: "18px",
+                background: "#1A3447", border: "1px solid #243B4E",
+                borderRadius: 16, padding: "20px",
               }}>
-                <p style={{ fontWeight: 600, fontSize: 13, color: "#e8f4f0", marginBottom: 14 }}>How it works</p>
+                <p style={{ fontWeight: 600, fontSize: 14, color: "#FFFFFF", marginBottom: 16 }}>How it works</p>
                 {[
                   ["1", "Stand 1–2m from camera, full body visible"],
                   ["2", "Perform your prescribed exercises"],
@@ -458,14 +466,14 @@ export default function SessionPage() {
                   ["4", "Reps counted automatically"],
                   ["5", "Use 🚨 to log pain events"],
                 ].map(([n, text]) => (
-                  <div key={n} style={{ display: "flex", gap: 10, marginBottom: 10, alignItems: "flex-start" }}>
+                  <div key={n} style={{ display: "flex", gap: 12, marginBottom: 12, alignItems: "flex-start" }}>
                     <span style={{
-                      width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
-                      background: "rgba(15,255,197,0.1)", border: "1px solid rgba(15,255,197,0.2)",
+                      width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
+                      background: "rgba(107,158,255,0.15)", border: "2px solid rgba(107,158,255,0.3)",
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 10, fontWeight: 700, color: "#0fffc5",
+                      fontSize: 11, fontWeight: 700, color: "#6B9EFF",
                     }}>{n}</span>
-                    <p style={{ fontSize: 12, color: "rgba(232,244,240,0.5)", lineHeight: 1.5 }}>{text}</p>
+                    <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", lineHeight: 1.6 }}>{text}</p>
                   </div>
                 ))}
               </div>
@@ -473,19 +481,19 @@ export default function SessionPage() {
 
             {/* Colour guide */}
             <div style={{
-              background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)",
-              borderRadius: 16, padding: "18px",
+              background: "#1A3447", border: "1px solid #243B4E",
+              borderRadius: 16, padding: "20px",
             }}>
-              <p style={{ fontWeight: 600, fontSize: 13, color: "#e8f4f0", marginBottom: 12 }}>Colour Guide</p>
+              <p style={{ fontWeight: 600, fontSize: 14, color: "#FFFFFF", marginBottom: 14 }}>Colour Guide</p>
               {[
-                ["#22c55e", "Within 5° of target"],
-                ["#eab308", "Within 15° of target"],
-                ["#ef4444", "More than 15° away"],
+                ["#6B9EFF", "Within 5° of target"],
+                ["#6B9EFF", "Within 15° of target"],
+                ["#6B9EFF", "More than 15° away"],
                 ["#6b7280", "Landmark not visible"],
               ].map(([color, label]) => (
-                <div key={label} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: color, flexShrink: 0 }} />
-                  <span style={{ fontSize: 12, color: "rgba(232,244,240,0.5)" }}>{label}</span>
+                <div key={label} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+                  <div style={{ width: 12, height: 12, borderRadius: "50%", background: color, flexShrink: 0 }} />
+                  <span style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>{label}</span>
                 </div>
               ))}
             </div>
@@ -494,13 +502,31 @@ export default function SessionPage() {
       </div>
 
       <style>{`
-        @media (max-width: 1100px) {
-          .session-grid { grid-template-columns: 1fr 300px !important; }
+        @media (max-width: 1200px) {
+          .session-grid { grid-template-columns: 1fr 320px !important; }
           .session-grid > div:nth-child(2) { display: none; }
         }
-        @media (max-width: 768px) {
+        @media (max-width: 900px) {
           .session-grid { grid-template-columns: 1fr !important; }
           .session-grid > div:nth-child(2) { display: none; }
+          .session-grid > div:nth-child(3) { 
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 50;
+            background: #0B1F2E;
+            border-top: 2px solid #1A3447;
+            padding: 16px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+            max-height: 50vh;
+            overflow-y: auto;
+          }
+        }
+        @media (max-width: 640px) {
+          .session-grid > div:nth-child(3) {
+            max-height: 60vh;
+          }
         }
       `}</style>
     </div>

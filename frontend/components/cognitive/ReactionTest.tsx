@@ -83,25 +83,29 @@ export default function ReactionTest({ onComplete }: Props) {
   const avgMs = times.length > 0 ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : null;
 
   return (
-    <div className="flex flex-col items-center gap-5 text-center w-full">
-      <h2 className="text-2xl font-bold">⚡ Reaction Test</h2>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, textAlign: "center", width: "100%" }}>
+      <h2 style={{ fontSize: 28, fontWeight: 800, color: "#FFFFFF" }}>⚡ Reaction Test</h2>
 
       {/* Trial progress */}
-      <div className="flex gap-2">
+      <div style={{ display: "flex", gap: 8 }}>
         {Array.from({ length: TRIALS }, (_, i) => (
-          <div key={i} className={`w-2.5 h-2.5 rounded-full transition-all ${
-            i < times.length ? "bg-[#09ffd3]" : i === times.length ? "bg-[#09ffd3]/40 animate-pulse" : "bg-white/10"
-          }`} />
+          <div key={i} style={{
+            width: 10,
+            height: 10,
+            borderRadius: "50%",
+            background: i < times.length ? "#6B9EFF" : i === times.length ? "rgba(107,158,255,0.4)" : "rgba(255,255,255,0.1)",
+            transition: "all .3s",
+          }} />
         ))}
       </div>
-      <p className="text-xs text-gray-500">Trial {Math.min(times.length + 1, TRIALS)} of {TRIALS}</p>
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>Trial {Math.min(times.length + 1, TRIALS)} of {TRIALS}</p>
 
       <AnimatePresence mode="wait">
         {phase !== "done" && (
-          <motion.div key="test" className="flex flex-col items-center gap-4">
-            <p className="text-gray-400 text-sm">
-              {phase === "waiting" ? "Wait for the circle to turn green…" :
-               phase === "early" ? "Too early! Wait for green…" :
+          <motion.div key="test" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>
+              {phase === "waiting" ? "Wait for the circle to turn blue…" :
+               phase === "early" ? "Too early! Wait for blue…" :
                phase === "ready" ? "Click NOW!" : "Good!"}
             </p>
 
@@ -109,25 +113,35 @@ export default function ReactionTest({ onComplete }: Props) {
               onClick={handleClick}
               animate={phase === "ready" ? {
                 scale: [1, 1.08, 1.05],
-                boxShadow: ["0 0 0px #09ffd3", "0 0 50px #09ffd3", "0 0 30px #09ffd3"],
+                boxShadow: ["0 0 0px #6B9EFF", "0 0 50px #6B9EFF", "0 0 30px #6B9EFF"],
               } : {}}
               transition={{ duration: 0.3 }}
-              className={`w-36 h-36 rounded-full font-bold text-lg transition-colors duration-150 select-none ${
-                phase === "ready"
-                  ? "bg-[#09ffd3] text-[#02182b]"
+              style={{
+                width: 160,
+                height: 160,
+                borderRadius: "50%",
+                fontWeight: 700,
+                fontSize: 20,
+                transition: "all .15s",
+                userSelect: "none",
+                cursor: "pointer",
+                border: "none",
+                background: phase === "ready"
+                  ? "#6B9EFF"
                   : phase === "early"
-                  ? "bg-red-500/20 border-2 border-red-500/40 text-red-400"
-                  : "bg-white/8 border-2 border-white/10 text-gray-500"
-              }`}
+                  ? "rgba(107,158,255,0.2)"
+                  : "rgba(255,255,255,0.08)",
+                color: phase === "ready" ? "#FFFFFF" : phase === "early" ? "#6B9EFF" : "rgba(255,255,255,0.5)",
+              }}
             >
               {phase === "waiting" ? "⏳" : phase === "ready" ? "NOW!" : phase === "early" ? "Early!" : "✓"}
             </motion.button>
 
             {lastMs !== null && phase === "clicked" && (
               <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-                className="flex flex-col items-center gap-1">
-                <p className="text-[#09ffd3] font-bold text-xl">{lastMs}ms</p>
-                <p className="text-xs text-gray-500">
+                style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                <p style={{ color: "#6B9EFF", fontWeight: 700, fontSize: 24 }}>{lastMs}ms</p>
+                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>
                   {lastMs <= 250 ? "Excellent!" : lastMs <= 400 ? "Good" : lastMs <= 600 ? "Average" : "Slow"}
                 </p>
               </motion.div>
@@ -137,17 +151,23 @@ export default function ReactionTest({ onComplete }: Props) {
 
         {phase === "done" && (
           <motion.div key="done" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center gap-3">
-            <p className="text-[#09ffd3] font-semibold">Reaction test complete ✓</p>
-            <div className="flex gap-3">
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+            <p style={{ color: "#6B9EFF", fontWeight: 600, fontSize: 16 }}>Reaction test complete ✓</p>
+            <div style={{ display: "flex", gap: 12 }}>
               {times.map((t, i) => (
-                <div key={i} className="px-3 py-2 rounded-xl bg-white/5 border border-white/8 text-center">
-                  <div className="text-xs text-gray-500">Trial {i + 1}</div>
-                  <div className="font-bold text-[#09ffd3] text-sm">{t}ms</div>
+                <div key={i} style={{
+                  padding: "12px 16px",
+                  borderRadius: 8,
+                  background: "#1A3447",
+                  border: "2px solid #243B4E",
+                  textAlign: "center",
+                }}>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>Trial {i + 1}</div>
+                  <div style={{ fontWeight: 700, color: "#6B9EFF", fontSize: 15 }}>{t}ms</div>
                 </div>
               ))}
             </div>
-            {avgMs && <p className="text-xs text-gray-500">Average: {avgMs}ms</p>}
+            {avgMs && <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>Average: {avgMs}ms</p>}
           </motion.div>
         )}
       </AnimatePresence>

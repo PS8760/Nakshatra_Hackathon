@@ -50,9 +50,9 @@ const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
 
 // Fault severity → colour
 const FAULT_COLOR: Record<string, string> = {
-  error: "#ef4444",
-  warning: "#eab308",
-  info: "#60a5fa",
+  error: "#6B9EFF",
+  warning: "#6B9EFF",
+  info: "#6B9EFF",
 };
 
 export default function PoseCamera({
@@ -187,7 +187,7 @@ export default function PoseCamera({
           connections: [
             [24, 26], [26, 28], [28, 30], [28, 32], [30, 32]
           ],
-          color: '#C44569', // Dark red
+          color:   '#C44569', // Dark red
           landmarks: [24, 26, 28, 30, 32], // Hip, knee, ankle, heel, foot index
           label: 'Right Leg & Foot'
         }
@@ -283,11 +283,11 @@ export default function PoseCamera({
       // Text with color coding
       const fault = faultMap.get(jointName);
       const FAULT_COLOR: Record<string, string> = {
-        error: "#ef4444",
-        warning: "#eab308",
-        info: "#60a5fa",
+        error: "#6B9EFF",
+        warning: "#6B9EFF",
+        info: "#6B9EFF",
       };
-      ctx.fillStyle = fault ? FAULT_COLOR[fault.severity] : "#22c55e";
+      ctx.fillStyle = fault ? FAULT_COLOR[fault.severity] : "#6B9EFF";
       ctx.shadowColor = "rgba(0,0,0,0.8)";
       ctx.shadowBlur = 2;
       ctx.fillText(label, x, y + 2);
@@ -560,16 +560,16 @@ export default function PoseCamera({
             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 20,
           }}>
             <div style={{ position: "relative", width: 72, height: 72 }}>
-              <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "2px solid transparent", borderTopColor: "#0fffc5", animation: "spinCW 1s linear infinite" }} />
+              <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "2px solid transparent", borderTopColor: "#6B9EFF", animation: "spinCW 1s linear infinite" }} />
               <div style={{ position: "absolute", inset: 8, borderRadius: "50%", border: "2px solid transparent", borderBottomColor: "rgba(15,255,197,0.5)", animation: "spinCW 1.5s linear infinite reverse" }} />
               <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>🦴</div>
             </div>
             <div style={{ textAlign: "center" }}>
-              <p style={{ color: "#0fffc5", fontSize: 14, fontWeight: 600, marginBottom: 6 }}>{loadingMsg}</p>
+              <p style={{ color: "#6B9EFF", fontSize: 14, fontWeight: 600, marginBottom: 6 }}>{loadingMsg}</p>
               <p style={{ color: "rgba(232,244,240,0.4)", fontSize: 12 }}>MediaPipe Pose · Native Rendering · 33 keypoints</p>
             </div>
             <div style={{ width: 200, height: 3, background: "rgba(15,255,197,0.1)", borderRadius: 2 }}>
-              <div style={{ height: "100%", borderRadius: 2, background: "linear-gradient(90deg,rgba(15,255,197,0.5),#0fffc5)", width: `${loadingPct}%`, transition: "width 0.4s ease", boxShadow: "0 0 8px rgba(15,255,197,0.6)" }} />
+              <div style={{ height: "100%", borderRadius: 2, background: "linear-gradient(90deg,rgba(15,255,197,0.5),#6B9EFF)", width: `${loadingPct}%`, transition: "width 0.4s ease", boxShadow: "0 0 8px rgba(15,255,197,0.6)" }} />
             </div>
           </div>
         )}
@@ -588,7 +588,7 @@ export default function PoseCamera({
               <p style={{ color: "rgba(232,244,240,0.35)", fontSize: 11 }}>Chrome/Edge · Camera permission · HTTPS or localhost</p>
             </div>
             <button onClick={() => { setCameraError(null); setIsLoading(true); setLoadingPct(0); }}
-              style={{ padding: "10px 24px", borderRadius: 10, fontSize: 13, fontWeight: 600, background: "#0fffc5", color: "#02182b", border: "none", cursor: "pointer" }}>
+              style={{ padding: "10px 24px", borderRadius: 10, fontSize: 13, fontWeight: 600, background: "#6B9EFF", color: "#0B1F2E", border: "none", cursor: "pointer" }}>
               Retry
             </button>
           </div>
@@ -600,7 +600,7 @@ export default function PoseCamera({
             position: "absolute", top: 10, right: 10,
             background: "rgba(0,0,0,0.7)", borderRadius: 6,
             padding: "4px 8px", fontSize: 10, fontFamily: "monospace",
-            color: fps >= 20 ? "#0fffc5" : "#eab308",
+            color: fps >= 20 ? "#6B9EFF" : "#6B9EFF",
             border: "1px solid rgba(15,255,197,0.2)",
           }}>
             {fps} FPS
@@ -643,17 +643,17 @@ export default function PoseCamera({
             {/* Exercise + phase */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#0fffc5", textTransform: "capitalize" }}>{exercise}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#6B9EFF", textTransform: "capitalize" }}>{exercise}</span>
                 {phase && <span style={{ fontSize: 10, color: "rgba(232,244,240,0.4)", background: "rgba(255,255,255,0.05)", padding: "2px 7px", borderRadius: 5 }}>{phase}</span>}
               </div>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "#0fffc5" }}>Rep {repCount}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#6B9EFF" }}>Rep {repCount}</span>
             </div>
 
             {/* Faults */}
             {faults.length === 0 ? (
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e" }} />
-                <span style={{ fontSize: 12, color: "#22c55e" }}>Good form — keep it up</span>
+                <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#6B9EFF" }} />
+                <span style={{ fontSize: 12, color: "#6B9EFF" }}>Good form — keep it up</span>
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -680,7 +680,7 @@ export default function PoseCamera({
                     background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
                     borderRadius: 5, padding: "2px 7px", color: "rgba(232,244,240,0.5)",
                   }}>
-                    {joint.replace("_", " ")}: <span style={{ color: "#0fffc5" }}>{angle.toFixed(0)}°</span>
+                    {joint.replace("_", " ")}: <span style={{ color: "#6B9EFF" }}>{angle.toFixed(0)}°</span>
                   </span>
                 ))}
               </div>

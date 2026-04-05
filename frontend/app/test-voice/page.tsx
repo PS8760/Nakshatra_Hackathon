@@ -147,7 +147,7 @@ export default function TestVoicePage() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #02182b 0%, #0a3a5c 100%)',
+      background: '#0B1F2E',
       color: '#e8f4f0',
       padding: '40px 20px',
       fontFamily: 'Arial, sans-serif',
@@ -159,7 +159,7 @@ export default function TestVoicePage() {
         <h1 style={{
           fontSize: '32px',
           marginBottom: '10px',
-          color: '#0fffc5',
+          color: '#6B9EFF',
         }}>
           🔊 Voice System Diagnostic
         </h1>
@@ -182,7 +182,7 @@ export default function TestVoicePage() {
             <h3 style={{ margin: 0 }}>System Status</h3>
             {isSpeaking && (
               <span style={{
-                background: '#22c55e',
+                background: '#6B9EFF',
                 color: 'white',
                 padding: '4px 12px',
                 borderRadius: '20px',
@@ -224,8 +224,8 @@ export default function TestVoicePage() {
               style={{
                 padding: '12px 20px',
                 fontSize: '16px',
-                background: '#0fffc5',
-                color: '#02182b',
+                background: '#6B9EFF',
+                color: '#0B1F2E',
                 border: 'none',
                 borderRadius: '8px',
                 cursor: 'pointer',
@@ -233,7 +233,7 @@ export default function TestVoicePage() {
                 transition: 'all 0.2s',
               }}
               onMouseEnter={(e) => e.currentTarget.style.background = '#0dd9a8'}
-              onMouseLeave={(e) => e.currentTarget.style.background = '#0fffc5'}
+              onMouseLeave={(e) => e.currentTarget.style.background = '#6B9EFF'}
             >
               🔊 Test Basic Speech
             </button>
@@ -244,7 +244,7 @@ export default function TestVoicePage() {
               style={{
                 padding: '12px 20px',
                 fontSize: '16px',
-                background: voices.length > 0 ? '#3B82F6' : '#666',
+                background: voices.length > 0 ? '#7BAAFF' : '#666',
                 color: 'white',
                 border: 'none',
                 borderRadius: '8px',

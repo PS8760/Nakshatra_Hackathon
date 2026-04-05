@@ -30,7 +30,7 @@ function Field({ label, type = "text", value, onChange, required, rows }: {
         position: "absolute", left: 16,
         top: active ? 8 : 16,
         fontSize: active ? 10 : 14,
-        color: focused ? "#0fffc5" : active ? "rgba(15,255,197,.6)" : "rgba(232,244,240,.3)",
+        color: focused ? "#6B9EFF" : active ? "rgba(15,255,197,.6)" : "rgba(232,244,240,.3)",
         pointerEvents: "none", transition: "all .18s",
         letterSpacing: active ? ".06em" : "0",
         textTransform: active ? "uppercase" : "none",
@@ -40,7 +40,7 @@ function Field({ label, type = "text", value, onChange, required, rows }: {
         position: "absolute", bottom: 0, left: "50%",
         transform: focused ? "translateX(-50%) scaleX(1)" : "translateX(-50%) scaleX(0)",
         width: "calc(100% - 24px)", height: 1,
-        background: "linear-gradient(90deg, transparent, #0fffc5, transparent)",
+        background: "linear-gradient(90deg, transparent, #6B9EFF, transparent)",
         transition: "transform .3s", borderRadius: 1,
       }} />
     </div>
@@ -108,11 +108,11 @@ export default function Contact() {
           {status === "sent" ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "40px 0", gap: 16 }}>
               <div className="a-pulse" style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(15,255,197,.1)", border: "2px solid rgba(15,255,197,.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M6 14L11 19L22 9" stroke="#0fffc5" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M6 14L11 19L22 9" stroke="#6B9EFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </div>
               <h3 style={{ fontSize: 20, fontWeight: 700, color: "#e8f4f0" }}>Message sent.</h3>
               <p style={{ fontSize: 14, color: "rgba(232,244,240,.45)", textAlign: "center" }}>We'll get back to you within 24 hours.</p>
-              <button onClick={() => setStatus("idle")} style={{ marginTop: 8, fontSize: 12, padding: "8px 16px", borderRadius: 8, color: "#0fffc5", border: "1px solid rgba(15,255,197,.2)", background: "transparent", cursor: "pointer", transition: "background .2s" }}
+              <button onClick={() => setStatus("idle")} style={{ marginTop: 8, fontSize: 12, padding: "8px 16px", borderRadius: 8, color: "#6B9EFF", border: "1px solid rgba(15,255,197,.2)", background: "transparent", cursor: "pointer", transition: "background .2s" }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(15,255,197,.06)")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >Send another</button>
@@ -134,7 +134,7 @@ export default function Contact() {
               <button type="submit" disabled={status === "sending"} className="btn-solid" style={{ width: "100%", padding: "14px 0", opacity: status === "sending" ? .7 : 1, cursor: status === "sending" ? "not-allowed" : "pointer" }}>
                 {status === "sending" ? (
                   <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(2,24,43,.3)", borderTopColor: "#02182b", display: "inline-block", animation: "spinCW .8s linear infinite" }} />
+                    <span style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(2,24,43,.3)", borderTopColor: "#0B1F2E", display: "inline-block", animation: "spinCW .8s linear infinite" }} />
                     Sending…
                   </span>
                 ) : "Send message →"}

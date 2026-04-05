@@ -20,12 +20,12 @@ function RecommendationRenderer({ text }: { text: string }) {
     if (headerMatch) {
       elements.push(
         <div key={key++} style={{
-          fontSize: 11, fontWeight: 700, color: "#0fffc5",
+          fontSize: 11, fontWeight: 700, color: "#6B9EFF",
           letterSpacing: ".08em", textTransform: "uppercase",
           marginTop: elements.length > 0 ? 14 : 0, marginBottom: 6,
           display: "flex", alignItems: "center", gap: 6,
         }}>
-          <div style={{ width: 16, height: 1, background: "#0fffc5", opacity: .5 }} />
+          <div style={{ width: 16, height: 1, background: "#6B9EFF", opacity: .5 }} />
           {headerMatch[1]}
         </div>
       );
@@ -41,7 +41,7 @@ function RecommendationRenderer({ text }: { text: string }) {
             minWidth: 22, height: 22, borderRadius: "50%", flexShrink: 0,
             background: "rgba(15,255,197,0.12)", border: "1px solid rgba(15,255,197,0.25)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 10, fontWeight: 700, color: "#0fffc5",
+            fontSize: 10, fontWeight: 700, color: "#6B9EFF",
           }}>{numberedMatch[1]}</span>
           <span style={{ fontSize: 13, lineHeight: 1.6, color: "#e8f4f0" }}>
             {numberedMatch[2].replace(/\*\*/g, "")}
@@ -58,7 +58,7 @@ function RecommendationRenderer({ text }: { text: string }) {
         <div key={key++} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 7 }}>
           <span style={{
             width: 6, height: 6, borderRadius: "50%", flexShrink: 0, marginTop: 6,
-            background: "#0fffc5", opacity: .7,
+            background: "#6B9EFF", opacity: .7,
           }} />
           <span style={{ fontSize: 13, lineHeight: 1.6, color: "#e8f4f0" }}>
             {bulletMatch[1].replace(/\*\*/g, "")}
@@ -78,19 +78,19 @@ function RecommendationRenderer({ text }: { text: string }) {
       if (isHeader) {
         elements.push(
           <div key={key++} style={{
-            fontSize: 11, fontWeight: 700, color: "#0fffc5",
+            fontSize: 11, fontWeight: 700, color: "#6B9EFF",
             letterSpacing: ".08em", textTransform: "uppercase",
             marginTop: elements.length > 0 ? 14 : 0, marginBottom: 6,
             display: "flex", alignItems: "center", gap: 6,
           }}>
-            <div style={{ width: 16, height: 1, background: "#0fffc5", opacity: .5 }} />
+            <div style={{ width: 16, height: 1, background: "#6B9EFF", opacity: .5 }} />
             {firstPart.replace(/\*\*/g, "")}
           </div>
         );
         for (const pt of parts.slice(1)) {
           elements.push(
             <div key={key++} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 7 }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", flexShrink: 0, marginTop: 6, background: "#0fffc5", opacity: .7 }} />
+              <span style={{ width: 6, height: 6, borderRadius: "50%", flexShrink: 0, marginTop: 6, background: "#6B9EFF", opacity: .7 }} />
               <span style={{ fontSize: 13, lineHeight: 1.6, color: "#e8f4f0" }}>{pt.replace(/\*\*/g, "")}</span>
             </div>
           );
@@ -99,7 +99,7 @@ function RecommendationRenderer({ text }: { text: string }) {
         for (const pt of parts) {
           elements.push(
             <div key={key++} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 7 }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", flexShrink: 0, marginTop: 6, background: "#0fffc5", opacity: .7 }} />
+              <span style={{ width: 6, height: 6, borderRadius: "50%", flexShrink: 0, marginTop: 6, background: "#6B9EFF", opacity: .7 }} />
               <span style={{ fontSize: 13, lineHeight: 1.6, color: "#e8f4f0" }}>{pt.replace(/\*\*/g, "")}</span>
             </div>
           );
@@ -177,14 +177,14 @@ export default function ReportsPage() {
       let y = margin;
 
       // ── Header ──
-      doc.setFillColor(2, 24, 43);
+      doc.setFillColor(11, 31, 46); // #0B1F2E - Dark navy background
       doc.rect(0, 0, W, 50, "F");
-      doc.setTextColor(15, 255, 197);
+      doc.setTextColor(107, 158, 255); // #6B9EFF - Primary blue
       doc.setFontSize(22);
       doc.setFont("helvetica", "bold");
       doc.text("NeuroRestore AI", margin, y + 10);
       doc.setFontSize(11);
-      doc.setTextColor(200, 230, 220);
+      doc.setTextColor(255, 255, 255); // #FFFFFF - White
       doc.setFont("helvetica", "normal");
       doc.text("Cognitive Assessment Report", margin, y + 20);
       doc.text(`Generated: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`, margin, y + 28);
@@ -192,12 +192,12 @@ export default function ReportsPage() {
       y = 60;
 
       // ── Overall Cognitive Score ──
-      doc.setTextColor(15, 255, 197);
+      doc.setTextColor(107, 158, 255); // #6B9EFF - Primary blue
       doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
       doc.text("Overall Cognitive Performance", margin, y);
       y += 8;
-      doc.setDrawColor(15, 255, 197);
+      doc.setDrawColor(107, 158, 255); // #6B9EFF - Primary blue
       doc.setLineWidth(0.3);
       doc.line(margin, y, W - margin, y);
       y += 8;
@@ -211,11 +211,11 @@ export default function ReportsPage() {
       doc.text(`Last Assessment: ${cogReportData?.last_test_date ? new Date(cogReportData.last_test_date).toLocaleDateString() : "None"}`, margin, y); y += 14;
 
       // ── Individual Test Scores ──
-      doc.setTextColor(15, 255, 197);
+      doc.setTextColor(107, 158, 255); // #6B9EFF - Primary blue
       doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
       doc.text("Test Scores & Performance", margin, y); y += 8;
-      doc.setDrawColor(15, 255, 197);
+      doc.setDrawColor(107, 158, 255); // #6B9EFF - Primary blue
       doc.line(margin, y, W - margin, y); y += 8;
 
       const tests = [
@@ -253,11 +253,11 @@ export default function ReportsPage() {
       y += 6;
 
       // ── Clinical Thresholds ──
-      doc.setTextColor(15, 255, 197);
+      doc.setTextColor(107, 158, 255); // #6B9EFF - Primary blue
       doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
       doc.text("Clinical Interpretation", margin, y); y += 8;
-      doc.setDrawColor(15, 255, 197);
+      doc.setDrawColor(107, 158, 255); // #6B9EFF - Primary blue
       doc.line(margin, y, W - margin, y); y += 8;
 
       doc.setTextColor(50, 50, 50);
@@ -272,11 +272,11 @@ export default function ReportsPage() {
       // ── Test History ──
       if (cogReportData?.history && cogReportData.history.length > 0) {
         if (y > 220) { doc.addPage(); y = margin; }
-        doc.setTextColor(15, 255, 197);
+        doc.setTextColor(107, 158, 255); // #6B9EFF - Primary blue
         doc.setFontSize(14);
         doc.setFont("helvetica", "bold");
         doc.text("Assessment History", margin, y); y += 8;
-        doc.setDrawColor(15, 255, 197);
+        doc.setDrawColor(107, 158, 255); // #6B9EFF - Primary blue
         doc.line(margin, y, W - margin, y); y += 8;
 
         doc.setTextColor(50, 50, 50);
@@ -312,11 +312,11 @@ export default function ReportsPage() {
 
       // ── Clinical Notes ──
       if (y > 240) { doc.addPage(); y = margin; }
-      doc.setTextColor(15, 255, 197);
+      doc.setTextColor(107, 158, 255); // #6B9EFF - Primary blue
       doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
       doc.text("Clinical Notes", margin, y); y += 8;
-      doc.setDrawColor(15, 255, 197);
+      doc.setDrawColor(107, 158, 255); // #6B9EFF - Primary blue
       doc.line(margin, y, W - margin, y); y += 8;
 
       doc.setTextColor(50, 50, 50);
@@ -373,14 +373,14 @@ export default function ReportsPage() {
       let y = margin;
 
       // ── Header ──
-      doc.setFillColor(2, 24, 43);
+      doc.setFillColor(11, 31, 46); // #0B1F2E - Dark navy background
       doc.rect(0, 0, W, 50, "F");
-      doc.setTextColor(15, 255, 197);
+      doc.setTextColor(107, 158, 255); // #6B9EFF - Primary blue
       doc.setFontSize(22);
       doc.setFont("helvetica", "bold");
       doc.text("NeuroRestore AI", margin, y + 10);
       doc.setFontSize(11);
-      doc.setTextColor(200, 230, 220);
+      doc.setTextColor(255, 255, 255); // #FFFFFF - White
       doc.setFont("helvetica", "normal");
       doc.text("AI-Powered Rehabilitation Report", margin, y + 20);
       doc.text(`Generated: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`, margin, y + 28);
@@ -388,12 +388,12 @@ export default function ReportsPage() {
       y = 60;
 
       // ── Recovery Score ──
-      doc.setTextColor(15, 255, 197);
+      doc.setTextColor(107, 158, 255); // #6B9EFF - Primary blue
       doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
       doc.text("Recovery Overview", margin, y);
       y += 8;
-      doc.setDrawColor(15, 255, 197);
+      doc.setDrawColor(107, 158, 255); // #6B9EFF - Primary blue
       doc.setLineWidth(0.3);
       doc.line(margin, y, W - margin, y);
       y += 8;
@@ -409,11 +409,11 @@ export default function ReportsPage() {
 
       // ── Cognitive Scores ──
       if (cogScores && Object.keys(cogScores).length > 0) {
-        doc.setTextColor(15, 255, 197);
+        doc.setTextColor(107, 158, 255); // #6B9EFF - Primary blue
         doc.setFontSize(14);
         doc.setFont("helvetica", "bold");
         doc.text("Cognitive Performance", margin, y); y += 8;
-        doc.setDrawColor(15, 255, 197);
+        doc.setDrawColor(107, 158, 255); // #6B9EFF - Primary blue
         doc.line(margin, y, W - margin, y); y += 8;
 
         doc.setTextColor(50, 50, 50);
@@ -434,11 +434,11 @@ export default function ReportsPage() {
 
       // ── Recent Sessions ──
       if (dashData?.recent_sessions?.length > 0) {
-        doc.setTextColor(15, 255, 197);
+        doc.setTextColor(107, 158, 255); // #6B9EFF - Primary blue
         doc.setFontSize(14);
         doc.setFont("helvetica", "bold");
         doc.text("Recent Sessions", margin, y); y += 8;
-        doc.setDrawColor(15, 255, 197);
+        doc.setDrawColor(107, 158, 255); // #6B9EFF - Primary blue
         doc.line(margin, y, W - margin, y); y += 8;
 
         doc.setTextColor(50, 50, 50);
@@ -465,11 +465,11 @@ export default function ReportsPage() {
       // ── AI Insights ──
       if (insights) {
         if (y > 220) { doc.addPage(); y = margin; }
-        doc.setTextColor(15, 255, 197);
+        doc.setTextColor(107, 158, 255); // #6B9EFF - Primary blue
         doc.setFontSize(14);
         doc.setFont("helvetica", "bold");
         doc.text("AI Recommendations", margin, y); y += 8;
-        doc.setDrawColor(15, 255, 197);
+        doc.setDrawColor(107, 158, 255); // #6B9EFF - Primary blue
         doc.line(margin, y, W - margin, y); y += 8;
 
         doc.setTextColor(50, 50, 50);
@@ -505,7 +505,7 @@ export default function ReportsPage() {
 
   if (!token) {
     return (
-      <div style={{ minHeight: "100vh", background: "#02182b", display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 64 }}>
+      <div style={{ minHeight: "100vh", background: "#0B1F2E", display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 64 }}>
         <div style={{ textAlign: "center" }}>
           <p style={{ color: "rgba(232,244,240,0.6)", marginBottom: 16 }}>Please sign in to view reports.</p>
           <button onClick={() => router.push("/auth")} className="btn-solid">Sign In</button>
@@ -515,10 +515,10 @@ export default function ReportsPage() {
   }
 
   const score = dashData?.latest_recovery_score;
-  const scoreColor = score == null ? "#6b7280" : score >= 70 ? "#22c55e" : score >= 50 ? "#eab308" : "#ef4444";
+  const scoreColor = score == null ? "#6b7280" : score >= 70 ? "#6B9EFF" : score >= 50 ? "#6B9EFF" : "#6B9EFF";
 
   return (
-    <div style={{ minHeight: "100vh", background: "#02182b", color: "#e8f4f0", paddingTop: 64 }}>
+    <div style={{ minHeight: "100vh", background: "#0B1F2E", color: "#e8f4f0", paddingTop: 64 }}>
       <div className="W" style={{ paddingTop: 32, paddingBottom: 56 }}>
 
         {/* Header */}
@@ -537,12 +537,12 @@ export default function ReportsPage() {
           {/* Report preview */}
           <div style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 20, overflow: "hidden" }}>
             {/* Report header preview */}
-            <div style={{ background: "#02182b", padding: "28px 28px 20px", borderBottom: "1px solid rgba(15,255,197,0.1)" }}>
+            <div style={{ background: "#0B1F2E", padding: "28px 28px 20px", borderBottom: "1px solid rgba(15,255,197,0.1)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
                 <div style={{ width: 28, height: 28, borderRadius: 7, background: "rgba(15,255,197,0.1)", border: "1px solid rgba(15,255,197,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#0fffc5" }} />
+                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#6B9EFF" }} />
                 </div>
-                <span style={{ fontWeight: 700, fontSize: 14, color: "#e8f4f0" }}>NeuroRestore<span style={{ color: "#0fffc5" }}> AI</span></span>
+                <span style={{ fontWeight: 700, fontSize: 14, color: "#e8f4f0" }}>NeuroRestore<span style={{ color: "#6B9EFF" }}> AI</span></span>
               </div>
               <h2 style={{ fontSize: 20, fontWeight: 800, color: "#e8f4f0", marginBottom: 4 }}>Rehabilitation Report</h2>
               <p style={{ fontSize: 12, color: "rgba(232,244,240,0.4)" }}>
@@ -555,8 +555,8 @@ export default function ReportsPage() {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 24 }}>
                 {[
                   { label: "Recovery Score", value: score != null ? `${score.toFixed(0)}/100` : "—", color: scoreColor },
-                  { label: "Total Sessions", value: dashData?.total_sessions ?? 0, color: "#0fffc5" },
-                  { label: "Cognitive Tests", value: cogScores ? Object.values(cogScores).filter((v: any) => v.score !== null).length + "/4" : "0/4", color: "#818cf8" },
+                  { label: "Total Sessions", value: dashData?.total_sessions ?? 0, color: "#6B9EFF" },
+                  { label: "Cognitive Tests", value: cogScores ? Object.values(cogScores).filter((v: any) => v.score !== null).length + "/4" : "0/4", color: "#7BAAFF" },
                 ].map((s) => (
                   <div key={s.label} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: "12px 14px" }}>
                     <p style={{ fontSize: 10, color: "rgba(232,244,240,0.4)", marginBottom: 6, textTransform: "uppercase", letterSpacing: ".06em" }}>{s.label}</p>
@@ -568,7 +568,7 @@ export default function ReportsPage() {
               {/* AI Insights preview */}
               {insights ? (
                 <div style={{ background: "rgba(15,255,197,0.04)", border: "1px solid rgba(15,255,197,0.12)", borderRadius: 12, padding: "16px 18px" }}>
-                  <p style={{ fontSize: 11, color: "#0fffc5", fontWeight: 700, marginBottom: 12, letterSpacing: ".08em", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 6 }}>
+                  <p style={{ fontSize: 11, color: "#6B9EFF", fontWeight: 700, marginBottom: 12, letterSpacing: ".08em", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 6 }}>
                     <span>🤖</span> AI Recommendations
                   </p>
                   <RecommendationRenderer text={insights} />
@@ -599,7 +599,7 @@ export default function ReportsPage() {
                     border: `1px solid ${reportType === t.id ? "rgba(15,255,197,0.3)" : "rgba(255,255,255,0.07)"}`,
                     transition: "all .2s",
                   }}>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: reportType === t.id ? "#0fffc5" : "#e8f4f0", marginBottom: 3 }}>{t.label}</p>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: reportType === t.id ? "#6B9EFF" : "#e8f4f0", marginBottom: 3 }}>{t.label}</p>
                     <p style={{ fontSize: 11, color: "rgba(232,244,240,0.4)" }}>{t.desc}</p>
                   </button>
                 ))}
@@ -611,27 +611,27 @@ export default function ReportsPage() {
               padding: "14px", borderRadius: 12, fontSize: 14, fontWeight: 600,
               background: generating ? "rgba(255,255,255,0.05)" : "rgba(245,158,11,0.1)",
               border: `1px solid ${generating ? "rgba(255,255,255,0.1)" : "rgba(245,158,11,0.3)"}`,
-              color: generating ? "rgba(232,244,240,0.4)" : "#f59e0b",
+              color: generating ? "rgba(232,244,240,0.4)" : "#6B9EFF",
               cursor: generating ? "not-allowed" : "pointer", transition: "all .2s",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
             }}>
               {generating ? (
-                <><div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(245,158,11,0.3)", borderTopColor: "#f59e0b", animation: "spinCW .8s linear infinite" }} /> Generating…</>
+                <><div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(245,158,11,0.3)", borderTopColor: "#6B9EFF", animation: "spinCW .8s linear infinite" }} /> Generating…</>
               ) : "🤖 Generate AI Insights"}
             </button>
 
             {/* Download PDF */}
             <button onClick={downloadPDF} disabled={downloading} style={{
               padding: "14px", borderRadius: 12, fontSize: 14, fontWeight: 700,
-              background: downloading ? "rgba(255,255,255,0.05)" : "#0fffc5",
-              border: "none", color: downloading ? "rgba(232,244,240,0.4)" : "#02182b",
+              background: downloading ? "rgba(255,255,255,0.05)" : "#6B9EFF",
+              border: "none", color: downloading ? "rgba(232,244,240,0.4)" : "#0B1F2E",
               cursor: downloading ? "not-allowed" : "pointer",
               boxShadow: downloading ? "none" : "0 0 24px rgba(15,255,197,0.3)",
               transition: "all .2s",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
             }}>
               {downloading ? (
-                <><div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(2,24,43,0.3)", borderTopColor: "#02182b", animation: "spinCW .8s linear infinite" }} /> Generating PDF…</>
+                <><div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(2,24,43,0.3)", borderTopColor: "#0B1F2E", animation: "spinCW .8s linear infinite" }} /> Generating PDF…</>
               ) : "⬇ Download PDF Report"}
             </button>
 

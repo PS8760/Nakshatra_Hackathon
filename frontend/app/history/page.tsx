@@ -46,7 +46,7 @@ export default function HistoryPage() {
       .finally(() => setLoading(false));
   }, [token]);
 
-  const scoreColor = (sc: number) => sc >= 70 ? "#22c55e" : sc >= 50 ? "#eab308" : "#ef4444";
+  const scoreColor = (sc: number) => sc >= 70 ? "#6B9EFF" : sc >= 50 ? "#6B9EFF" : "#6B9EFF";
 
   // ── Edit ──────────────────────────────────────────────────────────────────
   const openEdit = (s: any) => { setEditSession(s); setEditNotes(s.notes ?? ""); };
@@ -85,23 +85,24 @@ export default function HistoryPage() {
       let y = M;
 
       // Header band
-      doc.setFillColor(2, 24, 43);
+      doc.setFillColor(11, 31, 46); // #0B1F2E - Dark navy background
       doc.rect(0, 0, W, 48, "F");
-      doc.setTextColor(15, 255, 197);
+      doc.setTextColor(107, 158, 255); // #6B9EFF - Primary blue
       doc.setFontSize(20); doc.setFont("helvetica", "bold");
       doc.text("NeuroRestore AI", M, y + 8);
       doc.setFontSize(10); doc.setFont("helvetica", "normal");
-      doc.setTextColor(180, 220, 210);
+      doc.setTextColor(255, 255, 255); // #FFFFFF - White
       doc.text("Session Report", M, y + 17);
       doc.text(`Patient: ${user?.full_name ?? "—"}`, M, y + 25);
       doc.text(`Generated: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`, M, y + 32);
       y = 58;
 
       const section = (title: string) => {
-        doc.setTextColor(15, 255, 197);
+        doc.setTextColor(107, 158, 255); // #6B9EFF - Primary blue
         doc.setFontSize(13); doc.setFont("helvetica", "bold");
         doc.text(title, M, y); y += 6;
-        doc.setDrawColor(15, 255, 197); doc.setLineWidth(0.3);
+        doc.setDrawColor(107, 158, 255); // #6B9EFF - Primary blue
+        doc.setLineWidth(0.3);
         doc.line(M, y, W - M, y); y += 7;
         doc.setTextColor(40, 40, 40);
         doc.setFontSize(10); doc.setFont("helvetica", "normal");
@@ -183,7 +184,7 @@ export default function HistoryPage() {
 
   if (!token) {
     return (
-      <div style={{ minHeight: "100vh", background: "#02182b", display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 64 }}>
+      <div style={{ minHeight: "100vh", background: "#0B1F2E", display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 64 }}>
         <div style={{ textAlign: "center" }}>
           <p style={{ color: "rgba(232,244,240,0.6)", marginBottom: 16 }}>Please sign in to view history.</p>
           <button onClick={() => router.push("/auth")} className="btn-solid">Sign In</button>
@@ -193,7 +194,7 @@ export default function HistoryPage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#02182b", color: "#e8f4f0", paddingTop: 64 }}>
+    <div style={{ minHeight: "100vh", background: "#0B1F2E", color: "#e8f4f0", paddingTop: 64 }}>
       <div className="W" style={{ paddingTop: 32, paddingBottom: 56 }}>
 
         <div style={{ marginBottom: 28 }}>
@@ -210,21 +211,21 @@ export default function HistoryPage() {
               padding: "8px 20px", borderRadius: 9, fontSize: 13, fontWeight: 600,
               background: tab === t ? "rgba(15,255,197,0.12)" : "transparent",
               border: tab === t ? "1px solid rgba(15,255,197,0.25)" : "1px solid transparent",
-              color: tab === t ? "#0fffc5" : "rgba(232,244,240,0.5)",
+              color: tab === t ? "#6B9EFF" : "rgba(232,244,240,0.5)",
               cursor: "pointer", transition: "all .2s",
             }}>{label}</button>
           ))}
         </div>
 
         {error && (
-          <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 10, padding: "12px 16px", color: "#ef4444", fontSize: 13, marginBottom: 20 }}>
+          <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 10, padding: "12px 16px", color: "#6B9EFF", fontSize: 13, marginBottom: 20 }}>
             {error}
           </div>
         )}
 
         {loading ? (
           <div style={{ display: "flex", justifyContent: "center", padding: "60px 0" }}>
-            <div style={{ width: 36, height: 36, borderRadius: "50%", border: "3px solid rgba(15,255,197,0.2)", borderTopColor: "#0fffc5", animation: "spinCW 1s linear infinite" }} />
+            <div style={{ width: 36, height: 36, borderRadius: "50%", border: "3px solid rgba(15,255,197,0.2)", borderTopColor: "#6B9EFF", animation: "spinCW 1s linear infinite" }} />
           </div>
         ) : tab === "sessions" ? (
           <div>
@@ -288,7 +289,7 @@ export default function HistoryPage() {
                           title="Download PDF"
                           style={{
                             width: 34, height: 34, borderRadius: 9, border: "1px solid rgba(15,255,197,0.2)",
-                            background: "rgba(15,255,197,0.06)", color: "#0fffc5",
+                            background: "rgba(15,255,197,0.06)", color: "#6B9EFF",
                             cursor: isPdfLoading ? "not-allowed" : "pointer",
                             display: "flex", alignItems: "center", justifyContent: "center",
                             fontSize: 15, transition: "all .18s", opacity: isPdfLoading ? 0.5 : 1,
@@ -297,7 +298,7 @@ export default function HistoryPage() {
                           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(15,255,197,0.06)"; }}
                         >
                           {isPdfLoading
-                            ? <div style={{ width: 12, height: 12, borderRadius: "50%", border: "2px solid rgba(15,255,197,0.3)", borderTopColor: "#0fffc5", animation: "spinCW .8s linear infinite" }} />
+                            ? <div style={{ width: 12, height: 12, borderRadius: "50%", border: "2px solid rgba(15,255,197,0.3)", borderTopColor: "#6B9EFF", animation: "spinCW .8s linear infinite" }} />
                             : "⬇"}
                         </button>
 
@@ -325,7 +326,7 @@ export default function HistoryPage() {
                             cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
                             fontSize: 15, transition: "all .18s",
                           }}
-                          onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(239,68,68,0.12)"; el.style.color = "#ef4444"; }}
+                          onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(239,68,68,0.12)"; el.style.color = "#6B9EFF"; }}
                           onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(239,68,68,0.05)"; el.style.color = "rgba(239,68,68,0.5)"; }}
                         >🗑️</button>
                       </div>
@@ -345,7 +346,7 @@ export default function HistoryPage() {
                 <Link href="/cognitive-tests" style={{
                   padding: "13px 28px", borderRadius: 10,
                   background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)",
-                  color: "#818cf8", textDecoration: "none", fontWeight: 600, fontSize: 14,
+                  color: "#7BAAFF", textDecoration: "none", fontWeight: 600, fontSize: 14,
                 }}>Take First Test</Link>
               </div>
             ) : (
@@ -372,7 +373,7 @@ export default function HistoryPage() {
                           background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
                           color: "rgba(232,244,240,0.6)",
                         }}>
-                          {t.type}: <span style={{ color: "#0fffc5" }}>{t.score?.toFixed(0) ?? "—"}</span>
+                          {t.type}: <span style={{ color: "#6B9EFF" }}>{t.score?.toFixed(0) ?? "—"}</span>
                         </div>
                       ))}
                     </div>
@@ -419,8 +420,8 @@ export default function HistoryPage() {
               }}>Cancel</button>
               <button onClick={saveEdit} disabled={editSaving} style={{
                 padding: "10px 20px", borderRadius: 9, fontSize: 13, fontWeight: 700,
-                background: editSaving ? "rgba(15,255,197,0.3)" : "#0fffc5",
-                border: "none", color: "#02182b", cursor: editSaving ? "not-allowed" : "pointer",
+                background: editSaving ? "rgba(15,255,197,0.3)" : "#6B9EFF",
+                border: "none", color: "#0B1F2E", cursor: editSaving ? "not-allowed" : "pointer",
               }}>
                 {editSaving ? "Saving…" : "Save Notes"}
               </button>
@@ -455,7 +456,7 @@ export default function HistoryPage() {
                 padding: "10px 24px", borderRadius: 9, fontSize: 13, fontWeight: 700,
                 background: deleting ? "rgba(239,68,68,0.3)" : "rgba(239,68,68,0.15)",
                 border: "1px solid rgba(239,68,68,0.4)",
-                color: "#ef4444", cursor: deleting ? "not-allowed" : "pointer",
+                color: "#6B9EFF", cursor: deleting ? "not-allowed" : "pointer",
               }}>
                 {deleting ? "Deleting…" : "Yes, Delete"}
               </button>

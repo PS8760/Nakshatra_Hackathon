@@ -208,9 +208,9 @@ export function computeSymmetryScore(leftAngle: number, rightAngle: number): num
  */
 export function getJointColor(status: JointAngleResult["status"]): string {
   switch (status) {
-    case "good":         return "#22c55e"; // green-500
-    case "warning":      return "#eab308"; // yellow-500
-    case "out_of_range": return "#ef4444"; // red-500
+    case "good":         return "#6B9EFF"; // green-500
+    case "warning":      return "#6B9EFF"; // yellow-500
+    case "out_of_range": return "#6B9EFF"; // red-500
     case "invisible":    return "#6b7280"; // gray-500
     default:             return "#6b7280";
   }

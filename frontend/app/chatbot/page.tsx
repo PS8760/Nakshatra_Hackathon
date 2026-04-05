@@ -25,7 +25,7 @@ function TypingDots() {
   return (
     <div style={{ display: "flex", gap: 4, padding: "4px 0" }}>
       {[0, 1, 2].map((i) => (
-        <motion.div key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: "#0fffc5" }}
+        <motion.div key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: "#6B9EFF" }}
           animate={{ opacity: [.3, 1, .3], y: [0, -4, 0] }}
           transition={{ duration: .8, repeat: Infinity, delay: i * .15 }} />
       ))}
@@ -46,7 +46,7 @@ function MessageContent({ content, isUser }: { content: string; isUser: boolean 
     const headerMatch = line.match(/^\*\*(.+?)\*\*:?\s*$/);
     if (headerMatch) {
       elements.push(
-        <p key={key++} style={{ fontWeight: 700, color: "#0fffc5", fontSize: 11, marginTop: elements.length > 0 ? 10 : 0, marginBottom: 5, letterSpacing: ".06em", textTransform: "uppercase" }}>
+        <p key={key++} style={{ fontWeight: 700, color: "#6B9EFF", fontSize: 11, marginTop: elements.length > 0 ? 10 : 0, marginBottom: 5, letterSpacing: ".06em", textTransform: "uppercase" }}>
           {headerMatch[1]}
         </p>
       );
@@ -58,7 +58,7 @@ function MessageContent({ content, isUser }: { content: string; isUser: boolean 
     if (numMatch) {
       elements.push(
         <div key={key++} style={{ display: "flex", gap: 9, marginBottom: 6, alignItems: "flex-start" }}>
-          <span style={{ minWidth: 20, height: 20, borderRadius: "50%", flexShrink: 0, background: "rgba(15,255,197,0.12)", border: "1px solid rgba(15,255,197,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#0fffc5" }}>
+          <span style={{ minWidth: 20, height: 20, borderRadius: "50%", flexShrink: 0, background: "rgba(15,255,197,0.12)", border: "1px solid rgba(15,255,197,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#6B9EFF" }}>
             {numMatch[1]}
           </span>
           <span style={{ fontSize: 13, lineHeight: 1.6, color: "#e8f4f0" }}>{numMatch[2].replace(/\*\*/g, "")}</span>
@@ -72,7 +72,7 @@ function MessageContent({ content, isUser }: { content: string; isUser: boolean 
     if (bulletMatch) {
       elements.push(
         <div key={key++} style={{ display: "flex", gap: 9, marginBottom: 6, alignItems: "flex-start" }}>
-          <span style={{ width: 5, height: 5, borderRadius: "50%", flexShrink: 0, marginTop: 7, background: "#0fffc5", opacity: .7 }} />
+          <span style={{ width: 5, height: 5, borderRadius: "50%", flexShrink: 0, marginTop: 7, background: "#6B9EFF", opacity: .7 }} />
           <span style={{ fontSize: 13, lineHeight: 1.6, color: "#e8f4f0" }}>{bulletMatch[1].replace(/\*\*/g, "")}</span>
         </div>
       );
@@ -86,14 +86,14 @@ function MessageContent({ content, isUser }: { content: string; isUser: boolean 
       const isHdr = /^\*\*/.test(first);
       if (isHdr) {
         elements.push(
-          <p key={key++} style={{ fontWeight: 700, color: "#0fffc5", fontSize: 11, marginTop: elements.length > 0 ? 10 : 0, marginBottom: 5, letterSpacing: ".06em", textTransform: "uppercase" }}>
+          <p key={key++} style={{ fontWeight: 700, color: "#6B9EFF", fontSize: 11, marginTop: elements.length > 0 ? 10 : 0, marginBottom: 5, letterSpacing: ".06em", textTransform: "uppercase" }}>
             {first.replace(/\*\*/g, "").replace(/:$/, "")}
           </p>
         );
         for (const pt of parts.slice(1)) {
           elements.push(
             <div key={key++} style={{ display: "flex", gap: 9, marginBottom: 6, alignItems: "flex-start" }}>
-              <span style={{ width: 5, height: 5, borderRadius: "50%", flexShrink: 0, marginTop: 7, background: "#0fffc5", opacity: .7 }} />
+              <span style={{ width: 5, height: 5, borderRadius: "50%", flexShrink: 0, marginTop: 7, background: "#6B9EFF", opacity: .7 }} />
               <span style={{ fontSize: 13, lineHeight: 1.6, color: "#e8f4f0" }}>{pt.replace(/\*\*/g, "")}</span>
             </div>
           );
@@ -102,7 +102,7 @@ function MessageContent({ content, isUser }: { content: string; isUser: boolean 
         for (const pt of parts) {
           elements.push(
             <div key={key++} style={{ display: "flex", gap: 9, marginBottom: 6, alignItems: "flex-start" }}>
-              <span style={{ width: 5, height: 5, borderRadius: "50%", flexShrink: 0, marginTop: 7, background: "#0fffc5", opacity: .7 }} />
+              <span style={{ width: 5, height: 5, borderRadius: "50%", flexShrink: 0, marginTop: 7, background: "#6B9EFF", opacity: .7 }} />
               <span style={{ fontSize: 13, lineHeight: 1.6, color: "#e8f4f0" }}>{pt.replace(/\*\*/g, "")}</span>
             </div>
           );
@@ -152,14 +152,36 @@ export default function ChatbotPage() {
     setVoiceSupported(!!SpeechRecognition);
   }, []);
 
-  // ── TTS ─────────────────────────────────────────────────────────────────
+  // ── TTS with enhanced chatbot voice ─────────────────────────────────────
   const speak = useCallback((text: string) => {
     if (!ttsEnabled || typeof window === "undefined" || !window.speechSynthesis) return;
     window.speechSynthesis.cancel();
+    
     const utt = new SpeechSynthesisUtterance(text);
-    utt.rate = 1.0; utt.pitch = 1.05;
+    
+    // CHATBOT VOICE: Robotic, clear, professional
+    utt.rate = 1.15; // Slightly faster for efficiency
+    utt.pitch = 0.95; // Slightly lower for authority
+    utt.volume = 1.0;
+    
     // Set language for TTS
     utt.lang = lang === "hi" ? "hi-IN" : lang === "mr" ? "mr-IN" : "en-US";
+    
+    // Select best chatbot voice (prefer male/neutral voices for chatbot feel)
+    const voices = window.speechSynthesis.getVoices();
+    const chatbotVoice = 
+      voices.find(v => v.name.includes("Google UK English Male") && v.lang.startsWith("en")) || // Chrome - male voice
+      voices.find(v => v.name.includes("Daniel") && v.lang.startsWith("en")) || // Mac - male voice
+      voices.find(v => v.name.includes("Microsoft David") && v.lang.startsWith("en")) || // Windows - male
+      voices.find(v => v.name.includes("Male") && v.lang.startsWith(utt.lang.substring(0, 2))) ||
+      voices.find(v => v.lang.startsWith(utt.lang.substring(0, 2))) ||
+      voices[0];
+    
+    if (chatbotVoice) {
+      utt.voice = chatbotVoice;
+      console.log(`🤖 Chatbot speaking with: ${chatbotVoice.name}`);
+    }
+    
     window.speechSynthesis.speak(utt);
   }, [ttsEnabled, lang]);
 
@@ -242,7 +264,7 @@ export default function ChatbotPage() {
 
   if (!token) {
     return (
-      <div style={{ minHeight: "100vh", background: "#02182b", display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 64 }}>
+      <div style={{ minHeight: "100vh", background: "#0B1F2E", display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 64 }}>
         <div style={{ textAlign: "center" }}>
           <p style={{ color: "rgba(232,244,240,0.6)", marginBottom: 16 }}>Please sign in to use the AI chatbot.</p>
           <button onClick={() => router.push("/auth")} className="btn-solid">Sign In</button>
@@ -252,7 +274,7 @@ export default function ChatbotPage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#02182b", color: "#e8f4f0", paddingTop: 64, display: "flex", flexDirection: "column" }}>
+    <div style={{ minHeight: "100vh", background: "#0B1F2E", color: "#e8f4f0", paddingTop: 64, display: "flex", flexDirection: "column" }}>
       <div className="W" style={{ flex: 1, display: "flex", flexDirection: "column", paddingTop: 24, paddingBottom: 24, height: "calc(100vh - 64px)" }}>
 
         {/* Header */}
@@ -265,11 +287,11 @@ export default function ChatbotPage() {
               position: "relative",
             }} className="a-border">
               🤖
-              <div style={{ position: "absolute", bottom: 2, right: 2, width: 10, height: 10, borderRadius: "50%", background: "#22c55e", border: "2px solid #02182b" }} className="a-pulse" />
+              <div style={{ position: "absolute", bottom: 2, right: 2, width: 10, height: 10, borderRadius: "50%", background: "#6B9EFF", border: "2px solid #0B1F2E" }} className="a-pulse" />
             </div>
             <div>
               <h1 style={{ fontSize: 18, fontWeight: 700, color: "#e8f4f0" }}>{t("chat.title")}</h1>
-              <p style={{ fontSize: 12, color: "#22c55e" }}>{t("chat.online")}</p>
+              <p style={{ fontSize: 12, color: "#6B9EFF" }}>{t("chat.online")}</p>
             </div>
           </div>
 
@@ -280,7 +302,7 @@ export default function ChatbotPage() {
               display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 9,
               background: ttsEnabled ? "rgba(15,255,197,0.1)" : "rgba(255,255,255,0.05)",
               border: `1px solid ${ttsEnabled ? "rgba(15,255,197,0.3)" : "rgba(255,255,255,0.1)"}`,
-              color: ttsEnabled ? "#0fffc5" : "rgba(232,244,240,0.5)", cursor: "pointer", fontSize: 12,
+              color: ttsEnabled ? "#6B9EFF" : "rgba(232,244,240,0.5)", cursor: "pointer", fontSize: 12,
             }}>
               {ttsEnabled ? t("chat.voice_on") : t("chat.voice_off")}
             </button>
@@ -299,9 +321,9 @@ export default function ChatbotPage() {
                 <div style={{
                   maxWidth: "75%", padding: "12px 16px",
                   borderRadius: m.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
-                  background: m.role === "user" ? "#0fffc5" : "rgba(255,255,255,0.04)",
+                  background: m.role === "user" ? "#6B9EFF" : "rgba(255,255,255,0.04)",
                   border: m.role === "user" ? "none" : "1px solid rgba(255,255,255,0.08)",
-                  color: m.role === "user" ? "#02182b" : "#e8f4f0",
+                  color: m.role === "user" ? "#0B1F2E" : "#e8f4f0",
                   fontSize: 14, lineHeight: 1.6,
                 }}>
                   <MessageContent content={m.content} isUser={m.role === "user"} />
@@ -310,7 +332,7 @@ export default function ChatbotPage() {
                   </p>
                 </div>
                 {m.role === "user" && (
-                  <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(15,255,197,0.15)", border: "1px solid rgba(15,255,197,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#0fffc5", flexShrink: 0 }}>U</div>
+                  <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(15,255,197,0.15)", border: "1px solid rgba(15,255,197,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#6B9EFF", flexShrink: 0 }}>U</div>
                 )}
               </motion.div>
             ))}
@@ -335,7 +357,7 @@ export default function ChatbotPage() {
               background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)",
               color: "rgba(232,244,240,0.6)", cursor: "pointer", transition: "all .2s", whiteSpace: "nowrap",
             }}
-              onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(15,255,197,0.08)"; el.style.borderColor = "rgba(15,255,197,0.25)"; el.style.color = "#0fffc5"; }}
+              onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(15,255,197,0.08)"; el.style.borderColor = "rgba(15,255,197,0.25)"; el.style.color = "#6B9EFF"; }}
               onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(255,255,255,0.04)"; el.style.borderColor = "rgba(255,255,255,0.1)"; el.style.color = "rgba(232,244,240,0.6)"; }}
             >{p}</button>
           ))}
@@ -395,12 +417,12 @@ export default function ChatbotPage() {
           {/* Send button */}
           <button onClick={() => sendMessage(input)} disabled={!input.trim() || loading} style={{
             width: 38, height: 38, borderRadius: 10, flexShrink: 0,
-            background: input.trim() && !loading ? "#0fffc5" : "rgba(255,255,255,0.06)",
+            background: input.trim() && !loading ? "#6B9EFF" : "rgba(255,255,255,0.06)",
             border: "none", cursor: input.trim() && !loading ? "pointer" : "not-allowed",
             display: "flex", alignItems: "center", justifyContent: "center", transition: "all .2s",
           }}>
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M2 8h12M8 2l6 6-6 6" stroke={input.trim() && !loading ? "#02182b" : "rgba(232,244,240,0.3)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 8h12M8 2l6 6-6 6" stroke={input.trim() && !loading ? "#0B1F2E" : "rgba(232,244,240,0.3)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
         </div>

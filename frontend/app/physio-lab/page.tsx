@@ -114,7 +114,7 @@ export default function PhysioLabPage() {
       ctx.arc(centerX, baseY + yOffset - 100, 25, 0, Math.PI * 2);
       ctx.fillStyle = "#4ade80";
       ctx.fill();
-      ctx.strokeStyle = "#22c55e";
+      ctx.strokeStyle = "#6B9EFF";
       ctx.lineWidth = 3;
       ctx.stroke();
 
@@ -175,9 +175,9 @@ export default function PhysioLabPage() {
       joints.forEach(joint => {
         ctx.beginPath();
         ctx.arc(joint.x, joint.y, 8, 0, Math.PI * 2);
-        ctx.fillStyle = "#fbbf24";
+        ctx.fillStyle = "#6B9EFF";
         ctx.fill();
-        ctx.strokeStyle = "#f59e0b";
+        ctx.strokeStyle = "#6B9EFF";
         ctx.lineWidth = 2;
         ctx.stroke();
       });

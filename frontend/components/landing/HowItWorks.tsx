@@ -32,7 +32,7 @@ function Step({ s, i }: { s: typeof STEPS[0]; i: number }) {
           background: "rgba(15,255,197,.08)", border: "1.5px solid rgba(15,255,197,.28)",
           display: "flex", alignItems: "center", justifyContent: "center",
           fontFamily: "monospace", fontSize: 12, fontWeight: 700,
-          color: "#0fffc5", letterSpacing: ".05em",
+          color: "#6B9EFF", letterSpacing: ".05em",
           boxShadow: "0 0 20px rgba(15,255,197,.1)",
         }}>{s.n}</div>
         {i < STEPS.length - 1 && (

@@ -158,7 +158,7 @@ export default function VoiceGuidedExercise({ exerciseId, onComplete }: Props) {
             style={{
               padding: '12px 24px',
               fontSize: '16px',
-              background: '#0fffc5',
+              background: '#6B9EFF',
               border: 'none',
               borderRadius: '8px',
               cursor: 'pointer',
@@ -174,7 +174,7 @@ export default function VoiceGuidedExercise({ exerciseId, onComplete }: Props) {
               style={{
                 padding: '12px 24px',
                 fontSize: '16px',
-                background: isPaused ? '#0fffc5' : '#ffa500',
+                background: isPaused ? '#6B9EFF' : '#ffa500',
                 border: 'none',
                 borderRadius: '8px',
                 cursor: 'pointer',

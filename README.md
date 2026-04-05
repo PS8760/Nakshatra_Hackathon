@@ -2,6 +2,38 @@
 
 AI-Powered Dual Rehabilitation System | Healthcare Track
 
+## 🔒 Zero Transmission Architecture
+
+**NeuroRestore operates on a Zero Transmission Architecture** - all pose detection and video processing happens entirely client-side in your browser. Here's how it works:
+
+### Privacy-First Design
+- ✅ **100% Client-Side Processing**: MediaPipe Pose runs in your browser using WebGL/WASM
+- ✅ **Zero Video Upload**: Your camera feed NEVER leaves your device
+- ✅ **Metadata Only**: Only joint angles, rep counts, and scores are sent to the server
+- ✅ **HIPAA-Ready**: No video storage = no PHI (Protected Health Information) concerns
+- ✅ **Works Offline**: Pose detection works without internet (after initial page load)
+
+### What Gets Transmitted
+```json
+{
+  "joint_angles": { "knee_left": 124.5, "shoulder_right": 87.2 },
+  "rep_count": 12,
+  "form_score": 85.3,
+  "timestamp": "2026-04-05T10:30:00Z"
+}
+```
+
+### What NEVER Gets Transmitted
+- ❌ Video frames
+- ❌ Camera feed
+- ❌ Raw pixel data
+- ❌ Face images
+- ❌ Any personally identifiable visual data
+
+This architecture ensures maximum privacy while delivering real-time AI-powered rehabilitation guidance.
+
+---
+
 ## Quick Start (Local Dev)
 
 ### Backend
