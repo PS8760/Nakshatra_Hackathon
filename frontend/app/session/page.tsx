@@ -11,6 +11,9 @@ import { shouldTriggerReferral } from "@/components/session/ReferralCard";
 const PoseCamera   = dynamic(() => import("@/components/session/PoseCamera"),   { ssr: false });
 const PhysioGuide  = dynamic(() => import("@/components/session/PhysioGuide"),  { ssr: false });
 const ReferralCard = dynamic(() => import("@/components/session/ReferralCard"), { ssr: false });
+const TriageModal  = dynamic(() => import("@/components/session/TriageModal"),  { ssr: false });
+
+import type { SessionConfig } from "@/components/session/TriageModal";
 
 /* ── Joint selector ─────────────────────────────────────────────────────── */
 const JOINT_PRESETS = [
@@ -96,6 +99,9 @@ export default function SessionPage() {
   const [preset,        setPreset]        = useState(JOINT_PRESETS[0]);
   const [ending,        setEnding]        = useState(false);
   const [referral,      setReferral]      = useState<{ trigger: "pain" | "posture_critical"; intensity?: number } | null>(null);
+  const [showTriage,    setShowTriage]    = useState(false);
+  const [sessionConfig, setSessionConfig] = useState<SessionConfig | null>(null);
+  const [sessionLimit,  setSessionLimit]  = useState<number | null>(null); // seconds
   const [sessionData,   setSessionData]   = useState<{
     repCount: number;
     avgFormScore: number | null;
@@ -107,23 +113,40 @@ export default function SessionPage() {
 
   useEffect(() => { useAuthStore.getState().hydrate(); }, []);
 
-  // Timer
+  // Timer — auto-end when session limit reached
   useEffect(() => {
     if (isActive) {
-      timerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
+      timerRef.current = setInterval(() => setElapsed((e) => {
+        if (sessionLimit && e + 1 >= sessionLimit) {
+          handleEnd();
+          return e;
+        }
+        return e + 1;
+      }), 1000);
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
       setElapsed(0);
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [isActive]);
+  }, [isActive, sessionLimit]);
 
   const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
   const totalReps = Object.values(repCounts).reduce((a, b) => a + (b ?? 0), 0);
 
   const handleStart = async () => {
+    // Show triage modal first — it will call handleStartWithConfig when done
+    setShowTriage(true);
+  };
+
+  const handleStartWithConfig = async (config?: SessionConfig) => {
+    setShowTriage(false);
+    if (config) {
+      setSessionConfig(config);
+      setSessionLimit(config.duration_s);
+    }
     try {
-      const res = await createSession("physical");
+      const sessionType = config?.session_type ?? "physical";
+      const res = await createSession(sessionType);
       setSessionId(res.data.id);
       setIsActive(true);
       setStartTime(Date.now());
@@ -193,6 +216,13 @@ export default function SessionPage() {
     <div style={{ minHeight: "100vh", background: "#02182b", color: "#e8f4f0", paddingTop: 64 }}>
       {showPain && <PainModal onLog={handlePainLog} onClose={() => setShowPain(false)} />}
 
+      {showTriage && (
+        <TriageModal
+          onComplete={(cfg) => handleStartWithConfig(cfg)}
+          onSkip={() => handleStartWithConfig()}
+        />
+      )}
+
       {referral && (
         <ReferralCard
           trigger={referral.trigger}
@@ -244,6 +274,31 @@ export default function SessionPage() {
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Session config banner — shown when triage completed */}
+        {sessionConfig && isActive && (
+          <div style={{
+            marginBottom: 16, padding: "10px 16px", borderRadius: 12,
+            background: `${sessionConfig.color}12`,
+            border: `1px solid ${sessionConfig.color}30`,
+            display: "flex", alignItems: "center", gap: 10,
+          }}>
+            <span style={{ fontSize: 18 }}>{sessionConfig.emoji}</span>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: 12, fontWeight: 700, color: sessionConfig.color }}>{sessionConfig.label}</p>
+              <p style={{ fontSize: 10, color: "rgba(232,244,240,0.4)" }}>
+                {sessionConfig.duration_min} min · {sessionConfig.intensity} intensity · {sessionConfig.focus}
+                {sessionLimit && ` · Limit: ${Math.floor(sessionLimit / 60)}m`}
+              </p>
+            </div>
+            {sessionConfig.physio_flag && (
+              <span style={{ fontSize: 10, background: "rgba(239,68,68,0.15)",
+                color: "#ef4444", padding: "2px 8px", borderRadius: 5, fontWeight: 700 }}>
+                🩺 Physio Flagged
+              </span>
+            )}
           </div>
         )}
 

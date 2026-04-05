@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { getDashboard, getDashboardSummary, getCognitiveLatestScores } from "@/lib/api";
+import { getDashboard, getDashboardSummary, getCognitiveLatestScores, getAdaptiveStatus } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 
 const RecoveryChart    = dynamic(() => import("@/components/dashboard/RecoveryChart"),    { ssr: false });
@@ -73,6 +73,9 @@ export default function DashboardPage() {
   const [cogScores, setCogScores] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [lastSessionEnd, setLastSessionEnd] = useState(0);
+  const [relapseAlert, setRelapseAlert] = useState<{
+    severity: string; ui_color: string; voice_message: string; doctor_flag: string;
+  } | null>(null);
 
   useEffect(() => {
     useAuthStore.getState().hydrate();
@@ -80,10 +83,19 @@ export default function DashboardPage() {
       getDashboard(),
       getDashboardSummary().catch(() => ({ data: { summary: "" } })),
       getCognitiveLatestScores().catch(() => ({ data: {} })),
-    ]).then(([dash, ai, cog]) => {
+      getAdaptiveStatus().catch(() => ({ data: null })),
+    ]).then(([dash, ai, cog, adaptive]) => {
       setData(dash.data);
       setAiSummary(ai.data.summary || "");
       setCogScores(cog.data);
+      if (adaptive.data && adaptive.data.overall_severity !== "none") {
+        setRelapseAlert(adaptive.data);
+        if (adaptive.data.voice_message && typeof window !== "undefined" && window.speechSynthesis) {
+          const u = new SpeechSynthesisUtterance(adaptive.data.voice_message);
+          u.rate = 0.95; u.pitch = 1;
+          window.speechSynthesis.speak(u);
+        }
+      }
     }).catch(() => router.push("/auth"))
       .finally(() => setLoading(false));
   }, [router]);
@@ -139,6 +151,41 @@ export default function DashboardPage() {
             >🧠 Cognitive Test</Link>
           </div>
         </div>
+
+        {/* Relapse / regression alert banner */}
+        {relapseAlert && (
+          <div style={{
+            background: `${relapseAlert.ui_color}15`,
+            border: `1px solid ${relapseAlert.ui_color}50`,
+            borderRadius: 14, padding: "14px 20px", marginBottom: 24,
+            display: "flex", alignItems: "flex-start", gap: 12,
+          }}>
+            <span style={{ fontSize: 22, flexShrink: 0 }}>
+              {relapseAlert.severity === "critical" ? "🚨" : "⚠️"}
+            </span>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                <p style={{ fontSize: 12, color: relapseAlert.ui_color, fontWeight: 700,
+                  letterSpacing: ".06em", textTransform: "uppercase" }}>
+                  {relapseAlert.severity === "critical" ? "Regression Detected" : "Recovery Warning"}
+                  {relapseAlert.doctor_flag === "high_priority" && (
+                    <span style={{ marginLeft: 10, fontSize: 10, background: "#ef4444",
+                      color: "#fff", padding: "2px 7px", borderRadius: 5 }}>
+                      HIGH PRIORITY — Doctor Notified
+                    </span>
+                  )}
+                </p>
+                <button onClick={() => setRelapseAlert(null)} style={{
+                  background: "none", border: "none", color: "rgba(232,244,240,0.4)",
+                  cursor: "pointer", fontSize: 16,
+                }}>✕</button>
+              </div>
+              <p style={{ fontSize: 13, color: "rgba(232,244,240,0.75)", lineHeight: 1.5 }}>
+                {relapseAlert.voice_message}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* AI Summary banner */}
         {aiSummary && (

@@ -41,6 +41,21 @@ export const getExerciseConfigs = () => api.get("/analytics/exercise-configs");
 export const getJointLiveStats = (joint = "knee_left", sessions = 10) =>
   api.get(`/analytics/joint-live-stats?joint=${joint}&sessions=${sessions}`);
 
+// Adaptive Recovery
+export const getRecoveryProfile = (joint: string) =>
+  api.get(`/adaptive/profile/${joint}`);
+export const getRelapseCheck = (joint: string) =>
+  api.get(`/adaptive/relapse-check/${joint}`);
+export const getAdaptiveStatus = () =>
+  api.get("/adaptive/status");
+
+// Triage
+export const submitTriage = (data: {
+  pain_intensity: number; yesterday_experience: string;
+  pain_joint: string; mood: string; notes?: string; session_id?: number;
+}) => api.post("/triage/intake", data);
+export const getLastIntake = () => api.get("/triage/last-intake");
+
 // ── Cognitive Tests ──────────────────────────────────────────────────────────
 export const submitCognitiveSession = (tests: any[]) =>
   api.post("/cognitive/session", { tests });
