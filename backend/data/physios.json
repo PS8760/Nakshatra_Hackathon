@@ -1,0 +1,57 @@
+[
+  {
+    "id": 1,
+    "name": "Dr. Priya Sharma",
+    "clinic": "ActiveCare Physiotherapy",
+    "lat": 19.1136,
+    "lng": 72.8697,
+    "phone": "+91-98200-11111",
+    "specialization": "Orthopaedic & Sports Rehab",
+    "rating": 4.8,
+    "available": true
+  },
+  {
+    "id": 2,
+    "name": "Dr. Rohan Mehta",
+    "clinic": "SpineAlign Clinic",
+    "lat": 19.1195,
+    "lng": 72.8458,
+    "phone": "+91-98200-22222",
+    "specialization": "Neurological Rehabilitation",
+    "rating": 4.6,
+    "available": true
+  },
+  {
+    "id": 3,
+    "name": "Dr. Anita Desai",
+    "clinic": "MoveWell Physio Centre",
+    "lat": 19.1050,
+    "lng": 72.8370,
+    "phone": "+91-98200-33333",
+    "specialization": "Post-Surgical Recovery",
+    "rating": 4.9,
+    "available": false
+  },
+  {
+    "id": 4,
+    "name": "Dr. Karan Patel",
+    "clinic": "RehabPlus",
+    "lat": 19.0990,
+    "lng": 72.8545,
+    "phone": "+91-98200-44444",
+    "specialization": "Knee & Hip Rehabilitation",
+    "rating": 4.7,
+    "available": true
+  },
+  {
+    "id": 5,
+    "name": "Dr. Sneha Joshi",
+    "clinic": "HealMotion Physiotherapy",
+    "lat": 19.1280,
+    "lng": 72.8610,
+    "phone": "+91-98200-55555",
+    "specialization": "Paediatric & Geriatric Rehab",
+    "rating": 4.5,
+    "available": true
+  }
+]

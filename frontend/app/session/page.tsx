@@ -6,9 +6,11 @@ import { createSession, endSession, logPainEvent } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import { useLang } from "@/context/LangContext";
 import type { JointName } from "@/types";
+import { shouldTriggerReferral } from "@/components/session/ReferralCard";
 
 const PoseCamera   = dynamic(() => import("@/components/session/PoseCamera"),   { ssr: false });
 const PhysioGuide  = dynamic(() => import("@/components/session/PhysioGuide"),  { ssr: false });
+const ReferralCard = dynamic(() => import("@/components/session/ReferralCard"), { ssr: false });
 
 /* ── Joint selector ─────────────────────────────────────────────────────── */
 const JOINT_PRESETS = [
@@ -93,6 +95,7 @@ export default function SessionPage() {
   const [showPain,      setShowPain]      = useState(false);
   const [preset,        setPreset]        = useState(JOINT_PRESETS[0]);
   const [ending,        setEnding]        = useState(false);
+  const [referral,      setReferral]      = useState<{ trigger: "pain" | "posture_critical"; intensity?: number } | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => { useAuthStore.getState().hydrate(); }, []);
@@ -144,11 +147,19 @@ export default function SessionPage() {
   const handleFeedback = useCallback((message: string, status: string) => {
     setFeedback({ message, status });
     setTimeout(() => setFeedback(null), 4000);
-  }, []);
+    // Severity trigger: critical posture from AI → show referral
+    if (status === "critical" && !referral) {
+      setReferral({ trigger: "posture_critical" });
+    }
+  }, [referral]);
 
   const handlePainLog = async (joint: string, intensity: number) => {
     if (!sessionId) return;
     try { await logPainEvent(sessionId, joint, intensity); } catch {}
+    // Severity trigger: pain > 7 → show referral
+    if (shouldTriggerReferral(intensity)) {
+      setReferral({ trigger: "pain", intensity });
+    }
   };
 
   if (!token) {
@@ -170,6 +181,15 @@ export default function SessionPage() {
   return (
     <div style={{ minHeight: "100vh", background: "#02182b", color: "#e8f4f0", paddingTop: 64 }}>
       {showPain && <PainModal onLog={handlePainLog} onClose={() => setShowPain(false)} />}
+
+      {referral && (
+        <ReferralCard
+          trigger={referral.trigger}
+          painIntensity={referral.intensity}
+          postureStatus={referral.trigger === "posture_critical" ? "critical" : undefined}
+          onDismiss={() => setReferral(null)}
+        />
+      )}
 
       <div className="W" style={{ paddingTop: 20, paddingBottom: 40 }}>
         {/* Back + session status bar */}

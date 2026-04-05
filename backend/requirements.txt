@@ -11,3 +11,6 @@ websockets
 aiofiles
 python-dotenv
 slowapi
+mediapipe
+numpy
+opencv-python-headless
